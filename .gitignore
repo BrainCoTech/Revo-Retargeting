@@ -1,0 +1,31 @@
+# ROS 2 build products
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local runtime data
+dist/
+*.mcal
+*.bag
+*.db3
+*.log
+.manus_revo2/
+src/manus_ros2/ManusSDK/lib/*.so
+src/manus_ros2/ManusSDK/lib/*.so.*
+!src/manus_ros2/ManusSDK/lib/.gitkeep
+
+# Editor and local agent state
+.vscode/
+.idea/
+.agents/
+.codex
+.codex/

@@ -1,0 +1,11 @@
+catkin_pkg
+colcon-common-extensions
+empy==3.3.4
+jinja2
+lark
+numpy<2
+pyyaml
+rospkg
+setuptools
+typeguard
+typing_extensions

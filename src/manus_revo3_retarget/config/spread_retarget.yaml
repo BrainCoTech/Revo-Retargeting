@@ -1,0 +1,58 @@
+manus_revo3_retarget:
+  ros__parameters:
+    # Four-finger spread/MPR retargeting.
+    legacy_left_physical_index_spread_offset_deg: 15.0
+    legacy_left_physical_middle_spread_offset_deg: 15.0
+    legacy_left_physical_ring_spread_offset_deg: 15.0
+    legacy_left_physical_pinky_spread_offset_deg: 15.0
+    legacy_left_physical_index_spread_scale: -1.0
+    legacy_left_physical_middle_spread_scale: -1.0
+    legacy_left_physical_ring_spread_scale: -1.0
+    legacy_left_physical_pinky_spread_scale: -1.0
+    legacy_left_physical_middle_spread_dynamic: true
+    legacy_left_physical_ring_spread_forward_scale: 1.0
+    legacy_left_physical_ring_spread_backward_scale: 1.0
+
+    legacy_right_physical_index_spread_offset_deg: 15.0
+    legacy_right_physical_middle_spread_offset_deg: -5.0
+    legacy_right_physical_ring_spread_offset_deg: -5.0
+    legacy_right_physical_pinky_spread_offset_deg: 0.0
+    legacy_right_physical_index_spread_scale: 1.0
+    legacy_right_physical_middle_spread_scale: 1.0
+    legacy_right_physical_ring_spread_scale: 1.0
+    legacy_right_physical_pinky_spread_scale: 1.0
+    legacy_right_physical_middle_spread_dynamic: true
+    legacy_right_physical_ring_spread_forward_scale: 1.0
+    legacy_right_physical_ring_spread_backward_scale: 1.0
+
+    # Final physical spread command calibration:
+    #   command_position = command_position * scale + offset_deg
+    physical_left_little_MPR_joint_scale: 1.0
+    physical_left_little_MPR_joint_offset_deg: 0.0
+    physical_left_ring_MPR_joint_scale: 1.0
+    physical_left_ring_MPR_joint_offset_deg: 0.0
+    physical_left_middle_MPR_joint_scale: 1.0
+    physical_left_middle_MPR_joint_offset_deg: 0.0
+    physical_left_index_MPR_joint_scale: 1.0
+    physical_left_index_MPR_joint_offset_deg: 0.0
+
+    physical_right_little_MPR_joint_scale: 1.0
+    physical_right_little_MPR_joint_offset_deg: 0.0
+    physical_right_ring_MPR_joint_scale: 1.0
+    physical_right_ring_MPR_joint_offset_deg: 0.0
+    physical_right_middle_MPR_joint_scale: 1.0
+    physical_right_middle_MPR_joint_offset_deg: 0.0
+    physical_right_index_MPR_joint_scale: 1.0
+    physical_right_index_MPR_joint_offset_deg: 0.0
+
+    # Spread guard only adjusts MPR/spread to avoid adjacent-finger squeeze.
+    spread_guard_enabled: true
+    spread_guard_min_adjacent_distance_mm: 16.0
+    spread_guard_converging_joint_weight: 0.35
+    spread_guard_converging_joint_deadband_deg: 2.0
+    spread_guard_keep_weight: 0.03
+    spread_guard_damping: 0.01
+    spread_guard_step_size: 0.7
+    spread_guard_max_iterations: 5
+    spread_guard_max_step_deg: 4.0
+    spread_guard_max_correction_deg: 12.0

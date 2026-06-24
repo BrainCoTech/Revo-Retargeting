@@ -1,0 +1,70 @@
+manus_revo3_retarget:
+  ros__parameters:
+    # Four-finger flexion retargeting for index/middle/ring/little MCP/PIP/DIP.
+    legacy_left_physical_index_angle_scale: 1.0
+    legacy_left_physical_four_finger_mcp_scale: 1.0
+    legacy_left_physical_middle_ring_dip_scale: 1.0
+    legacy_left_physical_pinky_angle_scale: 1.0
+    legacy_left_physical_pinky_dip_pip_scale: 1.0
+    legacy_left_physical_pinky_mcp_scale: 1.0
+    legacy_left_physical_all_finger_angle_scale: 1.0
+
+    legacy_right_physical_index_angle_scale: 1.0
+    legacy_right_physical_four_finger_mcp_scale: 1.0
+    legacy_right_physical_middle_ring_dip_scale: 1.0
+    legacy_right_physical_pinky_angle_scale: 1.0
+    legacy_right_physical_pinky_dip_pip_scale: 1.0
+    legacy_right_physical_pinky_mcp_scale: 1.0
+    legacy_right_physical_all_finger_angle_scale: 1.0
+
+    # Final physical flexion command calibration:
+    #   command_position = command_position * scale + offset_deg
+    physical_left_little_MCP_joint_scale: 1.0
+    physical_left_little_MCP_joint_offset_deg: 0.0
+    physical_left_little_PIP_joint_scale: 1.0
+    physical_left_little_PIP_joint_offset_deg: 0.0
+    physical_left_little_DIP_joint_scale: 1.0
+    physical_left_little_DIP_joint_offset_deg: 0.0
+    physical_left_ring_MCP_joint_scale: 1.0
+    physical_left_ring_MCP_joint_offset_deg: 0.0
+    physical_left_ring_PIP_joint_scale: 1.0
+    physical_left_ring_PIP_joint_offset_deg: 0.0
+    physical_left_ring_DIP_joint_scale: 1.0
+    physical_left_ring_DIP_joint_offset_deg: 0.0
+    physical_left_middle_MCP_joint_scale: 1.0
+    physical_left_middle_MCP_joint_offset_deg: 0.0
+    physical_left_middle_PIP_joint_scale: 1.0
+    physical_left_middle_PIP_joint_offset_deg: 0.0
+    physical_left_middle_DIP_joint_scale: 1.0
+    physical_left_middle_DIP_joint_offset_deg: 0.0
+    physical_left_index_MCP_joint_scale: 1.0
+    physical_left_index_MCP_joint_offset_deg: 0.0
+    physical_left_index_PIP_joint_scale: 1.0
+    physical_left_index_PIP_joint_offset_deg: 0.0
+    physical_left_index_DIP_joint_scale: 1.0
+    physical_left_index_DIP_joint_offset_deg: 0.0
+
+    physical_right_little_MCP_joint_scale: 1.0
+    physical_right_little_MCP_joint_offset_deg: 4.0
+    physical_right_little_PIP_joint_scale: 1.2
+    physical_right_little_PIP_joint_offset_deg: 12.0
+    physical_right_little_DIP_joint_scale: 1.0
+    physical_right_little_DIP_joint_offset_deg: 9.0
+    physical_right_ring_MCP_joint_scale: 1.0
+    physical_right_ring_MCP_joint_offset_deg: 5.0
+    physical_right_ring_PIP_joint_scale: 1.2
+    physical_right_ring_PIP_joint_offset_deg: 5.0
+    physical_right_ring_DIP_joint_scale: 1.0
+    physical_right_ring_DIP_joint_offset_deg: 9.0
+    physical_right_middle_MCP_joint_scale: 1.0
+    physical_right_middle_MCP_joint_offset_deg: 5.0
+    physical_right_middle_PIP_joint_scale: 1.2
+    physical_right_middle_PIP_joint_offset_deg: 5.0
+    physical_right_middle_DIP_joint_scale: 1.0
+    physical_right_middle_DIP_joint_offset_deg: 0.0
+    physical_right_index_MCP_joint_scale: 1.0
+    physical_right_index_MCP_joint_offset_deg: 8.0
+    physical_right_index_PIP_joint_scale: 1.2
+    physical_right_index_PIP_joint_offset_deg: 12.0
+    physical_right_index_DIP_joint_scale: 1.0
+    physical_right_index_DIP_joint_offset_deg: 9.0
