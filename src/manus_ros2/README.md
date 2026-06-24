@@ -7,6 +7,13 @@ The SDK shared libraries are not stored in this repository; install them with:
 MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ../../scripts/install_manus_sdk.sh
 ```
 
+If you already have the official MANUS SDK files on a development machine, make
+a customer install archive from the workspace root:
+
+```bash
+./scripts/package_manus_sdk.sh
+```
+
 Expected local layout after installation:
 
 ```text

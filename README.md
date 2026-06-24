@@ -62,11 +62,21 @@ If all other dependencies are already installed, install only the MANUS SDK file
 MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
 ```
 
-The SDK installer copies the official `libManusSDK*.so` files into `src/manus_ros2/ManusSDK/lib/`. It also runs:
+The SDK installer copies the official `libManusSDK*.so` files into `src/manus_ros2/ManusSDK/lib/`. After installing the SDK, verify the workspace with:
 
 ```bash
 ./scripts/check_system_deps.sh
 ```
+
+To create a customer SDK package from a machine that already has the official
+MANUS SDK files installed locally:
+
+```bash
+./scripts/package_manus_sdk.sh
+```
+
+This creates `dist/manus-sdk-linux-x86_64.tar.gz` plus a `.sha256` checksum.
+Customers can install that archive with `MANUS_SDK_ARCHIVE=... ./scripts/install_manus_sdk.sh`.
 
 Use the check script any time you move to a new computer or a new shell environment.
 
