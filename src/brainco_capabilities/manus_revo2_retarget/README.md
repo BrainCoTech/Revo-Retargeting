@@ -108,13 +108,13 @@ python -m colcon build --packages-select manus_revo2_retarget
 
 ### 一键跑通（推荐）
 
-右手真机 + MANUS 遥操作推荐显式使用 ros2_control 后端；不需要再单独执行 `ros2 launch revo2_driver ...`，也不需要手动切 controller：
+右手真机 + MANUS 遥操作推荐显式使用 ros2_control 后端；不需要再单独执行 `ros2 launch revo2_driver ...`：
 
 这个 launch 会依次完成四件事，并自动拉起 target/actual/error 图表：
 
 ```text
 启动 Revo2 driver
-  -> 自动切到 revo2_pid_controller
+  -> 尝试自动切到 revo2_pid_controller
   -> 启动 MANUS publisher + target-only retarget
   -> 启动 retarget plot monitor
 ```
@@ -145,6 +145,49 @@ ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
   hand_mode:=right \
   controller_backend:=ros2_control \
+  launch_plot:=false
+```
+
+### Controller 默认逻辑
+
+`revo2_driver` 单独启动时默认激活 `joint_forward_pos_controller`。这是有意保留的安全默认值：硬件 bring-up 阶段可以直接测试 position command，不依赖 MANUS 手套和 retarget target stream。
+
+MANUS 遥操作的推荐链路使用 `revo2_pid_controller`，所以 `real_hand_pipeline_launch.py` 会尝试把 controller 从默认的 position controller 切到 pid controller。如果自动切换失败，可以手动查看：
+
+```bash
+ROS2CLI_DISABLE_DAEMON=1 ros2 control list_controllers \
+  -c /revo2_right/controller_manager
+```
+
+遥操作时理想状态是：
+
+```text
+revo2_joint_state            active
+joint_forward_pos_controller inactive
+revo2_pid_controller         active
+joint_forward_vel_controller inactive
+```
+
+如果当前还是 `joint_forward_pos_controller active`，只 deactivate 当前 active 的 position controller，再 activate pid controller：
+
+```bash
+ROS2CLI_DISABLE_DAEMON=1 ros2 control switch_controllers \
+  -c /revo2_right/controller_manager \
+  --deactivate joint_forward_pos_controller \
+  --activate revo2_pid_controller \
+  --activate-asap \
+  --strict
+```
+
+不要在 `--strict` 模式下 deactivate 已经 inactive 的 controller。比如 `joint_forward_vel_controller` 已经 inactive 时，不需要写进 `--deactivate`。
+
+手动切换成功后，可以用 `switch_controllers:=false` 重新启动，避免重复运行自动切换脚本：
+
+```bash
+ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
+  hand_mode:=right \
+  controller_backend:=ros2_control \
+  switch_controllers:=false \
   launch_plot:=false
 ```
 
