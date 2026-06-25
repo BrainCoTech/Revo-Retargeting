@@ -1,0 +1,80 @@
+# Tuned Revo2 pd_velocity control profile for Manus teleoperation.
+# The retargeter, Revo2 JointState feedback, and PD loop all use ROS units:
+# target/feedback position in rad, velocity command in rad/s.
+
+skip_calibration: true
+# Do not run or load the retargeter thumb-calibration file by default.
+# MANUS glove calibration is handled inside manus_ros2 / the official SDK.
+use_default_revo3_calibration: true
+algorithm: joint_thumb
+control_mode: pd_velocity
+end_effector: real_hand
+
+revo3_thumb:
+  right:
+    thumb_ik_position_scale: 1.00
+    thumb_joint_offset_deg: 6.0
+    thumb_cmp_scale: 1.30
+    thumb_mcp_scale: 1.15
+    thumb_cmp_offset_deg: 6.0
+    thumb_mcp_offset_deg: 0.0
+    pip_constraint_weight: 0.0
+    # joint_thumb: map MANUS thumb ergonomics directly to Revo2 thumb joints.
+    # thumb_meta uses ThumbMCPSpread; flip sign if side swing direction is reversed.
+    # Baseline stable value: thumb_meta_range_deg: 45.0
+    # Current wider Revo2 inner swing tuning: make MANUS spread reach the limit sooner.
+    thumb_meta_sign: 1.0
+    thumb_meta_zero_deg: 0.0
+    thumb_meta_range_deg: 30.0
+    # thumb_prox uses a weighted Thumb*Stretch blend.
+    # Baseline stable values: thumb_prox_zero_deg: 0.0, thumb_prox_range_deg: 80.0
+    # Increase zero/range so the passive DIP stays straighter when the thumb opens.
+    thumb_prox_zero_deg: 10.0
+    thumb_prox_range_deg: 90.0
+    thumb_prox_mcp_weight: 0.45
+    thumb_prox_pip_weight: 0.35
+    thumb_prox_dip_weight: 0.20
+
+revo2_driver:
+  left_velocity_command_topic: /revo2_left/joint_forward_vel_controller/commands
+  right_velocity_command_topic: /revo2_right/joint_forward_vel_controller/commands
+  left_joint_state_topic: /revo2_left/revo2_joint_state/joint_states
+  right_joint_state_topic: /revo2_right/revo2_joint_state/joint_states
+
+pd_velocity:
+  # Gains and limits are rad/rad/s native.
+  velocity_kp: 2.4
+  velocity_kd: 0.0
+  velocity_deadband: 0.013962634
+  velocity_max: 2.094395102
+  velocity_slew_rate: 1.0
+  velocity_feedback_timeout: 0.3
+
+  thumb_velocity_deadband: 0.020943951
+  thumb_velocity_min: 0.0
+  thumb_velocity_kp_scale: 2.4
+  thumb_velocity_brake_zone: 0.209439510
+  thumb_velocity_brake_max: 0.628318531
+
+  ring_velocity_deadband: 0.020943951
+  ring_velocity_min: 0.0
+  ring_velocity_kp_scale: 1.5
+  four_finger_extension_velocity_scale: 1.5
+  four_finger_extension_joints: "2,3,4,5"
+
+target_filter:
+  alpha: 0.45
+  fast_alpha: 0.9
+  fast_threshold: 0.095993109
+
+retarget_output:
+  # Publish the rad target as JointState for debug, rqt, and MuJoCo mirror.
+  publish_target_joint_states: true
+  left_joint_state_topic: /revo2_left/retarget/joint_states
+  right_joint_state_topic: /revo2_right/retarget/joint_states
+
+debug:
+  pd_debug: false
+  pd_debug_joints: "0,1,4"
+  pd_debug_interval: 0.2
+  pd_debug_file: ""

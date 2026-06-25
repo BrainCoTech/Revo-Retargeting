@@ -1,0 +1,395 @@
+# BrainCo Hand Driver 驱动包
+
+[English](README.md) | [简体中文](README_CN.md)
+
+## 概述
+
+`revo2_driver` 是面向 BrainCo Revo2 灵巧手的 ROS 2 `ros2_control` 硬件接口包，当前支持：
+
+- 单手和双手启动
+- Modbus 串口通信
+- 可选的 CAN FD 通信
+- 位置和速度命令接口
+- 关节状态反馈与指尖触觉反馈
+
+每只手当前暴露 6 个可控关节：
+
+- `thumb_proximal_joint`
+- `thumb_metacarpal_joint`
+- `index_proximal_joint`
+- `middle_proximal_joint`
+- `ring_proximal_joint`
+- `pinky_proximal_joint`
+
+其中 5 个指尖关节额外暴露触觉状态接口：
+
+- `tactile_normal_force`
+- `tactile_tangential_force`
+- `tactile_tangential_direction`
+- `tactile_self_proximity`
+- `tactile_status`
+
+其中触觉量纲约定如下：
+
+- `tactile_normal_force` 与 `tactile_tangential_force` 已在驱动内做 `/100` 缩放，单位为 `N`
+- `tactile_tangential_direction` 已在驱动内从角度（deg）转换为弧度（rad）
+
+## 当前包的实际行为
+
+当前实现的核心是 `ros2_control` 前向控制器，不是旧版 README 中的轨迹控制器。
+
+- `revo2_joint_state` 默认加载并激活
+- `joint_forward_pos_controller` 默认加载并激活
+- `joint_forward_vel_controller` 默认加载但默认不激活
+- 每只手的默认 controller manager 更新频率为 `500 Hz`
+- 默认会使用 `revo2_left` 或 `revo2_right` 命名空间
+
+如果你在迁移旧的集成代码，需要特别注意：
+
+- 默认 `description_package` 已经是 `revoarm_description`
+- `revoarm_description` 内部仍会引用 `revo2_description` 的网格资源
+- 旧文档里的 `joint_trajectory_controller` / Action 示例已经不适用于当前包
+
+## 环境依赖
+
+- Ubuntu 22.04
+- ROS 2 Humble
+- `ros2_control`
+- `controller_manager`
+- `joint_state_broadcaster`
+- `forward_command_controller`
+- `robot_state_publisher`
+- `xacro`
+- `revoarm_description`
+- `revo2_description`
+
+## 构建
+
+请在 ROS 2 工作空间根目录构建：
+
+```bash
+cd revoarm_hardware/Revoarm_ws
+source /opt/ros/humble/setup.bash
+
+# 仅启用 Modbus
+colcon build --packages-up-to revo2_driver --symlink-install
+
+# 启用 CAN FD
+colcon build --packages-up-to revo2_driver --symlink-install --cmake-args -DENABLE_CANFD=ON
+
+source install/setup.bash
+```
+
+### BrainCo Stark SDK
+
+当前包已经自带 `vendor/` 目录下的 Stark SDK，当前版本为 `v1.5.1`，
+`scripts/download_sdk.sh` 也固定下载同一版本。
+如果需要刷新 SDK，可在包目录执行：
+
+```bash
+cd revoarm_hardware/Revoarm_ws/src/brainco_drivers/revo2_driver
+./scripts/download_sdk.sh
+```
+
+### CAN FD 编译说明
+
+只有在构建时显式开启：
+
+```bash
+--cmake-args -DENABLE_CANFD=ON
+```
+
+运行时才可以正常使用 `protocol:=canfd`。
+如果未开启该选项，CAN FD 协议会在硬件初始化阶段失败。
+
+## 配置文件
+
+本包内的主要配置文件如下：
+
+| 文件 | 作用 |
+|---|---|
+| `config/protocol_modbus_left.yaml` | 左手 Modbus 参数 |
+| `config/protocol_modbus_right.yaml` | 右手 Modbus 参数 |
+| `config/protocol_canfd_left.yaml` | 左手 CAN FD 参数 |
+| `config/protocol_canfd_right.yaml` | 右手 CAN FD 参数 |
+| `config/revo2_initial_positions.yaml` | 初始关节位置 |
+| `config/revo2_controllers.yaml` | 控制器模板与 controller manager 配置 |
+
+### Modbus 关键参数
+
+重点参数包括：
+
+- `slave_id`：左手默认 `126`，右手默认 `127`
+- `port`：串口设备路径，例如 `/dev/ttyUSB0`
+- `baudrate`：默认 `460800`
+- `auto_detect`：自动扫描串口并检测 Revo2 设备
+- `auto_detect_quick`：快速扫描模式
+- `auto_detect_port`：串口前缀提示，例如 `/dev/ttyUSB`
+
+当 `auto_detect: true` 时：
+
+- `port` 和 `baudrate` 会被忽略
+- 运行时会使用检测到的设备 `slave_id`
+- 配置文件中的 `slave_id` 只作为左右手匹配提示
+
+### 缩放参数
+
+驱动会通过以下参数在 ROS 侧弧度值和设备原始值之间转换：
+
+- `position_command_scale`
+- `position_state_scale`
+- `velocity_state_scale`
+- `velocity_command_scale`
+- `velocity_device_min`
+- `velocity_device_max`
+- `position_device_min`
+- `position_device_max`
+- `velocity_percentage`
+
+`joint_forward_vel_controller` 的命令使用 ROS 关节速度单位（`rad/s`）。硬件接口会先乘以
+`velocity_command_scale`，再调用 SDK speed API。在 normalized mode 下，标准 Revo2 scale 是
+`572.9577951308232`，所以 `1.0 rad/s` 会先写成约 `573` 个 SDK normalized speed unit，
+再限制到 `[-1000, 1000]`。
+
+`velocity_percentage` 在驱动内部会被限制到 `0` 到 `100` 的有效范围。
+
+当配置为 `finger_unit_mode: physical` 时，如果没有额外配置 physical 专用参数，驱动仍然会沿用
+上面的基础缩放参数。可选的 physical 专用覆盖参数如下：
+
+- `physical_position_command_scale`
+- `physical_position_state_scale`
+- `physical_velocity_state_scale`
+- `physical_velocity_command_scale`
+- `physical_position_device_min`
+- `physical_position_device_max`
+- `physical_velocity_device_min`
+- `physical_velocity_device_max`
+
+如果只配置了 `physical_position_state_scale` 或 `physical_velocity_state_scale`，对应的 command
+scale 会自动用倒数推导。按角度值做第一次标定时，可以先用 `57.29577951308232` 作为 command scale、
+`0.017453292519943295` 作为 state scale，然后根据真机实际行程调整 `physical_position_device_max`。
+如果使用 speed-mode 遥操作，physical mode 下还需要把 SDK 速度命令限制在手的角速度范围内；
+当前右手 Modbus 配置使用 `-150` 到 `150` deg/s。
+
+### CAN FD 关键参数
+
+重点参数包括：
+
+- `can_device_type`
+- `can_card_index`
+- `can_channel_index`
+- `can_clock_hz`
+- `can_rx_wait_time`
+- `can_rx_buffer_size`
+- `can_master_id`
+- 仲裁段时序参数
+- 数据段时序参数
+
+如果是双手 CAN FD 部署，不要在未明确设计的情况下让左右手同时指向同一个物理 CAN 设备和通道。更稳妥的做法是为左右手分配不同的设备或通道参数。
+
+## 启动方式
+
+### 单手启动
+
+右手 Modbus：
+
+```bash
+ros2 launch revo2_driver revo2_system.launch.py hand_side:=right
+```
+
+左手 Modbus：
+
+```bash
+ros2 launch revo2_driver revo2_system.launch.py hand_side:=left
+```
+
+右手 CAN FD：
+
+```bash
+ros2 launch revo2_driver revo2_system.launch.py hand_side:=right protocol:=canfd
+```
+
+左手 CAN FD：
+
+```bash
+ros2 launch revo2_driver revo2_system.launch.py hand_side:=left protocol:=canfd
+```
+
+### 双手启动
+
+使用默认 Modbus 配置同时启动左右手：
+
+```bash
+ros2 launch revo2_driver dual_revo2_system.launch.py
+```
+
+左手 Modbus，右手 CAN FD：
+
+```bash
+ros2 launch revo2_driver dual_revo2_system.launch.py \
+  left_protocol:=modbus \
+  right_protocol:=canfd
+```
+
+自定义协议配置文件：
+
+```bash
+ros2 launch revo2_driver dual_revo2_system.launch.py \
+  left_protocol_config_file:=protocol_modbus_left.yaml \
+  right_protocol_config_file:=protocol_modbus_right.yaml
+```
+
+相对协议配置文件名会从 `revo2_driver/config/` 目录解析。
+
+### 仿真模式
+
+使用 mock hardware 启动：
+
+```bash
+ros2 launch revo2_driver revo2_system.launch.py hand_side:=right if_sim:=true
+```
+
+## Launch 参数
+
+### `revo2_system.launch.py`
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `description_package` | `revoarm_description` | 提供 `urdf/system/revo2.single.system.xacro` 的描述包 |
+| `hand_side` | `right` | `left` 或 `right` |
+| `protocol` | `modbus` | `modbus` 或 `canfd` |
+| `protocol_config_file` | `""` | 协议 YAML 覆盖路径 |
+| `initial_positions_file` | `""` | 初始位置 YAML 覆盖路径 |
+| `controllers_file` | `""` | 控制器模板 YAML 覆盖路径 |
+| `use_namespace` | `true` | 是否使用 `revo2_left` / `revo2_right` 命名空间 |
+| `if_sim` | `false` | 是否使用 mock hardware |
+| `launch_rsp` | `true` | 是否启动 `robot_state_publisher` |
+
+### `dual_revo2_system.launch.py`
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `description_package` | `revoarm_description` | 描述包 |
+| `left_protocol` | `modbus` | 左手协议 |
+| `right_protocol` | `modbus` | 右手协议 |
+| `left_protocol_config_file` | `""` | 左手协议 YAML 覆盖路径 |
+| `right_protocol_config_file` | `""` | 右手协议 YAML 覆盖路径 |
+| `initial_positions_file` | `""` | 双手共享初始位置 YAML 覆盖路径 |
+| `controllers_file` | `""` | 控制器模板覆盖路径 |
+| `use_namespace` | `true` | 双手启动时强烈建议保持开启 |
+| `if_sim` | `false` | 是否使用 mock hardware |
+| `launch_rsp` | `true` | 是否分别启动左右手 `robot_state_publisher` |
+
+## 运行时接口
+
+### 控制器
+
+以右手默认命名空间为例：
+
+- controller manager：`/revo2_right/controller_manager`
+- 默认激活控制器：`/revo2_right/joint_forward_pos_controller`
+- 默认未激活控制器：`/revo2_right/joint_forward_vel_controller`
+- 关节状态广播器：`/revo2_right/revo2_joint_state`
+
+左手把 `revo2_right` 替换为 `revo2_left` 即可。
+
+### 位置控制命令
+
+默认激活的是位置前向控制器，命令类型为 `std_msgs/msg/Float64MultiArray`：
+
+```bash
+ros2 topic pub --once /revo2_right/joint_forward_pos_controller/commands \
+  std_msgs/msg/Float64MultiArray \
+  "{data: [0.30, 0.10, 0.60, 0.60, 0.60, 0.60]}"
+```
+
+关节顺序为：
+
+1. `thumb_proximal_joint`
+2. `thumb_metacarpal_joint`
+3. `index_proximal_joint`
+4. `middle_proximal_joint`
+5. `ring_proximal_joint`
+6. `pinky_proximal_joint`
+
+### 速度控制命令
+
+速度前向控制器默认是 inactive，需要先切换控制器：
+
+```bash
+ros2 control switch_controllers \
+  --controller-manager /revo2_right/controller_manager \
+  --deactivate joint_forward_pos_controller \
+  --activate joint_forward_vel_controller
+```
+
+然后发布速度命令：
+
+```bash
+ros2 topic pub --once /revo2_right/joint_forward_vel_controller/commands \
+  std_msgs/msg/Float64MultiArray \
+  "{data: [0.17, 0.17, 0.35, 0.35, 0.35, 0.35]}"
+```
+
+### 状态话题
+
+关节状态：
+
+```bash
+ros2 topic echo /revo2_right/revo2_joint_state/joint_states
+```
+
+包含触觉扩展接口的动态关节状态：
+
+```bash
+ros2 topic echo /revo2_right/revo2_joint_state/dynamic_joint_states
+```
+
+当前触觉数据会出现在以下关节上：
+
+- `thumb_proximal_joint`
+- `index_proximal_joint`
+- `middle_proximal_joint`
+- `ring_proximal_joint`
+- `pinky_proximal_joint`
+
+`thumb_metacarpal_joint` 当前不导出触觉接口。
+
+## 排障建议
+
+### 串口权限
+
+```bash
+ls -l /dev/ttyUSB*
+groups | grep dialout
+sudo usermod -a -G dialout $USER
+```
+
+添加用户组后请重新登录再测试。
+
+### 双手 Modbus 自动检测
+
+推荐默认值：
+
+- 左手：`slave_id: 126`
+- 右手：`slave_id: 127`
+
+如果左右手都通过 USB 转串口连接，可以选择：
+
+- 保持手动 `port`
+- 开启 `auto_detect: true` 并保留不同的 `slave_id` 提示
+- 用 `auto_detect_port` 缩小各自扫描范围
+
+### 常用检查命令
+
+```bash
+ros2 control list_controllers -c /revo2_right/controller_manager
+ros2 control list_hardware_components
+ros2 control list_hardware_interfaces
+ros2 topic list | grep revo2_right
+```
+
+如果 `protocol:=canfd` 启动失败，请优先检查：
+
+- 是否已经用 `-DENABLE_CANFD=ON` 重新编译
+- 当前机器上的 CAN 设备和通道参数是否有效

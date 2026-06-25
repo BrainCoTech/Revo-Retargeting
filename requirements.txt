@@ -1,0 +1,28 @@
+# Core motion-control, teleoperation, networking, and regular tooling dependencies.
+numpy
+pyyaml
+dex-retargeting
+setuptools
+lark
+empy==3.3.4
+loguru
+open3d
+viser
+pyzmq
+python-can
+pinocchio
+pin==3.8.0
+meshcat
+openvr
+mujoco
+# placo：笛卡尔 IK；wheel 依赖 urdfdom 4.x，pin 3.8 带入 urdfdom 6.x。
+# 安装后须运行 install_revoarm_teleop.sh 合并 .so.4.0（见 doc/5.26_merge/placo-pin-urdfdom.md）。
+placo
+websockets
+pyserial
+onnxruntime
+pysurvive
+trimesh
+fast-simplification
+coacd
+numpy-quaternion

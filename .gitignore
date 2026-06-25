@@ -1,0 +1,39 @@
+# ROS 2 build products
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local runtime data
+dist/
+*.mcal
+*.bag
+*.db3
+*.mcap
+*.log
+
+# MANUS SDK runtime files are installed locally, not committed.
+src/brainco_capabilities/manus_ros2/ManusSDK.zip
+src/brainco_capabilities/manus_ros2/ManusSDK/lib/*.so*
+src/brainco_capabilities/manus_ros2/calibrations/**/*.mcal
+
+# BrainCo Stark SDK runtime files are downloaded locally, not committed.
+src/brainco_drivers/revo2_driver/vendor/dist/
+src/brainco_drivers/revo2_driver/vendor/VERSION
+src/brainco_drivers/revo2_driver/vendor/**/*.so*
+
+# Editor and local agent state
+.vscode/
+.idea/
+.agents/
+.codex
+.codex/
+.DS_Store

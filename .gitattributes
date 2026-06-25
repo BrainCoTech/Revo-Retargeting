@@ -1,0 +1,8 @@
+# Preserve vendor MANUS SDK files as-is. The shared libraries are installed
+# from an external package and are ignored by Git.
+src/brainco_capabilities/manus_ros2/** -text
+
+# Binary assets
+*.STL binary
+*.stl binary
+*.png binary
