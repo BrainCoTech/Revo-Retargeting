@@ -53,7 +53,7 @@ MANUS SDK shared libraries are not stored in this repository. Download the offic
 ```bash
 MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_revo3_deps.sh
 MANUS_SDK_DIR=/path/to/unpacked/ManusSDK ./scripts/install_revo3_deps.sh
-MANUS_SDK_URL=https://.../MANUS_SDK.zip ./scripts/install_revo3_deps.sh
+MANUS_SDK_URL=https://static.manus-meta.com/resources/manus_core_3/sdk/MANUS_Core_3.1.1_SDK.zip ./scripts/install_revo3_deps.sh
 ```
 
 If all other dependencies are already installed, install only the MANUS SDK files:

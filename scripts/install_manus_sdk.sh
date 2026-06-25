@@ -30,11 +30,16 @@ has_real_manus_libs() {
 find_sdk_dir() {
   local root="$1"
   local candidate
+  local lib_file
   for candidate in \
     "${root}/ManusSDK" \
     "${root}/manus_sdk/ManusSDK" \
     "${root}/MANUS_SDK/ManusSDK" \
+    "${root}"/ManusSDK_*/ROS2/ManusSDK \
+    "${root}"/ManusSDK_*/SDKClient_Linux/ManusSDK \
+    "${root}"/ManusSDK_*/SDKMinimalClient_Linux/ManusSDK \
     "${root}"; do
+    [[ -e "${candidate}" ]] || continue
     if [[ -d "${candidate}/lib" ]] && find "${candidate}/lib" -maxdepth 1 -type f -name 'libManusSDK*.so*' -print -quit | grep -q .; then
       printf '%s\n' "${candidate}"
       return 0
@@ -44,6 +49,12 @@ find_sdk_dir() {
       return 0
     fi
   done
+
+  lib_file="$(find "${root}" -type f -path '*/lib/libManusSDK*.so*' -print -quit)"
+  if [[ -n "${lib_file}" ]]; then
+    printf '%s\n' "${lib_file%/lib/*}"
+    return 0
+  fi
 
   candidate="$(find "${root}" -type f -path '*/include/ManusSDK.h' -print -quit | sed 's#/include/ManusSDK.h$##')"
   if [[ -n "${candidate}" && -d "${candidate}/lib" ]]; then
