@@ -26,10 +26,16 @@ src/brainco_drivers/revo2_driver             Revo2 ros2_control driver
 src/brainco_description/revo2_description    Revo2 hand description
 ```
 
-更详细的 retargeting、调参和排查说明在：
+更详细的 MANUS retargeting、调参和排查说明在：
 
 ```text
 src/brainco_capabilities/manus_revo2_retarget/README.md
+```
+
+Hex 手套说明单独放在：
+
+```text
+src/brainco_capabilities/manus_revo2_retarget/README_HEX.md
 ```
 
 ## 环境准备
@@ -107,48 +113,6 @@ ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
 ```bash
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=left
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=both
-```
-
-## Hex 手套遥操作
-
-Hex 手套链路使用 `hex_glove_driver`，把 Windows Hex 上位机的 UDP 数据转换成 MANUS 兼容的 glove topic。后半段仍然使用 Revo2 的 ros2_control PID controller：
-
-```text
-Windows Hex 上位机
-  -> hex_glove_udp_node
-  -> /manus_glove_0 或 /manus_glove_1
-  -> manus_revo2_retarget
-  -> /revo2_<side>/revo2_pid_controller/target_joint_states
-  -> revo2_pid_controller
-  -> Revo2
-```
-
-先在 Windows 上启动 Hex 上位机，连接手套、完成校准并开启数据广播。然后用 `ipconfig` 查 Windows IPv4 地址。
-
-如果只想先看右手 Hex 数据，不启动 Revo2 硬件：
-
-```bash
-ros2 launch manus_revo2_retarget hex_real_hand_pipeline_launch.py \
-  hand_mode:=right \
-  hex_server_host:=<Windows_Hex_IP> \
-  launch_revo2_pipeline:=false
-```
-
-检查转换后的 topic 和原始 UDP JSON：
-
-```bash
-ros2 topic hz /manus_glove_1
-ros2 topic echo /manus_glove_1 --once
-ros2 topic echo /hex_glove/raw_angles --once
-ros2 topic echo /hex_glove/raw_positions --once
-```
-
-如果要启动完整右手 Hex -> Revo2 PID 链路：
-
-```bash
-ros2 launch manus_revo2_retarget hex_real_hand_pipeline_launch.py \
-  hand_mode:=right \
-  hex_server_host:=<Windows_Hex_IP>
 ```
 
 ## Controller 默认逻辑
