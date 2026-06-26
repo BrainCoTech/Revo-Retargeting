@@ -8,10 +8,10 @@ BrainCo Revo 灵巧手的手套遥操作与动作重定向工作空间。
 
 | Revo3 retargeting | Revo2 retargeting |
 | --- | --- |
-| <video src="videos/revo3_retargeting.mp4" controls width="100%"></video> | <video src="videos/revo2_retargeting.mp4" controls width="100%"></video> |
-| [打开 Revo3 示例视频](./videos/revo3_retargeting.mp4) | [打开 Revo2 示例视频](./videos/revo2_retargeting.mp4) |
+| <img src="videos/revo3_retargeting.gif" width="100%" alt="Revo3 retargeting demo"> | <img src="videos/revo2_retargeting.gif" width="100%" alt="Revo2 retargeting demo"> |
+| [打开 Revo3 MP4](./videos/revo3_retargeting.mp4) | [打开 Revo2 MP4](./videos/revo2_retargeting.mp4) |
 
-如果当前页面没有直接渲染播放器，请点击表格下方的视频链接查看。
+如果当前页面没有直接播放动图，请点击表格下方的 MP4 链接查看。
 
 ## 选择分支
 
