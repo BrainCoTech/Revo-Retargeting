@@ -29,6 +29,8 @@ src/brainco_capabilities/manus_ros2/calibrations/**/*.mcal
 src/brainco_drivers/revo2_driver/vendor/dist/
 src/brainco_drivers/revo2_driver/vendor/VERSION
 src/brainco_drivers/revo2_driver/vendor/**/*.so*
+src/brainco_drivers/revo2_driver/setup/bin/
+src/brainco_drivers/revo2_driver/setup/build/
 
 # Editor and local agent state
 .vscode/

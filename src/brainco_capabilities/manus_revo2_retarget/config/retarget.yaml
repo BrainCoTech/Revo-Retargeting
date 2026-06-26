@@ -31,9 +31,9 @@ revo3_thumb:
     # Increase zero/range so the passive DIP stays straighter when the thumb opens.
     thumb_prox_zero_deg: 10.0
     thumb_prox_range_deg: 90.0
-    thumb_prox_mcp_weight: 0.45
-    thumb_prox_pip_weight: 0.35
-    thumb_prox_dip_weight: 0.20
+    thumb_prox_mcp_weight: 0.40
+    thumb_prox_pip_weight: 0.30
+    thumb_prox_dip_weight: 0.30
 
 revo2_driver:
   left_velocity_command_topic: /revo2_left/joint_forward_vel_controller/commands
@@ -63,7 +63,7 @@ pd_velocity:
   four_finger_extension_joints: "2,3,4,5"
 
 target_filter:
-  alpha: 0.45
+  alpha: 0.3
   fast_alpha: 0.9
   fast_threshold: 0.095993109
 

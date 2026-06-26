@@ -1,21 +1,16 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>manus_revo2_retarget</name>
+  <name>hex_glove_driver</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="jackhanceli@outlook.com">jackhance</maintainer>
-  <license>TODO: License declaration</license>
+  <description>ROS2 driver bridge for Hexacercle glove UDP data</description>
+  <maintainer email="1131359622@qq.com">jiimmy</maintainer>
+  <license>MIT</license>
 
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>
   <depend>manus_ros2_msgs</depend>
   <depend>std_msgs</depend>
-  <depend>sensor_msgs</depend>
-  <exec_depend>ament_index_python</exec_depend>
-  <exec_depend>launch</exec_depend>
-  <exec_depend>launch_ros</exec_depend>
-  <exec_depend>hex_glove_driver</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

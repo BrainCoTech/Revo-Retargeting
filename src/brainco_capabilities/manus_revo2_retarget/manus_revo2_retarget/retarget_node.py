@@ -1182,7 +1182,7 @@ class ManusRevo2Node(Node):
         if publisher is None:
             return
 
-        target = self._joint_positions_rad(positions)
+        target = self._filter_joint_target(positions, side)
         msg = JointState()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.name = list(joint_names_for_side(side))

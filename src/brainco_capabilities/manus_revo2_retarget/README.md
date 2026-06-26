@@ -106,6 +106,80 @@ python -m colcon build --packages-select manus_revo2_retarget
 
 ## 启动
 
+### Hex 手套一键跑通 Revo2 PID
+
+Hex 手套路径复用 `hex_glove_driver`，把 Windows Hex 上位机 UDP 数据转换成 `/manus_glove_0` 和 `/manus_glove_1`，后半段仍使用推荐的 `revo2_pid_controller`：
+
+```text
+Windows Hex 上位机
+  -> hex_glove_udp_node
+  -> /manus_glove_0 或 /manus_glove_1
+  -> manus_revo2_retarget target-only
+  -> /revo2_<side>/revo2_pid_controller/target_joint_states
+  -> revo2_pid_controller
+  -> Revo2
+```
+
+先构建 Hex bridge、Revo2 retarget 和 Revo2 driver：
+
+```bash
+cd /path/to/Revo-Retargeting
+python -m colcon build --packages-up-to hex_glove_driver manus_revo2_retarget revo2_driver --symlink-install
+source install/setup.bash
+```
+
+Windows 上启动 Hex 上位机，连接手套、完成校准并开启数据广播。然后在 Windows 上用 `ipconfig` 查 IPv4 地址，把下面命令里的地址换成实际地址：
+
+```bash
+ros2 launch manus_revo2_retarget hex_real_hand_pipeline_launch.py \
+  hand_mode:=right \
+  hex_server_host:=<Windows_Hex_IP>
+```
+
+这个 launch 会自动完成：
+
+```text
+启动 hex_glove_udp_node
+  -> 启动 Revo2 driver
+  -> 尝试自动切到 revo2_pid_controller
+  -> 启动 target-only retarget
+```
+
+默认不会启动 MANUS publisher，也不会启动旧的 Python topic controller。关键默认值是：
+
+```text
+launch_manus_publisher=false
+controller_backend=ros2_control
+launch_plot=false
+```
+
+如果只想先检查 Hex 手套数据，不启动 Revo2：
+
+```bash
+ros2 launch manus_revo2_retarget hex_real_hand_pipeline_launch.py \
+  hand_mode:=right \
+  hex_server_host:=<Windows_Hex_IP> \
+  launch_revo2_pipeline:=false
+```
+
+检查 Hex 数据：
+
+```bash
+ros2 topic hz /manus_glove_1
+ros2 topic echo /manus_glove_1 --once
+ros2 topic echo /hex_glove/raw_angles --once
+ros2 topic echo /hex_glove/raw_positions --once
+```
+
+检查 Revo2 PID 链路：
+
+```bash
+ROS2CLI_DISABLE_DAEMON=1 ros2 control list_controllers -c /revo2_right/controller_manager
+ros2 topic echo /revo2_right/revo2_pid_controller/target_joint_states --once
+```
+
+应看到 `revo2_pid_controller active`，并且 `target_joint_states` 有输出。左手把 `hand_mode:=right` 换成 `hand_mode:=left`，并检查 `/manus_glove_0` 和 `/revo2_left/revo2_pid_controller/target_joint_states`。
+
 ### 一键跑通（推荐）
 
 右手真机 + MANUS 遥操作推荐显式使用 ros2_control 后端；不需要再单独执行 `ros2 launch revo2_driver ...`：

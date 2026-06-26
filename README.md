@@ -21,6 +21,7 @@ MANUS SDK / manus_ros2
 src/brainco_capabilities/manus_ros2          MANUS SDK bridge
 src/brainco_capabilities/manus_ros2_msgs     MANUS ROS 2 messages
 src/brainco_capabilities/manus_revo2_retarget
+src/brainco_drivers/hex_glove_driver         Hex glove UDP bridge
 src/brainco_drivers/revo2_driver             Revo2 ros2_control driver
 src/brainco_description/revo2_description    Revo2 hand description
 ```
@@ -75,7 +76,7 @@ src/brainco_capabilities/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
 ```bash
 source /opt/ros/humble/setup.bash
 python -m colcon build --symlink-install --packages-select \
-  manus_ros2_msgs manus_ros2 \
+  manus_ros2_msgs manus_ros2 hex_glove_driver \
   revo2_description revo2_driver \
   manus_revo2_retarget
 source install/setup.bash
@@ -105,6 +106,48 @@ Left hand or both hands:
 ```bash
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=left
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=both
+```
+
+## Hex Glove Teleoperation
+
+The Hex glove path uses `hex_glove_driver` to convert UDP data from the Windows Hex controller into MANUS-compatible glove topics. The rest of the path still uses the Revo2 ros2_control PID controller:
+
+```text
+Windows Hex controller
+  -> hex_glove_udp_node
+  -> /manus_glove_0 or /manus_glove_1
+  -> manus_revo2_retarget
+  -> /revo2_<side>/revo2_pid_controller/target_joint_states
+  -> revo2_pid_controller
+  -> Revo2
+```
+
+Start the Windows Hex controller first, connect and calibrate the glove, then find the Windows IPv4 address with `ipconfig`.
+
+To verify Hex glove data without starting Revo2 hardware:
+
+```bash
+ros2 launch manus_revo2_retarget hex_real_hand_pipeline_launch.py \
+  hand_mode:=right \
+  hex_server_host:=<Windows_Hex_IP> \
+  launch_revo2_pipeline:=false
+```
+
+Check the converted and raw topics:
+
+```bash
+ros2 topic hz /manus_glove_1
+ros2 topic echo /manus_glove_1 --once
+ros2 topic echo /hex_glove/raw_angles --once
+ros2 topic echo /hex_glove/raw_positions --once
+```
+
+To run the full right-hand Hex -> Revo2 PID pipeline:
+
+```bash
+ros2 launch manus_revo2_retarget hex_real_hand_pipeline_launch.py \
+  hand_mode:=right \
+  hex_server_host:=<Windows_Hex_IP>
 ```
 
 ## Controller Behavior

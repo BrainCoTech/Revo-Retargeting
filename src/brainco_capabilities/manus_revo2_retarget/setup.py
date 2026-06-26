@@ -30,8 +30,10 @@ setup(
         ('share/' + package_name + '/launch', [
             'launch/pipeline_launch.py',
             'launch/real_hand_pipeline_launch.py',
+            'launch/hex_real_hand_pipeline_launch.py',
         ]),
         ('share/' + package_name + '/tools', [
+            'tools/analyze_revo2_jitter_bag.py',
             'tools/revo2_retarget_plot.py',
         ]),
     ],

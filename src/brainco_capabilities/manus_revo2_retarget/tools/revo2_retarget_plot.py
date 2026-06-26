@@ -78,8 +78,9 @@ def parse_joint_selection(value):
     return selected
 
 
-def vector_from_joint_state(msg, candidate_names):
-    if len(msg.position) < len(msg.name):
+def vector_from_joint_state(msg, candidate_names, field="position"):
+    values_by_name = getattr(msg, field)
+    if len(values_by_name) < len(msg.name):
         return None
 
     index_by_name = {name: i for i, name in enumerate(msg.name)}
@@ -88,8 +89,8 @@ def vector_from_joint_state(msg, candidate_names):
         found = None
         for name in names:
             idx = index_by_name.get(name)
-            if idx is not None and idx < len(msg.position):
-                found = float(msg.position[idx])
+            if idx is not None and idx < len(values_by_name):
+                found = float(values_by_name[idx])
                 break
         if found is None:
             return None
@@ -150,18 +151,20 @@ class Revo2RetargetPlotter(Node):
                 f"/set_{self.side}_hand_joints",
             ]
         actual_topic = args.actual_topic or f"/revo2_{self.side}/revo2_joint_state/joint_states"
-        command_topic = args.command_topic or f"/revo2_{self.side}/joint_forward_vel_controller/commands"
+        command_topic = args.command_topic
 
         self.candidate_names = candidate_joint_names_for_side(self.side)
 
         self.target = SeriesBuffer(args.max_samples)
         self.actual = SeriesBuffer(args.max_samples)
         self.error = SeriesBuffer(args.max_samples)
+        self.actual_velocity = SeriesBuffer(args.max_samples)
         self.command = SeriesBuffer(args.max_samples)
         self.latest_target = None
         self.latest_actual = None
         self.target_count = 0
         self.actual_count = 0
+        self.actual_velocity_count = 0
         self.command_count = 0
         self.last_target_topic = None
         self.last_bad_target_names = None
@@ -175,19 +178,22 @@ class Revo2RetargetPlotter(Node):
                 10,
             )
         self.create_subscription(JointState, actual_topic, self.actual_cb, 10)
-        self.create_subscription(Float64MultiArray, command_topic, self.command_cb, 10)
+        if command_topic:
+            self.create_subscription(Float64MultiArray, command_topic, self.command_cb, 10)
         self.create_timer(1.0, self.status_cb)
 
         self.get_logger().info(f"Target position topic(s): {', '.join(target_topics)}")
         self.get_logger().info(f"Actual position topic: {actual_topic}")
-        self.get_logger().info(f"Command velocity topic: {command_topic}")
+        if command_topic:
+            self.get_logger().info(f"Command velocity topic: {command_topic}")
+        self.get_logger().info("Velocity plot uses JointState.velocity; command is overlaid when available.")
         self.get_logger().info("Joint order: " + ", ".join(JOINT_SHORT_NAMES))
 
     def now_sec(self):
         return time.monotonic() - self.start_time
 
     def target_cb(self, msg, topic):
-        values = vector_from_joint_state(msg, self.candidate_names)
+        values = vector_from_joint_state(msg, self.candidate_names, field="position")
         if values is None:
             self.last_bad_target_names = list(msg.name)
             self.get_logger().warning(
@@ -203,7 +209,7 @@ class Revo2RetargetPlotter(Node):
         self.append_error(t)
 
     def actual_cb(self, msg):
-        values = vector_from_joint_state(msg, self.candidate_names)
+        values = vector_from_joint_state(msg, self.candidate_names, field="position")
         if values is None:
             self.last_bad_actual_names = list(msg.name)
             self.get_logger().warning(
@@ -216,6 +222,10 @@ class Revo2RetargetPlotter(Node):
         self.latest_actual = values
         self.actual.append(t, values)
         self.append_error(t)
+        velocity = vector_from_joint_state(msg, self.candidate_names, field="velocity")
+        if velocity is not None:
+            self.actual_velocity_count += 1
+            self.actual_velocity.append(t, velocity)
 
     def command_cb(self, msg):
         if len(msg.data) < len(JOINT_SHORT_NAMES):
@@ -242,14 +252,17 @@ class Revo2RetargetPlotter(Node):
             overlap = max(0.0, overlap_end - overlap_start)
         self.get_logger().info(
             f"received target={self.target_count} actual={self.actual_count} "
-            f"cmd={self.command_count} active_target={self.last_target_topic or 'none'} "
+            f"actual_vel={self.actual_velocity_count} cmd={self.command_count} "
+            f"active_target={self.last_target_topic or 'none'} "
             f"overlap={overlap:.2f}s"
         )
 
 
 class MatplotlibView:
-    def __init__(self, node):
+    def __init__(self, node, args):
         try:
+            import matplotlib as mpl
+            mpl.rcParams["figure.raise_window"] = bool(args.raise_window)
             import matplotlib.pyplot as plt
         except ImportError as exc:
             raise RuntimeError(
@@ -257,6 +270,7 @@ class MatplotlibView:
             ) from exc
 
         self.node = node
+        self.args = args
         self.plt = plt
         plt.ion()
         self.fig, self.axes = plt.subplots(3, 1, sharex=True, figsize=(13, 9))
@@ -265,6 +279,7 @@ class MatplotlibView:
         colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
         self.pos_lines = {}
         self.err_lines = {}
+        self.vel_lines = {}
         self.cmd_lines = {}
 
         for idx in self.node.selected:
@@ -291,14 +306,30 @@ class MatplotlibView:
                 zorder=3,
             )
             err_line, = self.axes[1].plot([], [], color=color, linewidth=1.8, label=name)
-            cmd_line, = self.axes[2].plot([], [], color=color, linewidth=1.5, label=name)
+            vel_line, = self.axes[2].plot(
+                [],
+                [],
+                color=color,
+                linestyle="--",
+                linewidth=1.2,
+                alpha=0.65,
+                label=f"{name} actual vel",
+            )
+            cmd_line, = self.axes[2].plot(
+                [],
+                [],
+                color=color,
+                linewidth=1.6,
+                label=f"{name} cmd",
+            )
             self.pos_lines[idx] = (target_line, actual_line)
             self.err_lines[idx] = err_line
+            self.vel_lines[idx] = vel_line
             self.cmd_lines[idx] = cmd_line
 
         self.axes[0].set_ylabel("position [rad]")
         self.axes[1].set_ylabel("target - actual [rad]")
-        self.axes[2].set_ylabel("velocity cmd [rad/s]")
+        self.axes[2].set_ylabel("velocity [rad/s]")
         self.axes[2].set_xlabel("time [s]")
         for ax in self.axes:
             ax.grid(True, alpha=0.3)
@@ -308,6 +339,7 @@ class MatplotlibView:
     def update(self):
         target_t, target_y = self.node.target.arrays()
         actual_t, actual_y = self.node.actual.arrays()
+        actual_velocity_t, actual_velocity_y = self.node.actual_velocity.arrays()
         command_t, command_y = self.node.command.arrays()
 
         current_t = self.node.now_sec()
@@ -333,6 +365,12 @@ class MatplotlibView:
             if command_t.size:
                 mask = command_t >= left_t
                 self.cmd_lines[idx].set_data(command_t[mask], command_y[mask, idx])
+            if actual_velocity_t.size:
+                mask = actual_velocity_t >= left_t
+                self.vel_lines[idx].set_data(
+                    actual_velocity_t[mask],
+                    actual_velocity_y[mask, idx],
+                )
 
         for ax in self.axes:
             ax.set_xlim(left_t, max(left_t + 1.0, current_t))
@@ -355,8 +393,26 @@ def build_arg_parser():
     parser.add_argument("--joints", default="", help="Comma-separated names or indices. Default: all.")
     parser.add_argument("--target-topic", default="")
     parser.add_argument("--actual-topic", default="")
-    parser.add_argument("--command-topic", default="")
+    parser.add_argument(
+        "--command-topic",
+        default="",
+        help=(
+            "Optional Float64MultiArray velocity command topic. "
+            "Leave empty for ros2_control PID mode."
+        ),
+    )
     parser.add_argument("--max-samples", type=int, default=4000)
+    parser.add_argument(
+        "--refresh-hz",
+        type=float,
+        default=10.0,
+        help="Matplotlib refresh rate. Lower this if the plot window steals focus.",
+    )
+    parser.add_argument(
+        "--raise-window",
+        action="store_true",
+        help="Allow Matplotlib to request raising the plot window.",
+    )
     return parser
 
 
@@ -364,12 +420,17 @@ def main():
     args = build_arg_parser().parse_args()
     rclpy.init(args=None)
     node = Revo2RetargetPlotter(args)
-    view = MatplotlibView(node)
+    view = MatplotlibView(node, args)
+    refresh_period = 1.0 / max(0.5, float(args.refresh_hz))
+    next_update = time.monotonic()
 
     try:
         while rclpy.ok() and view.is_open():
             rclpy.spin_once(node, timeout_sec=0.02)
-            view.update()
+            now = time.monotonic()
+            if now >= next_update:
+                view.update()
+                next_update = now + refresh_period
     except KeyboardInterrupt:
         pass
     finally:
