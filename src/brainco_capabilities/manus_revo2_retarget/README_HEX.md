@@ -4,6 +4,8 @@
 
 Hex 链路使用 `hex_glove_driver` 接收 Windows Hex 上位机的 UDP 数据，再把数据桥接到 Revo2 retarget 节点。后半段使用 `revo2_pid_controller` 控制 Revo2。
 
+`hex_glove_driver` 的底层参数、topic 和单独运行方式见：[../../brainco_drivers/hex_glove_driver/README.md](../../brainco_drivers/hex_glove_driver/README.md)。
+
 ```text
 Windows Hex 上位机
   -> hex_glove_udp_node
