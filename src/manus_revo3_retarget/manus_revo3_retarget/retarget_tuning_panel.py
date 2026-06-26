@@ -50,13 +50,6 @@ SPREAD_SPECS = [
     ParamSpec("physical_{side}_middle_MPR_joint_scale", "Middle MPR out scale", -2.0, 2.0, 0.05),
     ParamSpec("physical_{side}_ring_MPR_joint_scale", "Ring MPR out scale", -2.0, 2.0, 0.05),
     ParamSpec("physical_{side}_little_MPR_joint_scale", "Little MPR out scale", -2.0, 2.0, 0.05),
-    ParamSpec("spread_guard_min_adjacent_distance_mm", "Guard min distance mm", 0.0, 40.0, 0.5, digits=2),
-    ParamSpec("spread_guard_converging_joint_weight", "Guard converge weight", 0.0, 2.0, 0.05),
-    ParamSpec("spread_guard_keep_weight", "Guard keep weight", 0.0, 0.5, 0.01),
-    ParamSpec("spread_guard_step_size", "Guard step size", 0.0, 2.0, 0.05),
-    ParamSpec("spread_guard_max_iterations", "Guard max iterations", 0.0, 40.0, 1.0, kind="int", digits=0),
-    ParamSpec("spread_guard_max_step_deg", "Guard max step deg", 0.0, 20.0, 0.5, digits=2),
-    ParamSpec("spread_guard_max_correction_deg", "Guard max correction deg", 0.0, 40.0, 0.5, digits=2),
 ]
 
 CONTROL_SPECS = [
@@ -103,6 +96,9 @@ THUMB_SPECS = [
     ParamSpec("thumb_ik_max_iterations", "IK max iterations", 0.0, 60.0, 1.0, kind="int", digits=0),
     ParamSpec("thumb_ik_max_step_deg", "IK max step deg", 0.0, 20.0, 0.5, digits=2),
     ParamSpec("thumb_ik_max_frame_delta_deg", "IK max frame delta deg", 0.0, 30.0, 0.5, digits=2),
+    ParamSpec("thumb_ik_damping", "IK damping", 0.0, 0.2, 0.005, digits=4),
+    ParamSpec("thumb_ik_step_size", "IK step size", 0.0, 1.0, 0.01, digits=3),
+    ParamSpec("thumb_ik_tolerance", "IK tolerance", 0.0, 0.01, 0.0001, digits=5),
     ParamSpec("{side}_thumb_cmp_offset_deg_physical", "CMP retarget offset deg", -40.0, 40.0, 0.5, digits=2),
     ParamSpec("{side}_thumb_cmp_scale_physical", "CMP retarget scale", 0.05, 2.5, 0.05),
     ParamSpec("legacy_{side}_physical_thumb_cmr_offset_deg", "CMR retarget offset deg", -40.0, 40.0, 0.5, digits=2),
@@ -114,6 +110,8 @@ THUMB_SPECS = [
     ParamSpec("legacy_{side}_physical_thumb_dip_ik_scale", "DIP IK target weight scale", 0.0, 3.0, 0.05),
     ParamSpec("legacy_{side}_physical_thumb_reach_scale", "Thumb reach scale", 0.2, 2.0, 0.05),
     ParamSpec("legacy_{side}_physical_thumb_ik_position_scale", "Thumb IK position scale", 0.2, 2.0, 0.05),
+    ParamSpec("legacy_{side}_physical_thumb_ema_prev", "Thumb EMA previous", 0.0, 1.0, 0.05),
+    ParamSpec("legacy_{side}_physical_thumb_ema_cur", "Thumb EMA current", 0.0, 1.0, 0.05),
     ParamSpec("physical_{side}_thumb_CMP_joint_offset_deg", "CMP out offset deg", -30.0, 30.0, 0.5, digits=2),
     ParamSpec("physical_{side}_thumb_CMR_joint_offset_deg", "CMR out offset deg", -30.0, 30.0, 0.5, digits=2),
     ParamSpec("physical_{side}_thumb_MCP_joint_offset_deg", "MCP out offset deg", -30.0, 30.0, 0.5, digits=2),
@@ -124,27 +122,11 @@ THUMB_SPECS = [
     ParamSpec("physical_{side}_thumb_MCP_joint_scale", "MCP out scale", 0.0, 2.5, 0.05),
     ParamSpec("physical_{side}_thumb_PIP_joint_scale", "PIP out scale", 0.0, 2.5, 0.05),
     ParamSpec("physical_{side}_thumb_DIP_joint_scale", "DIP out scale", 0.0, 2.5, 0.05),
-    ParamSpec("pinch_manus_contact_index_mm", "Pinch Manus index mm", 0.0, 60.0, 0.5, digits=2),
-    ParamSpec("pinch_manus_contact_middle_mm", "Pinch Manus middle mm", 0.0, 60.0, 0.5, digits=2),
-    ParamSpec("pinch_manus_contact_ring_mm", "Pinch Manus ring mm", 0.0, 60.0, 0.5, digits=2),
-    ParamSpec("pinch_manus_contact_little_mm", "Pinch Manus little mm", 0.0, 60.0, 0.5, digits=2),
-    ParamSpec("pinch_model_contact_index_mm", "Pinch model index mm", 0.0, 20.0, 0.25, digits=2),
-    ParamSpec("pinch_model_contact_middle_mm", "Pinch model middle mm", 0.0, 20.0, 0.25, digits=2),
-    ParamSpec("pinch_model_contact_ring_mm", "Pinch model ring mm", 0.0, 20.0, 0.25, digits=2),
-    ParamSpec("pinch_model_contact_little_mm", "Pinch model little mm", 0.0, 20.0, 0.25, digits=2),
-    ParamSpec("pinch_distance_weight", "Pinch distance weight", 0.0, 100.0, 1.0, digits=2),
-    ParamSpec("pinch_keep_weight", "Pinch keep weight", 0.0, 1.0, 0.01),
-    ParamSpec("pinch_smooth_weight", "Pinch smooth weight", 0.0, 1.0, 0.01),
-    ParamSpec("pinch_max_iterations", "Pinch max iterations", 0.0, 100.0, 1.0, kind="int", digits=0),
-    ParamSpec("pinch_max_step_deg", "Pinch max step deg", 0.0, 20.0, 0.5, digits=2),
-    ParamSpec("pinch_max_correction_deg", "Pinch max correction deg", 0.0, 60.0, 0.5, digits=2),
 ]
 
 BOOL_PARAMS = [
-    ("spread_guard_enabled", "Spread guard enabled"),
+    ("mit_velocity_feedforward_enabled", "MIT velocity feedforward"),
     ("legacy_{side}_physical_middle_spread_dynamic", "Middle spread dynamic"),
-    ("pinch_enabled", "Pinch enabled"),
-    ("pinch_optimize_finger_spread", "Pinch optimize finger spread"),
 ]
 
 

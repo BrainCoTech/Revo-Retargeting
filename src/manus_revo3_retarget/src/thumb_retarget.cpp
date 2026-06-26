@@ -1,4 +1,4 @@
-#include "manus_revo3_retarget_cpp/thumb_retarget.hpp"
+#include "manus_revo3_retarget/thumb_retarget.hpp"
 
 #include <algorithm>
 #include <array>
@@ -11,7 +11,7 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 
-namespace manus_revo3_retarget_cpp
+namespace manus_revo3_retarget
 {
 
 namespace
@@ -459,4 +459,4 @@ extern "C" int manus_revo3_thumb_last_iteration_count(void * handle)
   return static_cast<ThumbRetarget *>(handle)->last_iteration_count();
 }
 
-}  // namespace manus_revo3_retarget_cpp
+}  // namespace manus_revo3_retarget

@@ -1,58 +1,42 @@
+---
 manus_revo3_retarget:
   ros__parameters:
-    # Runtime side selection. Launch normally overrides this per process.
     hand_mode: both
-
-    # Topics used by revo3_driver:
-    #   /revo3_left/joint_forward_mit_controller/commands
-    #   /revo3_right/joint_forward_mit_controller/commands
     use_revo3_namespace: true
     command_topic_suffix: joint_forward_mit_controller/commands
     retarget_target_topic_suffix: joint_forward_mit_controller/retarget_targets
-    left_command_topic: ""
-    right_command_topic: ""
-    left_retarget_target_topic: ""
-    right_retarget_target_topic: ""
-
-    # Retarget updates follow Manus callback cadence. MIT commands publish from
-    # a separate timer and linearly interpolate between adjacent retarget targets.
     mit_command_publish_hz: 200.0
+    mit_velocity_feedforward_enabled: true
+    mit_default_kp: 0.2
+    mit_default_kd: 0.02
 
-    # CPU/timing profile output.
-    profile_debug_enabled: true
-    profile_log_period_s: 1.0
-    profile_topic: /manus_revo3_retarget/profile_events
-
-    # MIT controller gains. Per-joint values set to -1.0 inherit defaults.
-    mit_default_kp: 0.4
-    mit_default_kd: 0.05
-
-    mit_left_little_MPR_joint_kp: 1.0
-    mit_left_little_MPR_joint_kd: -1.0
+    # Per-joint MIT gains. Set to -1 to use mit_default_kp / mit_default_kd.
+    mit_left_little_MPR_joint_kp: 0.7
+    mit_left_little_MPR_joint_kd: 0.08
     mit_left_little_MCP_joint_kp: -1.0
     mit_left_little_MCP_joint_kd: -1.0
     mit_left_little_PIP_joint_kp: -1.0
     mit_left_little_PIP_joint_kd: -1.0
     mit_left_little_DIP_joint_kp: -1.0
     mit_left_little_DIP_joint_kd: -1.0
-    mit_left_ring_MPR_joint_kp: 1.0
-    mit_left_ring_MPR_joint_kd: -1.0
+    mit_left_ring_MPR_joint_kp: 0.7
+    mit_left_ring_MPR_joint_kd: 0.08
     mit_left_ring_MCP_joint_kp: -1.0
     mit_left_ring_MCP_joint_kd: -1.0
     mit_left_ring_PIP_joint_kp: -1.0
     mit_left_ring_PIP_joint_kd: -1.0
     mit_left_ring_DIP_joint_kp: -1.0
     mit_left_ring_DIP_joint_kd: -1.0
-    mit_left_middle_MPR_joint_kp: 1.0
-    mit_left_middle_MPR_joint_kd: -1.0
+    mit_left_middle_MPR_joint_kp: 0.7
+    mit_left_middle_MPR_joint_kd: 0.08
     mit_left_middle_MCP_joint_kp: -1.0
     mit_left_middle_MCP_joint_kd: -1.0
     mit_left_middle_PIP_joint_kp: -1.0
     mit_left_middle_PIP_joint_kd: -1.0
     mit_left_middle_DIP_joint_kp: -1.0
     mit_left_middle_DIP_joint_kd: -1.0
-    mit_left_index_MPR_joint_kp: 1.0
-    mit_left_index_MPR_joint_kd: -1.0
+    mit_left_index_MPR_joint_kp: 0.7
+    mit_left_index_MPR_joint_kd: 0.08
     mit_left_index_MCP_joint_kp: -1.0
     mit_left_index_MCP_joint_kd: -1.0
     mit_left_index_PIP_joint_kp: -1.0
@@ -70,32 +54,32 @@ manus_revo3_retarget:
     mit_left_thumb_CMR_joint_kp: -1.0
     mit_left_thumb_CMR_joint_kd: -1.0
 
-    mit_right_little_MPR_joint_kp: 1.0
-    mit_right_little_MPR_joint_kd: -1.0
+    mit_right_little_MPR_joint_kp: 0.7
+    mit_right_little_MPR_joint_kd: 0.08
     mit_right_little_MCP_joint_kp: -1.0
     mit_right_little_MCP_joint_kd: -1.0
     mit_right_little_PIP_joint_kp: -1.0
     mit_right_little_PIP_joint_kd: -1.0
     mit_right_little_DIP_joint_kp: -1.0
     mit_right_little_DIP_joint_kd: -1.0
-    mit_right_ring_MPR_joint_kp: 1.0
-    mit_right_ring_MPR_joint_kd: -1.0
+    mit_right_ring_MPR_joint_kp: 0.7
+    mit_right_ring_MPR_joint_kd: 0.08
     mit_right_ring_MCP_joint_kp: -1.0
     mit_right_ring_MCP_joint_kd: -1.0
     mit_right_ring_PIP_joint_kp: -1.0
     mit_right_ring_PIP_joint_kd: -1.0
     mit_right_ring_DIP_joint_kp: -1.0
     mit_right_ring_DIP_joint_kd: -1.0
-    mit_right_middle_MPR_joint_kp: 1.0
-    mit_right_middle_MPR_joint_kd: -1.0
+    mit_right_middle_MPR_joint_kp: 0.7
+    mit_right_middle_MPR_joint_kd: 0.08
     mit_right_middle_MCP_joint_kp: -1.0
     mit_right_middle_MCP_joint_kd: -1.0
     mit_right_middle_PIP_joint_kp: -1.0
     mit_right_middle_PIP_joint_kd: -1.0
     mit_right_middle_DIP_joint_kp: -1.0
     mit_right_middle_DIP_joint_kd: -1.0
-    mit_right_index_MPR_joint_kp: 1.0
-    mit_right_index_MPR_joint_kd: -1.0
+    mit_right_index_MPR_joint_kp: 0.7
+    mit_right_index_MPR_joint_kd: 0.08
     mit_right_index_MCP_joint_kp: -1.0
     mit_right_index_MCP_joint_kd: -1.0
     mit_right_index_PIP_joint_kp: -1.0

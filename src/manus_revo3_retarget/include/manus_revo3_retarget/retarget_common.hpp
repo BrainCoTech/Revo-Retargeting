@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace manus_revo3_retarget_cpp
+namespace manus_revo3_retarget
 {
 
 constexpr std::size_t kJointCount = 21;
@@ -71,4 +71,4 @@ inline double ergonomic_value(const Ergonomics & ergonomics, const std::string &
   return finite_or(it->second, fallback);
 }
 
-}  // namespace manus_revo3_retarget_cpp
+}  // namespace manus_revo3_retarget

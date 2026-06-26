@@ -1,13 +1,13 @@
 #pragma once
 
-#include "manus_revo3_retarget_cpp/retarget_common.hpp"
+#include "manus_revo3_retarget/retarget_common.hpp"
 
 #include <memory>
 #include <optional>
 
 #include <Eigen/Dense>
 
-namespace manus_revo3_retarget_cpp
+namespace manus_revo3_retarget
 {
 
 constexpr std::size_t kManusKeypointCount = 25;
@@ -96,4 +96,4 @@ void manus_revo3_thumb_apply(
 int manus_revo3_thumb_last_iteration_count(void * handle);
 }
 
-}  // namespace manus_revo3_retarget_cpp
+}  // namespace manus_revo3_retarget

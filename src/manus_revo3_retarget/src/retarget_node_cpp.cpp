@@ -1,8 +1,10 @@
 #include <array>
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <cmath>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -18,11 +20,11 @@
 
 #include <dlfcn.h>
 
-#include "manus_revo3_retarget_cpp/four_finger_retarget.hpp"
-#include "manus_revo3_retarget_cpp/spread_retarget.hpp"
-#include "manus_revo3_retarget_cpp/thumb_retarget.hpp"
+#include "manus_revo3_retarget/four_finger_retarget.hpp"
+#include "manus_revo3_retarget/spread_retarget.hpp"
+#include "manus_revo3_retarget/thumb_retarget.hpp"
 
-namespace manus_revo3_retarget_cpp
+namespace manus_revo3_retarget
 {
 
 using ManusGlove = manus_ros2_msgs::msg::ManusGlove;
@@ -125,7 +127,15 @@ struct SideState
   rclcpp::Publisher<Revo3MITCommand>::SharedPtr command_pub;
   rclcpp::Publisher<Revo3MITCommand>::SharedPtr target_pub;
   std::mutex mutex;
-  std::optional<Revo3MITCommand> latest;
+  std::optional<Revo3MITCommand> latest_target;
+  std::vector<double> start_position;
+  std::vector<double> target_position;
+  std::vector<double> target_velocity;
+  rclcpp::Time start_time;
+  rclcpp::Time end_time;
+  rclcpp::Time last_target_time;
+  bool has_segment{false};
+  bool has_last_target{false};
   FourFingerRetarget four_finger;
   SpreadRetarget spread;
   std::unique_ptr<ThumbPlugin> thumb;
@@ -142,6 +152,7 @@ public:
     command_topic_suffix_ = string_param("command_topic_suffix", "joint_forward_mit_controller/commands");
     target_topic_suffix_ = string_param("retarget_target_topic_suffix", "joint_forward_mit_controller/retarget_targets");
     mit_command_publish_hz_ = double_param("mit_command_publish_hz", 200.0);
+    mit_velocity_feedforward_enabled_ = bool_param("mit_velocity_feedforward_enabled", true);
     mit_default_kp_ = double_param("mit_default_kp", 0.4);
     mit_default_kd_ = double_param("mit_default_kd", 0.05);
 
@@ -246,8 +257,8 @@ private:
     cfg.ik_position_scale = double_param(p + "thumb_ik_position_scale", 1.0);
     cfg.pip_ik_scale = double_param(p + "thumb_pip_ik_scale", 1.0);
     cfg.dip_ik_scale = double_param(p + "thumb_dip_ik_scale", 1.0);
-    cfg.ema_prev = side == "left" ? 0.9 : 0.4;
-    cfg.ema_cur = side == "left" ? 0.1 : 0.6;
+    cfg.ema_prev = double_param(p + "thumb_ema_prev", side == "left" ? 0.9 : 0.4);
+    cfg.ema_cur = double_param(p + "thumb_ema_cur", side == "left" ? 0.1 : 0.6);
     cfg.ik_posture_weight = double_param("thumb_ik_posture_weight", 0.1);
     cfg.ik_smooth_weight = double_param("thumb_ik_smooth_weight", 0.1);
     cfg.ik_max_iterations = int_param("thumb_ik_max_iterations", 15);
@@ -300,6 +311,7 @@ private:
     q.fill(0.0);
     state->four_finger.apply(ergonomics, q);
     state->spread.apply(ergonomics, q);
+    state->thumb->set_config(load_thumb_config(state->side));
     state->thumb->apply(ergonomics, keypoints, q);
 
     Revo3MITCommand out;
@@ -309,16 +321,21 @@ private:
     apply_output_calibration(state->side, state->names, out.position);
     out.velocity.assign(state->names.size(), 0.0);
     out.effort.assign(state->names.size(), 0.0);
+    mit_velocity_feedforward_enabled_ = bool_param(
+      "mit_velocity_feedforward_enabled", mit_velocity_feedforward_enabled_);
     mit_default_kp_ = double_param("mit_default_kp", mit_default_kp_);
     mit_default_kd_ = double_param("mit_default_kd", mit_default_kd_);
-    out.kp.assign(state->names.size(), mit_default_kp_);
-    out.kd.assign(state->names.size(), mit_default_kd_);
+    out.kp = mit_gains_for_joints(state->names, "kp", mit_default_kp_);
+    out.kd = mit_gains_for_joints(state->names, "kd", mit_default_kd_);
 
-    state->target_pub->publish(out);
+    update_interpolation_target(state, out);
     {
       std::lock_guard<std::mutex> lock(state->mutex);
-      state->latest = out;
+      if (state->latest_target) {
+        out = *state->latest_target;
+      }
     }
+    state->target_pub->publish(out);
   }
 
   void publish_latest()
@@ -335,13 +352,117 @@ private:
     std::optional<Revo3MITCommand> msg;
     {
       std::lock_guard<std::mutex> lock(state->mutex);
-      msg = state->latest;
+      msg = sample_command_locked(*state, now());
     }
     if (!msg) {
       return;
     }
-    msg->header.stamp = now();
     state->command_pub->publish(*msg);
+  }
+
+  void update_interpolation_target(
+    const std::shared_ptr<SideState> & state,
+    Revo3MITCommand & target)
+  {
+    const rclcpp::Time target_time(target.header.stamp);
+    std::lock_guard<std::mutex> lock(state->mutex);
+
+    const std::vector<double> current_position = sample_position_locked(*state, target_time);
+    const std::vector<double> previous_target = state->target_position;
+    const bool compatible =
+      state->has_segment &&
+      state->latest_target &&
+      state->latest_target->joint_names == target.joint_names &&
+      previous_target.size() == target.position.size();
+
+    double duration_s = default_interpolation_duration_s();
+    std::vector<double> target_velocity(target.position.size(), 0.0);
+    if (state->has_last_target) {
+      const double interval_s = (target_time - state->last_target_time).seconds();
+      if (std::isfinite(interval_s) && interval_s > min_duration_s()) {
+        duration_s = interval_s;
+        if (compatible) {
+          for (std::size_t i = 0; i < target.position.size(); ++i) {
+            target_velocity[i] = (target.position[i] - previous_target[i]) / interval_s;
+          }
+        }
+      }
+    }
+
+    state->start_position = compatible ? current_position : target.position;
+    state->target_position = target.position;
+    state->target_velocity = target_velocity;
+    state->start_time = target_time;
+    state->end_time = target_time + rclcpp::Duration::from_seconds(std::max(duration_s, min_duration_s()));
+    state->last_target_time = target_time;
+    state->has_last_target = true;
+    state->has_segment = true;
+
+    target.velocity = velocity_feedforward_enabled() ?
+      target_velocity : std::vector<double>(target.position.size(), 0.0);
+    state->latest_target = target;
+  }
+
+  std::optional<Revo3MITCommand> sample_command_locked(SideState & state, const rclcpp::Time & sample_time)
+  {
+    if (!state.has_segment || !state.latest_target) {
+      return std::nullopt;
+    }
+    Revo3MITCommand out = *state.latest_target;
+    out.header.stamp = sample_time;
+    out.position = sample_position_locked(state, sample_time);
+    out.velocity = sample_velocity_locked(state);
+    return out;
+  }
+
+  std::vector<double> sample_position_locked(const SideState & state, const rclcpp::Time & sample_time) const
+  {
+    if (!state.has_segment || state.start_position.size() != state.target_position.size()) {
+      return state.target_position;
+    }
+    const double duration_s = (state.end_time - state.start_time).seconds();
+    if (duration_s <= min_duration_s() || sample_time >= state.end_time) {
+      return state.target_position;
+    }
+    const double alpha = std::clamp((sample_time - state.start_time).seconds() / duration_s, 0.0, 1.0);
+    std::vector<double> position(state.target_position.size(), 0.0);
+    for (std::size_t i = 0; i < position.size(); ++i) {
+      position[i] = state.start_position[i] + alpha * (state.target_position[i] - state.start_position[i]);
+    }
+    return position;
+  }
+
+  std::vector<double> sample_velocity_locked(const SideState & state) const
+  {
+    if (!state.has_segment) {
+      return std::vector<double>(state.target_position.size(), 0.0);
+    }
+    if (!velocity_feedforward_enabled()) {
+      return std::vector<double>(state.target_position.size(), 0.0);
+    }
+    if (state.target_velocity.size() == state.target_position.size()) {
+      return state.target_velocity;
+    }
+    return std::vector<double>(state.target_position.size(), 0.0);
+  }
+
+  static double min_duration_s()
+  {
+    return 1e-6;
+  }
+
+  static double default_interpolation_duration_s()
+  {
+    return 1.0 / 60.0;
+  }
+
+  bool velocity_feedforward_enabled() const
+  {
+    bool enabled = mit_velocity_feedforward_enabled_;
+    if (has_parameter("mit_velocity_feedforward_enabled")) {
+      get_parameter("mit_velocity_feedforward_enabled", enabled);
+    }
+    return enabled;
   }
 
   void apply_output_calibration(
@@ -359,6 +480,20 @@ private:
       const double offset = deg_to_rad(double_param("physical_" + side + "_" + suffix + "_offset_deg", 0.0));
       positions[i] = positions[i] * scale + offset;
     }
+  }
+
+  std::vector<double> mit_gains_for_joints(
+    const std::vector<std::string> & names,
+    const std::string & field,
+    double default_value)
+  {
+    std::vector<double> values;
+    values.reserve(names.size());
+    for (const auto & name : names) {
+      const double value = double_param("mit_" + name + "_" + field, -1.0);
+      values.push_back(std::isfinite(value) && value >= 0.0 ? value : default_value);
+    }
+    return values;
   }
 
   std::string command_topic(const std::string & side) const
@@ -445,6 +580,7 @@ private:
   std::string command_topic_suffix_;
   std::string target_topic_suffix_;
   double mit_command_publish_hz_{200.0};
+  bool mit_velocity_feedforward_enabled_{true};
   double mit_default_kp_{0.4};
   double mit_default_kd_{0.05};
   std::shared_ptr<SideState> left_;
@@ -454,17 +590,18 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace manus_revo3_retarget_cpp
+}  // namespace manus_revo3_retarget
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   rclcpp::NodeOptions options;
+  options.allow_undeclared_parameters(true);
   options.automatically_declare_parameters_from_overrides(true);
   options.enable_rosout(false);
-  options.start_parameter_services(false);
+  options.start_parameter_services(true);
   options.start_parameter_event_publisher(false);
-  auto node = std::make_shared<manus_revo3_retarget_cpp::RetargetNodeCpp>(options);
+  auto node = std::make_shared<manus_revo3_retarget::RetargetNodeCpp>(options);
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;

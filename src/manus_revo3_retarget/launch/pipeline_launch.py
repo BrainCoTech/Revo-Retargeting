@@ -70,6 +70,9 @@ def _create_runtime_nodes(context, *args, **kwargs):
         hand_mode = hand_type
     if hand_mode not in ("left", "right", "both"):
         raise ValueError("hand_mode must be one of: left, right, both")
+    manus_publish_rate_hz = float(LaunchConfiguration("manus_publish_rate_hz").perform(context))
+    if not math.isfinite(manus_publish_rate_hz) or manus_publish_rate_hz <= 0.0:
+        raise ValueError("manus_publish_rate_hz must be a finite positive value")
     launch_manus_publisher = LaunchConfiguration("launch_manus_publisher").perform(context).strip().lower() in (
         "1",
         "true",
@@ -120,6 +123,7 @@ def _create_runtime_nodes(context, *args, **kwargs):
                 package="manus_ros2",
                 executable="manus_data_publisher",
                 name="manus_data_publisher",
+                parameters=[{"publish_rate_hz": manus_publish_rate_hz}],
                 output="screen",
             )
         )
@@ -175,6 +179,11 @@ def generate_launch_description():
             description="Start manus_ros2 manus_data_publisher.",
         ),
         DeclareLaunchArgument(
+            "manus_publish_rate_hz",
+            default_value="60.0",
+            description="MANUS glove ROS publish frequency in Hz.",
+        ),
+        DeclareLaunchArgument(
             "use_revo3_namespace",
             default_value="true",
             description="Publish commands to /revo3_<side>/... topics used by revo3_driver.",
@@ -202,12 +211,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "control_config",
             default_value=PathJoinSubstitution([package_share, "config", "control.yaml"]),
-            description="Control, topic, profile, and MIT gain parameter YAML.",
+            description="Control, topic, publish-rate, and MIT gain parameter YAML.",
         ),
         DeclareLaunchArgument(
             "thumb_retarget_config",
             default_value=PathJoinSubstitution([package_share, "config", "thumb_retarget.yaml"]),
-            description="Thumb IK, thumb calibration, and pinch parameter YAML.",
+            description="Thumb IK and thumb calibration parameter YAML.",
         ),
         DeclareLaunchArgument(
             "four_finger_retarget_config",
@@ -217,7 +226,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "spread_retarget_config",
             default_value=PathJoinSubstitution([package_share, "config", "spread_retarget.yaml"]),
-            description="Spread/MPR retarget and spread guard parameter YAML.",
+            description="Spread/MPR retarget parameter YAML.",
         ),
         DeclareLaunchArgument(
             "retarget_config",
@@ -231,13 +240,13 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "left_calibration_config",
-            default_value=PathJoinSubstitution([package_share, "config", "retarget_tuning_left_DV1.yaml"]),
-            description="Default left-hand final calibration override YAML.",
+            default_value="",
+            description="Optional left-hand final calibration override YAML.",
         ),
         DeclareLaunchArgument(
             "right_calibration_config",
-            default_value=PathJoinSubstitution([package_share, "config", "retarget_tuning_right_DV1.yaml"]),
-            description="Default right-hand final calibration override YAML.",
+            default_value="",
+            description="Optional right-hand final calibration override YAML.",
         ),
         OpaqueFunction(function=_create_runtime_nodes),
     ])

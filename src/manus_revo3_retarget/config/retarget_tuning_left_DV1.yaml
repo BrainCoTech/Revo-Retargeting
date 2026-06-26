@@ -23,14 +23,17 @@ manus_revo3_retarget:
     legacy_left_physical_thumb_cmr_offset_deg: 0.0
     legacy_left_physical_thumb_dip_ik_scale: 1.0
     legacy_left_physical_thumb_dip_scale: 1.2000000000000002
+    legacy_left_physical_thumb_ema_cur: 0.5
+    legacy_left_physical_thumb_ema_prev: 0.5
     legacy_left_physical_thumb_ik_position_scale: 1.0
     legacy_left_physical_thumb_mcp_offset_deg: 0.0
     legacy_left_physical_thumb_mcp_scale: 1.0
     legacy_left_physical_thumb_pip_ik_scale: 1.0
     legacy_left_physical_thumb_pip_scale: 1.2000000000000002
     legacy_left_physical_thumb_reach_scale: 1.0
-    mit_default_kd: 0.03
+    mit_default_kd: 0.04
     mit_default_kp: 0.4
+    mit_velocity_feedforward_enabled: true
     physical_left_index_DIP_joint_offset_deg: 0.0
     physical_left_index_DIP_joint_scale: 1.0
     physical_left_index_MCP_joint_offset_deg: 0.0
@@ -73,32 +76,11 @@ manus_revo3_retarget:
     physical_left_thumb_MCP_joint_scale: 1.0
     physical_left_thumb_PIP_joint_offset_deg: 0.0
     physical_left_thumb_PIP_joint_scale: 1.0
-    pinch_distance_weight: 35.0
-    pinch_enabled: true
-    pinch_keep_weight: 0.08
-    pinch_manus_contact_index_mm: 22.5
-    pinch_manus_contact_little_mm: 23.0
-    pinch_manus_contact_middle_mm: 26.5
-    pinch_manus_contact_ring_mm: 24.5
-    pinch_max_correction_deg: 28.0
-    pinch_max_iterations: 60
-    pinch_max_step_deg: 5.0
-    pinch_model_contact_index_mm: 3.0
-    pinch_model_contact_little_mm: 3.0
-    pinch_model_contact_middle_mm: 3.0
-    pinch_model_contact_ring_mm: 3.0
-    pinch_optimize_finger_spread: false
-    pinch_smooth_weight: 0.06
-    spread_guard_converging_joint_weight: 0.35000000000000003
-    spread_guard_enabled: true
-    spread_guard_keep_weight: 0.03
-    spread_guard_max_correction_deg: 12.0
-    spread_guard_max_iterations: 5
-    spread_guard_max_step_deg: 4.0
-    spread_guard_min_adjacent_distance_mm: 16.0
-    spread_guard_step_size: 0.7000000000000001
+    thumb_ik_damping: 0.02
     thumb_ik_max_frame_delta_deg: 6.0
     thumb_ik_max_iterations: 5
     thumb_ik_max_step_deg: 3.0
     thumb_ik_posture_weight: 0.1
     thumb_ik_smooth_weight: 0.1
+    thumb_ik_step_size: 0.3
+    thumb_ik_tolerance: 0.0005

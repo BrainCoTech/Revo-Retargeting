@@ -78,7 +78,6 @@ BAG_NAME="${BAG_NAME:-manus_revo3_retarget_${TIMESTAMP}}"
 RUN_DIR="${LOG_ROOT}/${BAG_NAME}"
 BAG_DIR="${RUN_DIR}/mcap"
 STARTUP_DELAY="${STARTUP_DELAY:-3}"
-DEFAULT_CALIBRATION_CONFIG="${DEFAULT_CALIBRATION_CONFIG:-${PACKAGE_DIR}/config/retarget_tuning_left_DV1.yaml}"
 
 DEFAULT_TOPICS=(
   "/manus_glove_0"
@@ -89,7 +88,6 @@ DEFAULT_TOPICS=(
   "/revo3_right/joint_forward_mit_controller/retarget_targets"
   "/revo3_left/revo3_joint_state/joint_states_aligned"
   "/revo3_right/revo3_joint_state/joint_states_aligned"
-  "/manus_revo3_retarget/latency_events"
 )
 
 if [[ "${RECORD_RAW_JOINT_STATES:-0}" == "1" ]]; then
@@ -111,17 +109,6 @@ BAG_LOG="${RUN_DIR}/rosbag_record.log"
 ALIGNER_LOG="${RUN_DIR}/joint_state_aligner.log"
 
 LAUNCH_ARGS=("$@")
-has_calibration_config=0
-for launch_arg in "${LAUNCH_ARGS[@]}"; do
-  case "${launch_arg}" in
-    calibration_config:=*)
-      has_calibration_config=1
-      ;;
-  esac
-done
-if [[ "${has_calibration_config}" == "0" && -n "${DEFAULT_CALIBRATION_CONFIG}" ]]; then
-  LAUNCH_ARGS+=("calibration_config:=${DEFAULT_CALIBRATION_CONFIG}")
-fi
 if [[ "${#LAUNCH_ARGS[@]}" == "0" ]]; then
   LAUNCH_ARGS=("hand_mode:=both")
 fi

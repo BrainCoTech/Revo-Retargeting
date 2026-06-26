@@ -6,6 +6,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(manus_ros2_msgs REQUIRED)
@@ -52,6 +53,8 @@ ament_target_dependencies(retarget_node
   ament_index_cpp
 )
 
+ament_python_install_package(${PROJECT_NAME})
+
 install(TARGETS
   ${PROJECT_NAME}_algorithms
   ${PROJECT_NAME}_thumb_pinocchio
@@ -76,6 +79,36 @@ install(DIRECTORY config/
 install(DIRECTORY scripts/
   DESTINATION share/${PROJECT_NAME}/scripts
   USE_SOURCE_PERMISSIONS
+)
+
+install(PROGRAMS manus_revo3_retarget/command_state_viewer.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME command_state_viewer
+)
+
+install(PROGRAMS manus_revo3_retarget/joint_state_aligner.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME joint_state_aligner
+)
+
+install(PROGRAMS manus_revo3_retarget/manus_record.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME manus_record
+)
+
+install(PROGRAMS manus_revo3_retarget/manus_replay.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME manus_replay
+)
+
+install(PROGRAMS manus_revo3_retarget/quintic_joint_test.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME quintic_joint_test
+)
+
+install(PROGRAMS manus_revo3_retarget/retarget_tuning_panel.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME retarget_tuning_panel
 )
 
 install(FILES package.xml README.md

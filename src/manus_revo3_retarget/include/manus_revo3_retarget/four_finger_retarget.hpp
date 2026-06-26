@@ -1,8 +1,8 @@
 #pragma once
 
-#include "manus_revo3_retarget_cpp/retarget_common.hpp"
+#include "manus_revo3_retarget/retarget_common.hpp"
 
-namespace manus_revo3_retarget_cpp
+namespace manus_revo3_retarget
 {
 
 struct FourFingerConfig
@@ -26,4 +26,4 @@ private:
   FourFingerConfig config_;
 };
 
-}  // namespace manus_revo3_retarget_cpp
+}  // namespace manus_revo3_retarget

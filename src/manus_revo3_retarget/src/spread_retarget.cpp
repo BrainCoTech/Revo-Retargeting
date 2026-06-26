@@ -1,6 +1,6 @@
-#include "manus_revo3_retarget_cpp/spread_retarget.hpp"
+#include "manus_revo3_retarget/spread_retarget.hpp"
 
-namespace manus_revo3_retarget_cpp
+namespace manus_revo3_retarget
 {
 
 void SpreadRetarget::set_config(const SpreadConfig & config)
@@ -34,4 +34,4 @@ void SpreadRetarget::apply(const Ergonomics & ergonomics, JointArray & q) const
   q[LittleMPR] = deg_to_rad(config_.finger_spread_sign * pinky_value_deg);
 }
 
-}  // namespace manus_revo3_retarget_cpp
+}  // namespace manus_revo3_retarget

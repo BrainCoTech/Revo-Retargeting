@@ -1,6 +1,6 @@
-#include "manus_revo3_retarget_cpp/four_finger_retarget.hpp"
+#include "manus_revo3_retarget/four_finger_retarget.hpp"
 
-namespace manus_revo3_retarget_cpp
+namespace manus_revo3_retarget
 {
 
 void FourFingerRetarget::set_config(const FourFingerConfig & config)
@@ -32,4 +32,4 @@ void FourFingerRetarget::apply(const Ergonomics & ergonomics, JointArray & q) co
   q[LittleDIP] = deg_to_rad(flex("PinkyDIPStretch") * config_.pinky_angle_scale * config_.pinky_dip_pip_scale);
 }
 
-}  // namespace manus_revo3_retarget_cpp
+}  // namespace manus_revo3_retarget

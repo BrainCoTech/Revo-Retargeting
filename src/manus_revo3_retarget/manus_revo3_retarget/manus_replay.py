@@ -14,7 +14,7 @@ from rclpy.node import Node
 
 from .manus_glove_io import manus_glove_from_dict
 
-VALID_HAND_MODES = ("left", "right", "both")
+VALID_HAND_MODES = {"left", "right", "both"}
 
 
 @dataclass(frozen=True)

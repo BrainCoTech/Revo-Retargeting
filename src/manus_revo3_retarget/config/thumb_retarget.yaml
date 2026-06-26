@@ -1,20 +1,18 @@
+---
 manus_revo3_retarget:
   ros__parameters:
-    # Thumb IK.
     thumb_ik_posture_weight: 0.1
     thumb_ik_smooth_weight: 0.1
     thumb_ik_max_iterations: 10
     thumb_ik_max_step_deg: 3.0
     thumb_ik_max_frame_delta_deg: 6.0
-
-    # Thumb retarget scale/offset. Units:
-    #   *_offset_deg: degrees
-    #   *_scale: unitless
+    thumb_ik_damping: 0.02
+    thumb_ik_step_size: 0.30
+    thumb_ik_tolerance: 0.0005
     left_thumb_cmp_offset_deg_physical: 0.0
     left_thumb_cmp_scale_physical: 1.0
     right_thumb_cmp_offset_deg_physical: 0.0
     right_thumb_cmp_scale_physical: 1.04
-
     legacy_left_physical_thumb_joint_offset_deg: 0.0
     legacy_left_physical_thumb_cmr_offset_deg: 0.0
     legacy_left_physical_thumb_mcp_offset_deg: 0.0
@@ -25,7 +23,8 @@ manus_revo3_retarget:
     legacy_left_physical_thumb_dip_ik_scale: 1.0
     legacy_left_physical_thumb_reach_scale: 1.0
     legacy_left_physical_thumb_ik_position_scale: 1.0
-
+    legacy_left_physical_thumb_ema_prev: 0.5
+    legacy_left_physical_thumb_ema_cur: 0.5
     legacy_right_physical_thumb_joint_offset_deg: 0.0
     legacy_right_physical_thumb_cmr_offset_deg: 0.0
     legacy_right_physical_thumb_mcp_offset_deg: 0.0
@@ -36,9 +35,8 @@ manus_revo3_retarget:
     legacy_right_physical_thumb_dip_ik_scale: 1.0
     legacy_right_physical_thumb_reach_scale: 1.0
     legacy_right_physical_thumb_ik_position_scale: 1.0
-
-    # Final physical thumb command calibration:
-    #   command_position = command_position * scale + offset_deg
+    legacy_right_physical_thumb_ema_prev: 0.5
+    legacy_right_physical_thumb_ema_cur: 0.5
     physical_left_thumb_MCP_joint_scale: 1.0
     physical_left_thumb_MCP_joint_offset_deg: 0.0
     physical_left_thumb_PIP_joint_scale: 1.0
@@ -49,7 +47,6 @@ manus_revo3_retarget:
     physical_left_thumb_CMP_joint_offset_deg: 0.0
     physical_left_thumb_CMR_joint_scale: 1.0
     physical_left_thumb_CMR_joint_offset_deg: 0.0
-
     physical_right_thumb_MCP_joint_scale: 1.0
     physical_right_thumb_MCP_joint_offset_deg: -4.0
     physical_right_thumb_PIP_joint_scale: 1.2
@@ -60,31 +57,3 @@ manus_revo3_retarget:
     physical_right_thumb_CMP_joint_offset_deg: 0.0
     physical_right_thumb_CMR_joint_scale: 1.0
     physical_right_thumb_CMR_joint_offset_deg: 0.0
-
-    # Pinch intent and correction. This is kept with thumb retargeting because
-    # it drives thumb-to-finger contact behavior.
-    pinch_enabled: true
-    pinch_manus_contact_index_mm: 22.3
-    pinch_manus_contact_middle_mm: 26.7
-    pinch_manus_contact_ring_mm: 24.4
-    pinch_manus_contact_little_mm: 22.9
-    pinch_on_margin_mm: 1.0
-    pinch_off_margin_mm: 8.0
-    pinch_min_hold_s: 0.10
-
-    pinch_model_contact_index_mm: 3.0
-    pinch_model_contact_middle_mm: 3.0
-    pinch_model_contact_ring_mm: 3.0
-    pinch_model_contact_little_mm: 3.0
-
-    pinch_distance_weight: 35.0
-    pinch_keep_weight: 0.08
-    pinch_smooth_weight: 0.06
-    pinch_damping: 0.03
-    pinch_step_size: 0.35
-    pinch_max_iterations: 60
-    pinch_max_step_deg: 5.0
-    pinch_max_correction_deg: 28.0
-    pinch_activation_slew_per_frame: 0.10
-    pinch_release_slew_per_frame: 0.12
-    pinch_optimize_finger_spread: false

@@ -14,7 +14,7 @@ from rclpy.node import Node
 
 from .manus_glove_io import manus_glove_to_dict
 
-VALID_HAND_MODES = ("left", "right", "both")
+VALID_HAND_MODES = {"left", "right", "both"}
 
 
 def _default_output_path(hand_mode: str, action: str) -> Path:
@@ -119,7 +119,7 @@ def main() -> None:
     parser.add_argument(
         "--action",
         required=True,
-        help="Action label for this recording, e.g. open, fist, pinch_index.",
+        help="Action label for this recording, e.g. open, fist, thumb_touch.",
     )
     parser.add_argument("--duration", type=float, default=None, help="Seconds to record after the first accepted frame.")
     parser.add_argument("--max-frames", type=int, default=None)
