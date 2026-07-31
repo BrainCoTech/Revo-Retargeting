@@ -94,16 +94,21 @@
     joint_upper_limits: [1.0472, 1.5184, 1.4661, 1.4661, 1.4661, 1.4661]
 
     target_filter:
-      alpha: 0.45
-      fast_alpha: 0.9
-      fast_threshold: 0.095993109
+      alpha: 0.75
+      fast_alpha: 1.0
+      fast_threshold: 0.04
+
+    target_velocity_feedforward:
+      gain: 0.4
+      alpha: 0.4
+      max: 1.0
 
     pd_velocity:
-      velocity_kp: 2.4
+      velocity_kp: 3.6
       velocity_kd: 0.0
       derivative_alpha: 0.25
       velocity_deadband: 0.013962634
-      velocity_max: 2.094395102
+      velocity_max: 2.25
       velocity_slew_rate: 1.0
 
       thumb_velocity_deadband: 0.020943951

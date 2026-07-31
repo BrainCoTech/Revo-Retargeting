@@ -61,6 +61,7 @@ private:
   JointArray filtered_target_{};
   JointArray last_error_{};
   JointArray filtered_derivative_{};
+  JointArray filtered_target_velocity_{};
   JointArray target_velocity_{};
   JointArray command_velocity_{};
   bool filter_initialized_{false};
@@ -71,6 +72,9 @@ private:
   double target_filter_alpha_{0.45};
   double target_filter_fast_alpha_{0.9};
   double target_filter_fast_threshold_{0.095993109};
+  double target_velocity_ff_gain_{0.0};
+  double target_velocity_ff_alpha_{0.4};
+  double target_velocity_ff_max_{1.0};
 
   double velocity_kp_{2.4};
   double velocity_kd_{0.0};

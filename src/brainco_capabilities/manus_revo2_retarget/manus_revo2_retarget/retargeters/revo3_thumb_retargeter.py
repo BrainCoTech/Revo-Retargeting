@@ -43,6 +43,7 @@ DEFAULT_REVO3_PARAMS = {
     "pip_constraint_weight": 0.10,
     "ema_prev": 0.10,
     "ema_cur": 0.90,
+    "thumb_ik_max_iterations": 40,
 }
 
 MANUS_Z_ROTATION_RAD = np.pi / 2.0
@@ -256,10 +257,12 @@ def _solve_thumb_ik(
     jlow,
     jhigh,
     pip_constraint_weight: float,
+    max_iterations: int = 40,
     proximal_fixed_q=None,
 ):
     """MuJoCo Jacobian IK for the thumb with mimic distal coupling."""
     q = np.asarray(current_q, dtype=float).copy()
+    max_iterations = max(1, int(max_iterations))
     proximal_is_fixed = proximal_fixed_q is not None
     if proximal_is_fixed:
         q[proximal_adr] = np.clip(
@@ -277,7 +280,7 @@ def _solve_thumb_ik(
 
     pip_weight = float(np.clip(pip_constraint_weight, 0.0, 1.0))
 
-    for _ in range(40):
+    for _ in range(max_iterations):
         if proximal_is_fixed:
             q[proximal_adr] = np.clip(
                 float(proximal_fixed_q),
@@ -507,6 +510,7 @@ class Revo3ThumbRetargeter(BaseRetargeter):
         thumb_pip_target,
         side: str,
         pip_constraint_weight: float,
+        max_iterations: int = 40,
         proximal_fixed_q=None,
     ):
         idx = self._thumb_index_cache[side]
@@ -527,6 +531,7 @@ class Revo3ThumbRetargeter(BaseRetargeter):
             jlow,
             jhigh,
             pip_constraint_weight,
+            max_iterations=max_iterations,
             proximal_fixed_q=proximal_fixed_q,
         )
 
@@ -551,6 +556,9 @@ class Revo3ThumbRetargeter(BaseRetargeter):
 
         merged["pip_constraint_weight"] = float(
             np.clip(merged.get("pip_constraint_weight", 0.1), 0.0, 1.0)
+        )
+        merged["thumb_ik_max_iterations"] = int(
+            np.clip(round(merged.get("thumb_ik_max_iterations", 40)), 1, 40)
         )
         merged["thumb_ik_position_scale"] = float(
             np.clip(merged.get("thumb_ik_position_scale", 1.05), 0.85, 1.30)
@@ -850,6 +858,7 @@ class Revo3ThumbRetargeter(BaseRetargeter):
                 thumb_pip,
                 side,
                 params["pip_constraint_weight"],
+                max_iterations=params["thumb_ik_max_iterations"],
                 proximal_fixed_q=proximal_fixed_q,
             )
             setattr(self, q_attr, q)

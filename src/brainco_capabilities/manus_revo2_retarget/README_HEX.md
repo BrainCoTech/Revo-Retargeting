@@ -174,6 +174,8 @@ angles_port                  Hex 角度 JSON UDP 端口，默认 9011
 positions_port               Hex 位置 JSON UDP 端口，默认 9013
 launch_revo2_pipeline        false 时只启动 Hex bridge
 hand_mode                    left / right / both
+read_touch_status            是否同步读取 Revo2 触觉状态，默认 true
+touch_read_hz                触觉状态 SDK 读取频率，默认 20.0
 revo2_coordinate_transform   是否使用 Revo2 坐标变换，默认 true
 zero_angles_on_first_frame   是否用第一帧作为角度零点，默认 false
 ```

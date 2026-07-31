@@ -38,19 +38,17 @@ def _switch_controller_command(controller_manager, target_controller):
 set -u
 cm='{controller_manager}'
 target='{target_controller}'
-export NO_COLOR=1
-export RCUTILS_COLORIZED_OUTPUT=0
 
 controller_active() {{
   local name="$1"
   timeout 5 ros2 control list_controllers -c "$cm" 2>/dev/null | \\
-    awk -v name="$name" 'index($0, name) && $0 ~ /active[[:space:]]/ {{found=1}} END {{exit found ? 0 : 1}}'
+    awk -v name="$name" '$1 == name && $NF == "active" {{found=1}} END {{exit found ? 0 : 1}}'
 }}
 
 controller_exists() {{
   local name="$1"
   timeout 5 ros2 control list_controllers -c "$cm" 2>/dev/null | \\
-    awk -v name="$name" 'index($0, name) {{found=1}} END {{exit found ? 0 : 1}}'
+    awk -v name="$name" '$1 == name {{found=1}} END {{exit found ? 0 : 1}}'
 }}
 
 for attempt in $(seq 1 30); do
@@ -104,6 +102,8 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
     hand_mode = LaunchConfiguration("hand_mode").perform(context).lower()
     sides = _selected_sides(hand_mode)
     update_rate = LaunchConfiguration("update_rate").perform(context)
+    read_touch_status = LaunchConfiguration("read_touch_status").perform(context)
+    touch_read_hz = LaunchConfiguration("touch_read_hz").perform(context)
     protocol = LaunchConfiguration("protocol").perform(context)
     use_namespace = _as_bool(LaunchConfiguration("use_namespace").perform(context))
     launch_driver = _as_bool(LaunchConfiguration("launch_driver").perform(context))
@@ -131,7 +131,8 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
         LogInfo(
             msg=(
                 "Starting MANUS Revo2 real-hand pipeline: "
-                f"hand_mode={hand_mode}, update_rate={update_rate} Hz"
+                f"hand_mode={hand_mode}, update_rate={update_rate} Hz, "
+                f"read_touch_status={read_touch_status}, touch_read_hz={touch_read_hz}"
             )
         )
     ]
@@ -149,6 +150,8 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
                         "initial_positions_file": LaunchConfiguration("initial_positions_file"),
                         "controllers_file": LaunchConfiguration("controllers_file"),
                         "update_rate": update_rate,
+                        "read_touch_status": read_touch_status,
+                        "touch_read_hz": touch_read_hz,
                         "use_namespace": str(use_namespace).lower(),
                         "if_sim": LaunchConfiguration("if_sim"),
                         "launch_rsp": LaunchConfiguration("launch_rsp"),
@@ -243,6 +246,17 @@ def generate_launch_description():
             "update_rate",
             default_value="20",
             description="Revo2 controller_manager hardware read/write rate.",
+        ),
+        DeclareLaunchArgument(
+            "read_touch_status",
+            default_value="true",
+            description="Read Revo2 touch status synchronously from the SDK.",
+            choices=["true", "false"],
+        ),
+        DeclareLaunchArgument(
+            "touch_read_hz",
+            default_value="20.0",
+            description="Touch status SDK polling rate when read_touch_status is true.",
         ),
         DeclareLaunchArgument(
             "switch_delay",

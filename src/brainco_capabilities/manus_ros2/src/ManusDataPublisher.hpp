@@ -135,7 +135,7 @@ protected:
     // Calibration directory for auto-loading .mcal files.
     std::string m_CalibrationDirectory;
     std::set<uint32_t> m_CalibratedGloves;
-    double m_PublishRateHz = 120.0;
+    double m_PublishRateHz = 60.0;
     
     //Coordinate system settings
     bool m_WorldSpace = true;

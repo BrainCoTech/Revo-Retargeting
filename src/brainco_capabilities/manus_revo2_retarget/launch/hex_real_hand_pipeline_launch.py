@@ -79,6 +79,8 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
                 launch_arguments={
                     "hand_mode": LaunchConfiguration("hand_mode"),
                     "update_rate": LaunchConfiguration("update_rate"),
+                    "read_touch_status": LaunchConfiguration("read_touch_status"),
+                    "touch_read_hz": LaunchConfiguration("touch_read_hz"),
                     "switch_delay": LaunchConfiguration("switch_delay"),
                     "retarget_delay": LaunchConfiguration("retarget_delay"),
                     "plot_delay": LaunchConfiguration("plot_delay"),
@@ -215,6 +217,17 @@ def generate_launch_description():
             "update_rate",
             default_value="20",
             description="Revo2 controller_manager hardware read/write rate.",
+        ),
+        DeclareLaunchArgument(
+            "read_touch_status",
+            default_value="true",
+            description="Read Revo2 touch status synchronously from the SDK.",
+            choices=["true", "false"],
+        ),
+        DeclareLaunchArgument(
+            "touch_read_hz",
+            default_value="20.0",
+            description="Touch status SDK polling rate when read_touch_status is true.",
         ),
         DeclareLaunchArgument(
             "switch_delay",

@@ -6,34 +6,37 @@ skip_calibration: true
 # Do not run or load the retargeter thumb-calibration file by default.
 # MANUS glove calibration is handled inside manus_ros2 / the official SDK.
 use_default_revo3_calibration: true
-algorithm: joint_thumb
+algorithm: revo3_thumb
 control_mode: pd_velocity
 end_effector: real_hand
 
 revo3_thumb:
+  left:
+    thumb_ik_position_scale: 1.00
+    thumb_joint_offset_deg: 6.0
+    # MuJoCo thumb IK tuning:
+    # cmp controls thumb side swing; mcp controls thumb flexion.
+    thumb_cmp_scale: 1.20
+    thumb_mcp_scale: 0.75
+    thumb_cmp_offset_deg: 0.0
+    thumb_mcp_offset_deg: 0.0
+    pip_constraint_weight: 0.10
+    ema_prev: 0.10
+    ema_cur: 0.90
+    thumb_ik_max_iterations: 5
   right:
     thumb_ik_position_scale: 1.00
     thumb_joint_offset_deg: 6.0
-    thumb_cmp_scale: 1.30
-    thumb_mcp_scale: 1.15
-    thumb_cmp_offset_deg: 6.0
+    # MuJoCo thumb IK tuning:
+    # cmp controls thumb side swing; mcp controls thumb flexion.
+    thumb_cmp_scale: 1.20
+    thumb_mcp_scale: 0.75
+    thumb_cmp_offset_deg: 0.0
     thumb_mcp_offset_deg: 0.0
-    pip_constraint_weight: 0.0
-    # joint_thumb: map MANUS thumb ergonomics directly to Revo2 thumb joints.
-    # thumb_meta uses ThumbMCPSpread; flip sign if side swing direction is reversed.
-    # Baseline stable value: thumb_meta_range_deg: 45.0
-    # Current wider Revo2 inner swing tuning: make MANUS spread reach the limit sooner.
-    thumb_meta_sign: 1.0
-    thumb_meta_zero_deg: 0.0
-    thumb_meta_range_deg: 30.0
-    # thumb_prox uses a weighted Thumb*Stretch blend.
-    # Baseline stable values: thumb_prox_zero_deg: 0.0, thumb_prox_range_deg: 80.0
-    # Increase zero/range so the passive DIP stays straighter when the thumb opens.
-    thumb_prox_zero_deg: 10.0
-    thumb_prox_range_deg: 90.0
-    thumb_prox_mcp_weight: 0.40
-    thumb_prox_pip_weight: 0.30
-    thumb_prox_dip_weight: 0.30
+    pip_constraint_weight: 0.10
+    ema_prev: 0.10
+    ema_cur: 0.90
+    thumb_ik_max_iterations: 5
 
 revo2_driver:
   left_velocity_command_topic: /revo2_left/joint_forward_vel_controller/commands
@@ -63,7 +66,7 @@ pd_velocity:
   four_finger_extension_joints: "2,3,4,5"
 
 target_filter:
-  alpha: 0.3
+  alpha: 0.45
   fast_alpha: 0.9
   fast_threshold: 0.095993109
 

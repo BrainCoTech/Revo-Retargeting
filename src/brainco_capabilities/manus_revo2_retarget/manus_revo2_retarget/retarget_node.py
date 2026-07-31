@@ -59,6 +59,7 @@ REVO3_OPTIONAL_RUNTIME_PARAM_KEYS = {
     "thumb_prox_mcp_weight",
     "thumb_prox_pip_weight",
     "thumb_prox_dip_weight",
+    "thumb_ik_max_iterations",
 }
 REVO3_RUNTIME_PARAM_KEYS = REVO3_REQUIRED_PARAM_KEYS | REVO3_OPTIONAL_RUNTIME_PARAM_KEYS
 CALIBRATION_COUNTDOWN_SEC = 3

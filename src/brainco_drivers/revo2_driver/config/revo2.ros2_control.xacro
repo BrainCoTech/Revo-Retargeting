@@ -30,7 +30,7 @@
 
   <xacro:macro
     name="revo2_ros2_control"
-    params="name hand_side initial_positions_file protocol_config_file if_sim:=false">
+    params="name hand_side initial_positions_file protocol_config_file read_touch_status:=true touch_read_hz:=20.0 if_sim:=false">
     <xacro:property
       name="hand_prefix"
       value="${hand_side}"/>
@@ -45,8 +45,6 @@
       <hardware>
         <xacro:if value="${if_sim}">
           <plugin>mock_components/GenericSystem</plugin>
-          <!-- PID controller commands velocity only; integrate cmd vel → position state in sim. -->
-          <param name="calculate_dynamics">true</param>
         </xacro:if>
         <xacro:unless value="${if_sim}">
           <plugin>revo2_driver/BraincoHandHardware</plugin>
@@ -54,6 +52,8 @@
           <param name="slave_id">${hardware_config['slave_id']}</param>
           <param name="log_level">${hardware_config['log_level']}</param>
           <param name="ctrl_param_duration_ms">${hardware_config['ctrl_param_duration_ms']}</param>
+          <param name="read_touch_status">${read_touch_status}</param>
+          <param name="touch_read_hz">${touch_read_hz}</param>
           <param name="position_command_scale">${hardware_config['position_command_scale']}</param>
           <param name="position_state_scale">${hardware_config['position_state_scale']}</param>
           <param name="velocity_state_scale">${hardware_config['velocity_state_scale']}</param>

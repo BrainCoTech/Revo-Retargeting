@@ -72,7 +72,6 @@ def _create_nodes(context, *args, **kwargs):
                     else "manus_revo2_retarget"
                 ),
                 arguments=retarget_args,
-                additional_env={"PYTHONNOUSERSITE": "1"},
                 output="screen",
             )
         )

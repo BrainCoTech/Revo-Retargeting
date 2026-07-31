@@ -24,8 +24,8 @@ hardware:
   # Speed-mode teleoperation uses physical deg/s in physical mode.
   physical_velocity_state_scale: 0.017453292519943295
   physical_velocity_command_scale: 57.29577951308232
-  physical_velocity_device_min: -120.0
-  physical_velocity_device_max: 120.0
+  physical_velocity_device_min: -130.0
+  physical_velocity_device_max: 130.0
   # Revo2 ThumbAux / thumb_metacarpal_joint speed-mode diagnostic.
   # SDK range: 100~500 mA. Remove or set to 0 to leave firmware default unchanged.
   # thumb_aux_lock_current: 200

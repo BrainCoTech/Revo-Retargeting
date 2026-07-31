@@ -58,6 +58,9 @@ controller_interface::CallbackReturn Revo2PidController::on_init()
     auto_declare<double>("target_filter.alpha", target_filter_alpha_);
     auto_declare<double>("target_filter.fast_alpha", target_filter_fast_alpha_);
     auto_declare<double>("target_filter.fast_threshold", target_filter_fast_threshold_);
+    auto_declare<double>("target_velocity_feedforward.gain", target_velocity_ff_gain_);
+    auto_declare<double>("target_velocity_feedforward.alpha", target_velocity_ff_alpha_);
+    auto_declare<double>("target_velocity_feedforward.max", target_velocity_ff_max_);
 
     auto_declare<double>("pd_velocity.velocity_kp", velocity_kp_);
     auto_declare<double>("pd_velocity.velocity_kd", velocity_kd_);
@@ -142,6 +145,12 @@ controller_interface::CallbackReturn Revo2PidController::on_configure(
     target_filter_fast_alpha_ = std::max(target_filter_alpha_, target_filter_fast_alpha_);
     target_filter_fast_threshold_ = std::max(
       0.0, get_node()->get_parameter("target_filter.fast_threshold").as_double());
+    target_velocity_ff_gain_ = std::max(
+      0.0, get_node()->get_parameter("target_velocity_feedforward.gain").as_double());
+    target_velocity_ff_alpha_ = clamp(
+      get_node()->get_parameter("target_velocity_feedforward.alpha").as_double(), 0.0, 1.0);
+    target_velocity_ff_max_ = std::max(
+      0.0, get_node()->get_parameter("target_velocity_feedforward.max").as_double());
 
     velocity_kp_ = get_node()->get_parameter("pd_velocity.velocity_kp").as_double();
     velocity_kd_ = get_node()->get_parameter("pd_velocity.velocity_kd").as_double();
@@ -219,9 +228,12 @@ controller_interface::CallbackReturn Revo2PidController::on_configure(
 
   RCLCPP_INFO(
     get_node()->get_logger(),
-    "Revo2PidController configured: target=%s, joints=%zu, command=velocity rad/s",
+    "Revo2PidController configured: target=%s, joints=%zu, command=velocity rad/s, target_velocity_ff gain=%.3f alpha=%.3f max=%.3f",
     target_topic_.c_str(),
-    joints_.size());
+    joints_.size(),
+    target_velocity_ff_gain_,
+    target_velocity_ff_alpha_,
+    target_velocity_ff_max_);
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -275,10 +287,14 @@ controller_interface::return_type Revo2PidController::update(
       feedback_position_offsets_[i];
   }
 
+  JointArray previous_filtered_target = filtered_target_;
   if (!filter_initialized_) {
     filtered_target_ = target;
+    previous_filtered_target = filtered_target_;
+    filtered_target_velocity_.fill(0.0);
     filter_initialized_ = true;
   } else {
+    previous_filtered_target = filtered_target_;
     for (std::size_t i = 0; i < kJointCount; ++i) {
       const double delta = std::abs(target[i] - filtered_target_[i]);
       const double alpha =
@@ -304,6 +320,12 @@ controller_interface::return_type Revo2PidController::update(
     filtered_derivative_[i] =
       (1.0 - derivative_alpha_) * filtered_derivative_[i] +
       derivative_alpha_ * raw_derivative;
+
+    const double raw_target_velocity = (filtered_target_[i] - previous_filtered_target[i]) / dt;
+    filtered_target_velocity_[i] =
+      (1.0 - target_velocity_ff_alpha_) * filtered_target_velocity_[i] +
+      target_velocity_ff_alpha_ * raw_target_velocity;
+
     target_velocity_[i] = velocity_kp_ * error[i] + velocity_kd_ * filtered_derivative_[i];
   }
 
@@ -321,6 +343,14 @@ controller_interface::return_type Revo2PidController::update(
     if (std::abs(error[i]) <= deadband) {
       target_velocity_[i] = 0.0;
     }
+
+    const double feedforward_velocity = target_velocity_ff_max_ > 0.0 ?
+      clamp(
+        target_velocity_ff_gain_ * filtered_target_velocity_[i],
+        -target_velocity_ff_max_,
+        target_velocity_ff_max_) :
+      0.0;
+    target_velocity_[i] += feedforward_velocity;
   }
 
   for (const auto joint_index : four_finger_extension_joints_) {
@@ -461,6 +491,7 @@ void Revo2PidController::reset_runtime_state()
   filtered_target_.fill(0.0);
   last_error_.fill(0.0);
   filtered_derivative_.fill(0.0);
+  filtered_target_velocity_.fill(0.0);
   target_velocity_.fill(0.0);
   command_velocity_.fill(0.0);
   filter_initialized_ = false;

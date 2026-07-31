@@ -56,15 +56,15 @@ ManusDataPublisher::ManusDataPublisher() : Node("manus_data_publisher")
     // Declare and read calibration directory parameter
     this->declare_parameter<std::string>("calibration_directory", DefaultCalibrationDirectory());
     this->get_parameter("calibration_directory", m_CalibrationDirectory);
-    this->declare_parameter<double>("publish_rate_hz", 120.0);
+    this->declare_parameter<double>("publish_rate_hz", 60.0);
     this->get_parameter("publish_rate_hz", m_PublishRateHz);
     if (m_PublishRateHz <= 0.0)
     {
         RCLCPP_WARN(
             get_logger(),
-            "Invalid publish_rate_hz %.3f, falling back to 120Hz.",
+            "Invalid publish_rate_hz %.3f, falling back to 60Hz.",
             m_PublishRateHz);
-        m_PublishRateHz = 120.0;
+        m_PublishRateHz = 60.0;
     }
 
     // Timer to publish the data
@@ -340,6 +340,26 @@ void ManusDataPublisher::PublishCallback()
         t_Msg.glove_id = m_Landscape->gloveDevices.gloves[i].id;
         t_Msg.side = SideToString(m_Landscape->gloveDevices.gloves[i].side);
 
+        // Eagerly create the ROS publisher as soon as Core reports this glove in
+        // the landscape, BEFORE any skeleton data has arrived. Previously the
+        // publisher (and thus the manus_glove_N topic) was created lazily only
+        // after the first non-empty skeleton frame (see the data guards below),
+        // so a subscriber that came up before glove data started flowing (e.g.
+        // the hardware self-check) would bind to a topic that did not yet exist
+        // and stay stuck WAITING until the glove was power-cycled. Creating it
+        // here decouples "topic exists" from "data is flowing": the topic
+        // appears right after connecting to Core, and the self-check flips to
+        // READY as soon as the first frame is published below.
+        auto t_Publisher = m_GlovePublisher.find(t_Msg.glove_id);
+        if (t_Publisher == m_GlovePublisher.end())
+        {
+            std::string topic_name = "manus_glove_" + std::to_string(m_GlovePublisher.size());
+            auto t_NewPublisher = this->create_publisher<manus_ros2_msgs::msg::ManusGlove>(topic_name, 10);
+            t_Publisher = m_GlovePublisher.emplace(t_Msg.glove_id, t_NewPublisher).first;
+            // (Re)create vibration subscribers for all gloves
+            UpdateVibrationSubscribers();
+        }
+
         if (t_GloveDataMap.find(t_Msg.glove_id) == t_GloveDataMap.end())
         {
             continue;
@@ -441,17 +461,6 @@ void ManusDataPublisher::PublishCallback()
             }
         }
 
-        // Find a publisher for the glove, if not present create one
-        auto t_Publisher = m_GlovePublisher.find(t_Msg.glove_id);
-        if (t_Publisher == m_GlovePublisher.end())
-        {
-            std::string topic_name = "manus_glove_" + std::to_string(m_GlovePublisher.size());
-            auto t_NewPublisher = this->create_publisher<manus_ros2_msgs::msg::ManusGlove>(topic_name, 10);
-            t_Publisher = m_GlovePublisher.emplace(t_Msg.glove_id, t_NewPublisher).first;
-            // (Re)create vibration subscribers for all gloves
-            UpdateVibrationSubscribers();
-        }
-        
         // Attempt to auto-load calibration for new gloves (only once per glove)
         if (m_CalibratedGloves.find(t_Msg.glove_id) == m_CalibratedGloves.end())
         {

@@ -269,21 +269,9 @@ bool SessionBase::set_finger_speeds(
     return false;
   }
 
-  static constexpr StarkFingerId kFingerIds[] = {
-    STARK_FINGER_ID_THUMB,
-    STARK_FINGER_ID_THUMB_AUX,
-    STARK_FINGER_ID_INDEX,
-    STARK_FINGER_ID_MIDDLE,
-    STARK_FINGER_ID_RING,
-    STARK_FINGER_ID_PINKY,
-  };
-
-  constexpr std::size_t kKnownFingerCount = sizeof(kFingerIds) / sizeof(kFingerIds[0]);
+  constexpr std::size_t kKnownFingerCount = BraincoHandApi::kFingerCount;
   const auto finger_count = count < kKnownFingerCount ? count : kKnownFingerCount;
-  for (std::size_t index = 0; index < finger_count; ++index)
-  {
-    ::stark_set_finger_speed(handler_, slave_id, kFingerIds[index], speeds[index]);
-  }
+  ::stark_set_finger_speeds(handler_, slave_id, speeds, finger_count);
   return true;
 }
 

@@ -275,6 +275,7 @@ auto BraincoHandHardware::on_activate(const rclcpp_lifecycle::State & previous_s
     hw_velocities_command_[i] = 0.0;
     hw_speeds_command_[i] = hw_velocities_[i];  // 设置合理的默认速度值
   }
+  last_touch_read_time_ = {};
 
   is_active_ = true;
   BRAINCO_HAND_LOG_INFO("Hardware activated successfully");
@@ -472,39 +473,59 @@ auto BraincoHandHardware::read(const rclcpp::Time & time, const rclcpp::Duration
     }
   }
 
-  // Touch sensors (dynamic joint interfaces)
-  const auto touch_status = api_.get_touch_status(config_.transport.slave_id);
-  if (touch_status)
+  bool should_read_touch_status = false;
+  if (config_.read_touch_status && config_.touch_read_hz > 0.0)
   {
-    const bool is_right_hand =
-      !joint_names_.empty() && joint_names_.front().rfind("right_", 0) == 0;
-    const char * prefix = is_right_hand ? "right_" : "left_";
-    const std::array<const char *, kTouchFingerCount> touch_joint_suffixes{
-      "thumb_proximal_joint",
-      "index_proximal_joint",
-      "middle_proximal_joint",
-      "ring_proximal_joint",
-      "pinky_proximal_joint"};
-
-    for (std::size_t i = 0; i < kTouchFingerCount; ++i)
+    const auto touch_now = std::chrono::steady_clock::now();
+    if (last_touch_read_time_ == std::chrono::steady_clock::time_point{})
     {
-      const std::string joint_name = std::string(prefix) + touch_joint_suffixes[i];
-      const auto iter = joint_name_to_index_.find(joint_name);
-      if (iter == joint_name_to_index_.end())
-      {
-        continue;
-      }
+      should_read_touch_status = true;
+    }
+    else
+    {
+      const double elapsed_since_touch_read =
+        std::chrono::duration<double>(touch_now - last_touch_read_time_).count();
+      should_read_touch_status = elapsed_since_touch_read >= (1.0 / config_.touch_read_hz);
+    }
+  }
 
-      const std::size_t joint_index = iter->second;
-      const auto & item = touch_status->items[i];
-      hw_touch_nf1_[joint_index] =
-        static_cast<double>(item.tactile_normal_force) / kTactileForceScale;
-      hw_touch_tf1_[joint_index] =
-        static_cast<double>(item.tactile_tangential_force) / kTactileForceScale;
-      hw_touch_td1_[joint_index] =
-        static_cast<double>(item.tactile_tangential_direction) * kDegToRad;
-      hw_touch_sp1_[joint_index] = static_cast<double>(item.tactile_self_proximity);
-      hw_touch_status_[joint_index] = static_cast<double>(item.tactile_status);
+  // Touch sensors are slow on Modbus, so read them at a lower synchronous rate.
+  if (should_read_touch_status)
+  {
+    const auto touch_status = api_.get_touch_status(config_.transport.slave_id);
+    last_touch_read_time_ = std::chrono::steady_clock::now();
+    if (touch_status)
+    {
+      const bool is_right_hand =
+        !joint_names_.empty() && joint_names_.front().rfind("right_", 0) == 0;
+      const char * prefix = is_right_hand ? "right_" : "left_";
+      const std::array<const char *, kTouchFingerCount> touch_joint_suffixes{
+        "thumb_proximal_joint",
+        "index_proximal_joint",
+        "middle_proximal_joint",
+        "ring_proximal_joint",
+        "pinky_proximal_joint"};
+
+      for (std::size_t i = 0; i < kTouchFingerCount; ++i)
+      {
+        const std::string joint_name = std::string(prefix) + touch_joint_suffixes[i];
+        const auto iter = joint_name_to_index_.find(joint_name);
+        if (iter == joint_name_to_index_.end())
+        {
+          continue;
+        }
+
+        const std::size_t joint_index = iter->second;
+        const auto & item = touch_status->items[i];
+        hw_touch_nf1_[joint_index] =
+          static_cast<double>(item.tactile_normal_force) / kTactileForceScale;
+        hw_touch_tf1_[joint_index] =
+          static_cast<double>(item.tactile_tangential_force) / kTactileForceScale;
+        hw_touch_td1_[joint_index] =
+          static_cast<double>(item.tactile_tangential_direction) * kDegToRad;
+        hw_touch_sp1_[joint_index] = static_cast<double>(item.tactile_self_proximity);
+        hw_touch_status_[joint_index] = static_cast<double>(item.tactile_status);
+      }
     }
   }
 
@@ -979,6 +1000,14 @@ auto BraincoHandHardware::init_parameters(const hardware_interface::HardwareInfo
     config_.debug_write_commands =
       parse_bool(get_parameter("debug_write_commands", "false"), false);
     config_.debug_write_interval = std::stod(get_parameter("debug_write_interval", "0.5"));
+    config_.read_touch_status = parse_bool(get_parameter("read_touch_status", "true"), true);
+    config_.touch_read_hz = std::stod(get_parameter("touch_read_hz", "20.0"));
+    if (config_.touch_read_hz < 0.0)
+    {
+      BRAINCO_HAND_LOG_WARN(
+        "touch_read_hz=%f is invalid; clamping to 0.0", config_.touch_read_hz);
+      config_.touch_read_hz = 0.0;
+    }
 
     if (config_.transport.finger_unit_mode == FingerUnitModeSetting::kPhysical)
     {
@@ -1158,6 +1187,9 @@ auto BraincoHandHardware::init_parameters(const hardware_interface::HardwareInfo
   BRAINCO_HAND_LOG_INFO(
     "debug_write_commands=%s debug_write_interval=%f",
     config_.debug_write_commands ? "true" : "false", config_.debug_write_interval);
+  BRAINCO_HAND_LOG_INFO(
+    "read_touch_status=%s touch_read_hz=%f",
+    config_.read_touch_status ? "true" : "false", config_.touch_read_hz);
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }

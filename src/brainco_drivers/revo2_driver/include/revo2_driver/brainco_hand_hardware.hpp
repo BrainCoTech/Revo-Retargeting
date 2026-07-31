@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -84,6 +85,8 @@ private:
     uint16_t thumb_aux_max_current{0};
     uint16_t thumb_aux_protected_current{0};
     uint16_t thumb_aux_max_speed{0};
+    bool read_touch_status{true};
+    double touch_read_hz{20.0};
   };
 
   auto init_parameters(const hardware_interface::HardwareInfo & info)
@@ -108,6 +111,7 @@ private:
   bool is_active_{false};
   double last_read_debug_stamp_{-1.0};
   double last_write_debug_stamp_{-1.0};
+  std::chrono::steady_clock::time_point last_touch_read_time_{};
   
   // Control mode configuration
   ControlMode control_mode_{ControlMode::kPOSDurationBased};
