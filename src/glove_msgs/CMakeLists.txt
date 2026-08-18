@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11)
-project(manus_ros2_msgs)
+project(glove_msgs)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -13,10 +13,10 @@ find_package(geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  msg/ManusGlove.msg
-  msg/ManusRawNode.msg
-  msg/ManusErgonomics.msg
-  msg/ManusVibrationCommand.msg
+  msg/GloveState.msg
+  msg/SkeletonNode.msg
+  msg/JointAngle.msg
+  msg/VibrationCommand.msg
   DEPENDENCIES geometry_msgs)
 
 if(BUILD_TESTING)
