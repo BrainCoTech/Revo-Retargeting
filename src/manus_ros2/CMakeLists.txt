@@ -10,7 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(manus_ros2_msgs REQUIRED)
+find_package(glove_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
 set(MANUS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/ManusSDK" CACHE PATH "Path to an unpacked MANUS SDK")
@@ -48,7 +48,7 @@ if(MANUS_SDK_AVAILABLE)
     "${MANUS_SDK_INCLUDE_DIR}")
   target_link_libraries(manus_data_publisher "${MANUS_SDK_LIBRARY}" ${CURSES_LIBRARIES})
   target_compile_features(manus_data_publisher PUBLIC c_std_99 cxx_std_17)
-  ament_target_dependencies(manus_data_publisher rclcpp std_msgs geometry_msgs manus_ros2_msgs ament_index_cpp)
+  ament_target_dependencies(manus_data_publisher rclcpp std_msgs geometry_msgs glove_msgs ament_index_cpp)
 
   add_executable(manus_calibration_tool
     src/manus_calibration_tool.cpp

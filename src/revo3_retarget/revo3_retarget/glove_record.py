@@ -9,17 +9,17 @@ from pathlib import Path
 from typing import TextIO
 
 import rclpy
-from manus_ros2_msgs.msg import ManusGlove
+from glove_msgs.msg import GloveState
 from rclpy.node import Node
 
-from .manus_glove_io import manus_glove_to_dict
+from .glove_io import glove_to_dict
 
 VALID_HAND_MODES = {"left", "right", "both"}
 
 
 def _default_output_path(hand_mode: str, action: str) -> Path:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return Path("recordings") / hand_mode / action / f"manus_{stamp}.jsonl"
+    return Path("recordings") / hand_mode / action / f"glove_{stamp}.jsonl"
 
 
 def _side_enabled(side: str, hand_mode: str) -> bool:
@@ -27,7 +27,7 @@ def _side_enabled(side: str, hand_mode: str) -> bool:
     return hand_mode == "both" or side == hand_mode
 
 
-class ManusRecordNode(Node):
+class GloveRecordNode(Node):
     def __init__(
         self,
         output_path: Path,
@@ -36,7 +36,7 @@ class ManusRecordNode(Node):
         max_frames: int | None,
         action: str,
     ):
-        super().__init__("manus_record")
+        super().__init__("glove_record")
         self.output_path = output_path
         self.hand_mode = hand_mode
         self.duration = duration
@@ -56,13 +56,13 @@ class ManusRecordNode(Node):
             "created_local": datetime.now().isoformat(timespec="seconds"),
             "hand_mode": self.hand_mode,
             "action": self.action,
-            "topics": ["/manus_glove_0", "/manus_glove_1"],
+            "topics": ["/glove_0", "/glove_1"],
         }
         self.file.write(json.dumps(metadata, ensure_ascii=False, separators=(",", ":")) + "\n")
         self.file.flush()
 
-        self.create_subscription(ManusGlove, "/manus_glove_0", lambda msg: self._on_msg("/manus_glove_0", msg), 100)
-        self.create_subscription(ManusGlove, "/manus_glove_1", lambda msg: self._on_msg("/manus_glove_1", msg), 100)
+        self.create_subscription(GloveState, "/glove_0", lambda msg: self._on_msg("/glove_0", msg), 100)
+        self.create_subscription(GloveState, "/glove_1", lambda msg: self._on_msg("/glove_1", msg), 100)
 
         if self.duration is not None and self.duration > 0:
             self.create_timer(0.1, self._check_stop)
@@ -72,7 +72,7 @@ class ManusRecordNode(Node):
             f"(hand_mode={self.hand_mode}, action={self.action}, duration={self.duration or 'until stopped'})"
         )
 
-    def _on_msg(self, topic: str, msg: ManusGlove) -> None:
+    def _on_msg(self, topic: str, msg: GloveState) -> None:
         side = str(msg.side).strip().lower()
         if not _side_enabled(side, self.hand_mode):
             return
@@ -87,7 +87,7 @@ class ManusRecordNode(Node):
             "topic": topic,
             "side": side,
             "action": self.action,
-            "msg": manus_glove_to_dict(msg),
+            "msg": glove_to_dict(msg),
         }
         self.file.write(json.dumps(frame, ensure_ascii=False, separators=(",", ":")) + "\n")
         self.frames += 1
@@ -113,7 +113,7 @@ class ManusRecordNode(Node):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Record /manus_glove_* messages to JSONL for deterministic replay.")
+    parser = argparse.ArgumentParser(description="Record /glove_* messages to JSONL for deterministic replay.")
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--hand-mode", default="both", choices=sorted(VALID_HAND_MODES))
     parser.add_argument(
@@ -132,7 +132,7 @@ def main() -> None:
         raise SystemExit(f"Refusing to overwrite existing file: {output} (pass --overwrite)")
 
     rclpy.init()
-    node = ManusRecordNode(output, args.hand_mode, args.duration, args.max_frames, args.action)
+    node = GloveRecordNode(output, args.hand_mode, args.duration, args.max_frames, args.action)
     try:
         while rclpy.ok() and not node.stop_requested:
             rclpy.spin_once(node, timeout_sec=0.1)

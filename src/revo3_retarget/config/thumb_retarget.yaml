@@ -1,5 +1,5 @@
 ---
-manus_revo3_retarget:
+revo3_retarget:
   ros__parameters:
     thumb_ik_posture_weight: 0.1
     thumb_ik_smooth_weight: 0.1

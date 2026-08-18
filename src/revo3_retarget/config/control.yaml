@@ -1,5 +1,5 @@
 ---
-manus_revo3_retarget:
+revo3_retarget:
   ros__parameters:
     hand_mode: both
     use_revo3_namespace: true

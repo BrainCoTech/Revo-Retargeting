@@ -15,7 +15,7 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>manus_ros2_msgs</depend>
+  <depend>glove_msgs</depend>
   <depend>ament_index_cpp</depend>
 
   <export>

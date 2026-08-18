@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from geometry_msgs.msg import Pose, Quaternion
-from manus_ros2_msgs.msg import ManusErgonomics, ManusGlove, ManusRawNode
+from glove_msgs.msg import GloveState, JointAngle, SkeletonNode
 
 
 def _pose_to_dict(pose: Pose) -> dict[str, object]:
@@ -54,12 +54,12 @@ def _quat_from_dict(data: dict[str, object]) -> Quaternion:
     return quat
 
 
-def manus_glove_to_dict(msg: ManusGlove) -> dict[str, object]:
+def glove_to_dict(msg: GloveState) -> dict[str, object]:
     return {
         "glove_id": int(msg.glove_id),
         "side": str(msg.side),
-        "raw_node_count": int(msg.raw_node_count),
-        "raw_nodes": [
+        "skeleton_node_count": int(msg.skeleton_node_count),
+        "skeleton_nodes": [
             {
                 "node_id": int(node.node_id),
                 "parent_node_id": int(node.parent_node_id),
@@ -67,15 +67,15 @@ def manus_glove_to_dict(msg: ManusGlove) -> dict[str, object]:
                 "chain_type": str(node.chain_type),
                 "pose": _pose_to_dict(node.pose),
             }
-            for node in msg.raw_nodes
+            for node in msg.skeleton_nodes
         ],
-        "ergonomics_count": int(msg.ergonomics_count),
-        "ergonomics": [
+        "joint_angle_count": int(msg.joint_angle_count),
+        "joint_angles": [
             {
-                "type": str(ergo.type),
-                "value": float(ergo.value),
+                "name": str(angle.name),
+                "value": float(angle.value),
             }
-            for ergo in msg.ergonomics
+            for angle in msg.joint_angles
         ],
         "raw_sensor_orientation": _quat_to_dict(msg.raw_sensor_orientation),
         "raw_sensor_count": int(msg.raw_sensor_count),
@@ -83,17 +83,17 @@ def manus_glove_to_dict(msg: ManusGlove) -> dict[str, object]:
     }
 
 
-def manus_glove_from_dict(data: dict[str, object]) -> ManusGlove:
-    msg = ManusGlove()
+def glove_from_dict(data: dict[str, object]) -> GloveState:
+    msg = GloveState()
     msg.glove_id = int(data.get("glove_id", 0))
     msg.side = str(data.get("side", ""))
 
-    raw_nodes = data.get("raw_nodes", [])
-    if isinstance(raw_nodes, list):
-        for item in raw_nodes:
+    skeleton_nodes = data.get("skeleton_nodes", [])
+    if isinstance(skeleton_nodes, list):
+        for item in skeleton_nodes:
             if not isinstance(item, dict):
                 continue
-            node = ManusRawNode()
+            node = SkeletonNode()
             node.node_id = int(item.get("node_id", 0))
             node.parent_node_id = int(item.get("parent_node_id", -1))
             node.joint_type = str(item.get("joint_type", ""))
@@ -101,19 +101,19 @@ def manus_glove_from_dict(data: dict[str, object]) -> ManusGlove:
             pose_data = item.get("pose", {})
             if isinstance(pose_data, dict):
                 node.pose = _pose_from_dict(pose_data)
-            msg.raw_nodes.append(node)
-    msg.raw_node_count = int(data.get("raw_node_count", len(msg.raw_nodes)))
+            msg.skeleton_nodes.append(node)
+    msg.skeleton_node_count = int(data.get("skeleton_node_count", len(msg.skeleton_nodes)))
 
-    ergonomics = data.get("ergonomics", [])
-    if isinstance(ergonomics, list):
-        for item in ergonomics:
+    joint_angles = data.get("joint_angles", [])
+    if isinstance(joint_angles, list):
+        for item in joint_angles:
             if not isinstance(item, dict):
                 continue
-            ergo = ManusErgonomics()
-            ergo.type = str(item.get("type", ""))
-            ergo.value = float(item.get("value", 0.0))
-            msg.ergonomics.append(ergo)
-    msg.ergonomics_count = int(data.get("ergonomics_count", len(msg.ergonomics)))
+            angle = JointAngle()
+            angle.name = str(item.get("name", ""))
+            angle.value = float(item.get("value", 0.0))
+            msg.joint_angles.append(angle)
+    msg.joint_angle_count = int(data.get("joint_angle_count", len(msg.joint_angles)))
 
     raw_sensor_orientation = data.get("raw_sensor_orientation", {})
     if isinstance(raw_sensor_orientation, dict):

@@ -1,6 +1,8 @@
-# Manus Revo3 Retarget
+# Revo3 Retarget
 
-This package is the Manus-to-Revo3 retarget layer for the
+This package is the glove-agnostic hand retarget layer (Manus or OMMO gloves)
+for the Revo3 dexterous hand. It consumes `glove_msgs/msg/GloveState` from any
+glove driver (`manus_ros2`, future `ommo_ros2`) and drives the
 `revoarm_hardware/Revoarm_ws` workspace. The runtime retarget node is C++ and
 uses Pinocchio with the URDFs from `revo3_description`.
 
@@ -10,9 +12,11 @@ uses Pinocchio with the URDFs from `revo3_description`.
   `revo3_driver/launch/revo3_system.launch.py` or
   `revo3_driver/launch/dual_revo3_system.launch.py`.
 - This package publishes `revo3_mit_controller_msgs/msg/Revo3MITCommand`.
-- Retargeting runs directly from the Manus subscription callback. MIT commands
+- Retargeting runs directly from the glove subscription callback. MIT commands
   are published by a separate timer at `mit_command_publish_hz` (default 200 Hz)
   using the latest retarget target.
+- Default glove topics: `/glove_0`, `/glove_1` (configurable via
+  `glove_topic_0` / `glove_topic_1`).
 - Default command topics:
   - `/revo3_left/joint_forward_mit_controller/commands`
   - `/revo3_right/joint_forward_mit_controller/commands`
@@ -23,7 +27,7 @@ uses Pinocchio with the URDFs from `revo3_description`.
 ```bash
 cd revoarm_hardware/Revoarm_ws
 source /opt/ros/humble/setup.bash
-colcon build --packages-select manus_ros2 manus_revo3_retarget
+colcon build --packages-select glove_msgs manus_ros2 revo3_retarget
 source install/setup.bash
 ```
 
@@ -31,19 +35,19 @@ source install/setup.bash
 
 ```bash
 source install/setup.bash
-ros2 launch manus_revo3_retarget pipeline_launch.py hand_mode:=both
+ros2 launch revo3_retarget pipeline_launch.py hand_mode:=both
 ```
 
 `hand_mode:=both` starts two independent retarget processes:
-`manus_revo3_retarget_left` and `manus_revo3_retarget_right`. Each process only
+`revo3_retarget_left` and `revo3_retarget_right`. Each process only
 initializes and computes retargeting for its own side.
 
 Useful overrides:
 
 ```bash
-ros2 launch manus_revo3_retarget pipeline_launch.py \
+ros2 launch revo3_retarget pipeline_launch.py \
   hand_mode:=right \
-  launch_manus_publisher:=true \
+  launch_glove_publisher:=true \
   mit_command_publish_hz:=200
 ```
 
@@ -59,7 +63,7 @@ Use `calibration_config`, `left_calibration_config`, or `right_calibration_confi
 only for a final one-off override loaded after those split configs:
 
 ```bash
-ros2 launch manus_revo3_retarget pipeline_launch.py \
+ros2 launch revo3_retarget pipeline_launch.py \
   hand_mode:=right \
   calibration_config:=/path/to/physical_joint_calibration.yaml
 ```
@@ -68,18 +72,18 @@ If the Revo3 system is not using `/revo3_<side>` namespaces, override the comman
 topics directly or use `control_config`:
 
 ```bash
-ros2 launch manus_revo3_retarget pipeline_launch.py \
+ros2 launch revo3_retarget pipeline_launch.py \
   hand_mode:=right \
   use_revo3_namespace:=false
 ```
 
 ## Launch And Record MCAP
 
-To start the pipeline and record the default Manus/Revo3 topics into
-`manus_revo3_retarget/log`:
+To start the pipeline and record the default glove/Revo3 topics into
+`revo3_retarget/log`:
 
 ```bash
-cd src/brainco_capabilities/manus_revo3_retarget
+cd src/brainco_capabilities/revo3_retarget
 ./scripts/run_pipeline_record_mcap.sh
 ```
 
@@ -96,8 +100,8 @@ sourcing ROS and the workspace. Override it with `CONDA_ENV_NAME=<env>` or set
 
 Default recorded topics:
 
-- `/manus_glove_0`
-- `/manus_glove_1`
+- `/glove_0`
+- `/glove_1`
 - `/revo3_left/joint_forward_mit_controller/commands`
 - `/revo3_right/joint_forward_mit_controller/commands`
 - `/revo3_left/joint_forward_mit_controller/retarget_targets`
@@ -131,7 +135,7 @@ RECORD_ALL=1 ./scripts/run_pipeline_record_mcap.sh
 RECORD_RAW_JOINT_STATES=1 ./scripts/run_pipeline_record_mcap.sh
 
 # Replace the default topic list.
-BAG_TOPICS="/manus_glove_0 /revo3_right/joint_forward_mit_controller/commands" \
+BAG_TOPICS="/glove_0 /revo3_right/joint_forward_mit_controller/commands" \
   ./scripts/run_pipeline_record_mcap.sh hand_mode:=right
 
 # Disable joint-state alignment if you only want raw topics.
@@ -140,10 +144,10 @@ ENABLE_JOINT_STATE_ALIGNER=0 ./scripts/run_pipeline_record_mcap.sh
 
 ## Quintic Joint Test
 
-To run a direct MIT command test without Manus input, use:
+To run a direct MIT command test without glove input, use:
 
 ```bash
-cd src/brainco_capabilities/manus_revo3_retarget
+cd src/brainco_capabilities/revo3_retarget
 ./scripts/run_quintic_test_record_mcap.sh
 ```
 
@@ -169,13 +173,13 @@ To inspect all Revo3 MIT command values next to live joint feedback as rolling
 time-series curves:
 
 ```bash
-ros2 launch manus_revo3_retarget command_state_viewer.launch.py hand_mode:=both
+ros2 launch revo3_retarget command_state_viewer.launch.py hand_mode:=both
 ```
 
 For a single side:
 
 ```bash
-ros2 launch manus_revo3_retarget command_state_viewer.launch.py hand_mode:=right
+ros2 launch revo3_retarget command_state_viewer.launch.py hand_mode:=right
 ```
 
 The viewer subscribes to:
@@ -192,7 +196,7 @@ position, green is state position, and a red plot background means
 Useful overrides:
 
 ```bash
-ros2 launch manus_revo3_retarget command_state_viewer.launch.py \
+ros2 launch revo3_retarget command_state_viewer.launch.py \
   hand_mode:=right \
   history_sec:=20.0 \
   update_ms:=50 \

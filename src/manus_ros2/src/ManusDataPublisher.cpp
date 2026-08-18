@@ -319,7 +319,7 @@ void ManusDataPublisher::PublishCallback()
     }
     for (size_t i = 0; i < m_Landscape->gloveDevices.gloveCount; i++)
     {
-        manus_ros2_msgs::msg::ManusGlove t_Msg;
+        glove_msgs::msg::GloveState t_Msg;
         t_Msg.glove_id = m_Landscape->gloveDevices.gloves[i].id;
         t_Msg.side = SideToString(m_Landscape->gloveDevices.gloves[i].side);
 
@@ -332,7 +332,7 @@ void ManusDataPublisher::PublishCallback()
         if (t_RawSkel.info.nodesCount == 0)
             continue;
 
-        t_Msg.raw_node_count = t_RawSkel.info.nodesCount;
+        t_Msg.skeleton_node_count = t_RawSkel.info.nodesCount;
 
         for (const auto &node : t_RawSkel.nodes)
         {
@@ -346,7 +346,7 @@ void ManusDataPublisher::PublishCallback()
                 }
             }
 
-            manus_ros2_msgs::msg::ManusRawNode t_Node;
+            glove_msgs::msg::SkeletonNode t_Node;
             t_Node.node_id = node.id;
             t_Node.parent_node_id = m_NodeInfo[t_NodeInfoIndex].parentId;
             t_Node.joint_type = JointTypeToString(m_NodeInfo[t_NodeInfoIndex].fingerJointType);
@@ -366,7 +366,7 @@ void ManusDataPublisher::PublishCallback()
 
             t_Node.pose = t_Pose;
 
-            t_Msg.raw_nodes.push_back(t_Node);
+            t_Msg.skeleton_nodes.push_back(t_Node);
         }
 
         // Ergonomics data
@@ -377,17 +377,17 @@ void ManusDataPublisher::PublishCallback()
         }
 
         ErgonomicsData t_ErgoData = t_ErgonomicsDataMap[t_Msg.glove_id];
-        t_Msg.ergonomics_count = ErgonomicsDataType_MAX_SIZE / 2;
+        t_Msg.joint_angle_count = ErgonomicsDataType_MAX_SIZE / 2;
 
         for (size_t y = 0; y < ErgonomicsDataType_MAX_SIZE; y++)
         {
             if (ErgonomicsDataTypeToSide(static_cast<ErgonomicsDataType>(y)) != m_Landscape->gloveDevices.gloves[i].side)
                 continue;
 
-            manus_ros2_msgs::msg::ManusErgonomics t_ErgoMsg;
-            t_ErgoMsg.type = ErgonomicsDataTypeToString(static_cast<ErgonomicsDataType>(y));
+            glove_msgs::msg::JointAngle t_ErgoMsg;
+            t_ErgoMsg.name = ErgonomicsDataTypeToString(static_cast<ErgonomicsDataType>(y));
             t_ErgoMsg.value = t_ErgoData.data[y];
-            t_Msg.ergonomics.push_back(t_ErgoMsg);
+            t_Msg.joint_angles.push_back(t_ErgoMsg);
         }
 
         // Raw sensor data
@@ -428,8 +428,8 @@ void ManusDataPublisher::PublishCallback()
         auto t_Publisher = m_GlovePublisher.find(t_Msg.glove_id);
         if (t_Publisher == m_GlovePublisher.end())
         {
-            std::string topic_name = "manus_glove_" + std::to_string(m_GlovePublisher.size());
-            auto t_NewPublisher = this->create_publisher<manus_ros2_msgs::msg::ManusGlove>(topic_name, 10);
+            std::string topic_name = "glove_" + std::to_string(m_GlovePublisher.size());
+            auto t_NewPublisher = this->create_publisher<glove_msgs::msg::GloveState>(topic_name, 10);
             t_Publisher = m_GlovePublisher.emplace(t_Msg.glove_id, t_NewPublisher).first;
             // (Re)create vibration subscribers for all gloves
             UpdateVibrationSubscribers();
@@ -622,13 +622,13 @@ void ManusDataPublisher::UpdateVibrationSubscribers()
     for (const auto &entry : m_GlovePublisher)
     {
         uint32_t glove_id = entry.first;
-        std::string topic_name = "manus_glove_" + std::to_string(std::distance(m_GlovePublisher.begin(), m_GlovePublisher.find(glove_id))) + "/vibration_cmd";
+        std::string topic_name = "glove_" + std::to_string(std::distance(m_GlovePublisher.begin(), m_GlovePublisher.find(glove_id))) + "/vibration_cmd";
         // Only create if not already present
         if (m_VibrationSubscribers.find(glove_id) == m_VibrationSubscribers.end())
         {
-            auto sub = this->create_subscription<manus_ros2_msgs::msg::ManusVibrationCommand>(
+            auto sub = this->create_subscription<glove_msgs::msg::VibrationCommand>(
                 topic_name, 10,
-                [this, glove_id](const manus_ros2_msgs::msg::ManusVibrationCommand::SharedPtr msg)
+                [this, glove_id](const glove_msgs::msg::VibrationCommand::SharedPtr msg)
                 {
                     this->OnVibrationCommand(msg, glove_id);
                 });
@@ -639,7 +639,7 @@ void ManusDataPublisher::UpdateVibrationSubscribers()
 }
 
 // Callback for vibration command
-void ManusDataPublisher::OnVibrationCommand(const manus_ros2_msgs::msg::ManusVibrationCommand::SharedPtr msg, uint32_t glove_id)
+void ManusDataPublisher::OnVibrationCommand(const glove_msgs::msg::VibrationCommand::SharedPtr msg, uint32_t glove_id)
 {
     if (!msg){
         return;

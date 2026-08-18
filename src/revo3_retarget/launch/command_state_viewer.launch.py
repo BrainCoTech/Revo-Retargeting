@@ -42,7 +42,7 @@ def generate_launch_description():
             description="Highlight rows when abs(state - command) reaches this value.",
         ),
         Node(
-            package="manus_revo3_retarget",
+            package="revo3_retarget",
             executable="command_state_viewer",
             name="revo3_command_state_viewer",
             arguments=[

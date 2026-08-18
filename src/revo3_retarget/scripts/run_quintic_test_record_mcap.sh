@@ -150,7 +150,7 @@ cleanup() {
 }
 trap cleanup INT TERM EXIT
 
-ALIGNER_COMMAND=(ros2 run manus_revo3_retarget joint_state_aligner --hand-mode "${HAND_MODE}")
+ALIGNER_COMMAND=(ros2 run revo3_retarget joint_state_aligner --hand-mode "${HAND_MODE}")
 printf 'Starting:'
 printf ' %q' "${ALIGNER_COMMAND[@]}"
 printf '\n'
@@ -172,7 +172,7 @@ BAG_PID=$!
 
 sleep "${STARTUP_DELAY}"
 
-TEST_COMMAND=(ros2 run manus_revo3_retarget quintic_joint_test "$@")
+TEST_COMMAND=(ros2 run revo3_retarget quintic_joint_test "$@")
 printf 'Starting:'
 printf ' %q' "${TEST_COMMAND[@]}"
 printf '\n'

@@ -14,20 +14,20 @@
 
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "ament_index_cpp/get_package_prefix.hpp"
-#include "manus_ros2_msgs/msg/manus_glove.hpp"
+#include "glove_msgs/msg/glove_state.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "revo3_mit_controller_msgs/msg/revo3_mit_command.hpp"
 
 #include <dlfcn.h>
 
-#include "manus_revo3_retarget/four_finger_retarget.hpp"
-#include "manus_revo3_retarget/spread_retarget.hpp"
-#include "manus_revo3_retarget/thumb_retarget.hpp"
+#include "revo3_retarget/four_finger_retarget.hpp"
+#include "revo3_retarget/spread_retarget.hpp"
+#include "revo3_retarget/thumb_retarget.hpp"
 
-namespace manus_revo3_retarget
+namespace revo3_retarget
 {
 
-using ManusGlove = manus_ros2_msgs::msg::ManusGlove;
+using GloveState = glove_msgs::msg::GloveState;
 using Revo3MITCommand = revo3_mit_controller_msgs::msg::Revo3MITCommand;
 
 class ThumbPlugin
@@ -39,12 +39,12 @@ public:
     if (library_ == nullptr) {
       throw std::runtime_error("dlopen failed for " + library_path + ": " + dlerror_string());
     }
-    create_ = load_symbol<CreateFn>("manus_revo3_thumb_create");
-    destroy_ = load_symbol<DestroyFn>("manus_revo3_thumb_destroy");
-    initialize_ = load_symbol<InitializeFn>("manus_revo3_thumb_initialize");
-    set_config_ = load_symbol<SetConfigFn>("manus_revo3_thumb_set_config");
-    apply_ = load_symbol<ApplyFn>("manus_revo3_thumb_apply");
-    last_iteration_count_ = load_symbol<LastIterationCountFn>("manus_revo3_thumb_last_iteration_count");
+    create_ = load_symbol<CreateFn>("revo3_thumb_create");
+    destroy_ = load_symbol<DestroyFn>("revo3_thumb_destroy");
+    initialize_ = load_symbol<InitializeFn>("revo3_thumb_initialize");
+    set_config_ = load_symbol<SetConfigFn>("revo3_thumb_set_config");
+    apply_ = load_symbol<ApplyFn>("revo3_thumb_apply");
+    last_iteration_count_ = load_symbol<LastIterationCountFn>("revo3_thumb_last_iteration_count");
     handle_ = create_();
     if (handle_ == nullptr) {
       throw std::runtime_error("thumb plugin create returned null");
@@ -145,12 +145,14 @@ class RetargetNodeCpp : public rclcpp::Node
 {
 public:
   explicit RetargetNodeCpp(const rclcpp::NodeOptions & options)
-  : Node("manus_revo3_retarget", options)
+  : Node("revo3_retarget", options)
   {
     hand_mode_ = string_param("hand_mode", "both");
     use_revo3_namespace_ = bool_param("use_revo3_namespace", true);
     command_topic_suffix_ = string_param("command_topic_suffix", "joint_forward_mit_controller/commands");
     target_topic_suffix_ = string_param("retarget_target_topic_suffix", "joint_forward_mit_controller/retarget_targets");
+    glove_topic_0_ = string_param("glove_topic_0", "/glove_0");
+    glove_topic_1_ = string_param("glove_topic_1", "/glove_1");
     mit_command_publish_hz_ = double_param("mit_command_publish_hz", 200.0);
     mit_velocity_feedforward_enabled_ = bool_param("mit_velocity_feedforward_enabled", true);
     mit_default_kp_ = double_param("mit_default_kp", 0.4);
@@ -167,10 +169,10 @@ public:
       right_ = create_side("right");
     }
 
-    sub_0_ = create_subscription<ManusGlove>(
-      "/manus_glove_0", 10, [this](ManusGlove::SharedPtr msg) { on_glove(*msg); });
-    sub_1_ = create_subscription<ManusGlove>(
-      "/manus_glove_1", 10, [this](ManusGlove::SharedPtr msg) { on_glove(*msg); });
+    sub_0_ = create_subscription<GloveState>(
+      glove_topic_0_, 10, [this](GloveState::SharedPtr msg) { on_glove(*msg); });
+    sub_1_ = create_subscription<GloveState>(
+      glove_topic_1_, 10, [this](GloveState::SharedPtr msg) { on_glove(*msg); });
 
     const double period_s = 1.0 / std::max(1.0, mit_command_publish_hz_);
     timer_ = create_wall_timer(
@@ -270,7 +272,7 @@ private:
     return cfg;
   }
 
-  void on_glove(const ManusGlove & msg)
+  void on_glove(const GloveState & msg)
   {
     std::string side = msg.side;
     for (auto & ch : side) {
@@ -291,13 +293,13 @@ private:
     state->thumb->set_config(load_thumb_config(state->side));
 
     Ergonomics ergonomics;
-    ergonomics.reserve(msg.ergonomics.size());
-    for (const auto & item : msg.ergonomics) {
-      ergonomics[item.type] = static_cast<double>(item.value);
+    ergonomics.reserve(msg.joint_angles.size());
+    for (const auto & item : msg.joint_angles) {
+      ergonomics[item.name] = static_cast<double>(item.value);
     }
 
     ManusKeypoints keypoints;
-    for (const auto & raw_node : msg.raw_nodes) {
+    for (const auto & raw_node : msg.skeleton_nodes) {
       const int node_id = raw_node.node_id;
       if (node_id < 0 || node_id >= static_cast<int>(keypoints.size())) {
         continue;
@@ -571,8 +573,8 @@ private:
 
   std::string thumb_plugin_path()
   {
-    return (std::filesystem::path(ament_index_cpp::get_package_prefix("manus_revo3_retarget")) / "lib" /
-      "libmanus_revo3_retarget_thumb_pinocchio.so").string();
+    return (std::filesystem::path(ament_index_cpp::get_package_prefix("revo3_retarget")) / "lib" /
+      "librevo3_retarget_thumb_pinocchio.so").string();
   }
 
   std::string hand_mode_;
@@ -585,12 +587,14 @@ private:
   double mit_default_kd_{0.05};
   std::shared_ptr<SideState> left_;
   std::shared_ptr<SideState> right_;
-  rclcpp::Subscription<ManusGlove>::SharedPtr sub_0_;
-  rclcpp::Subscription<ManusGlove>::SharedPtr sub_1_;
+  rclcpp::Subscription<GloveState>::SharedPtr sub_0_;
+  rclcpp::Subscription<GloveState>::SharedPtr sub_1_;
+  std::string glove_topic_0_;
+  std::string glove_topic_1_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace manus_revo3_retarget
+}  // namespace revo3_retarget
 
 int main(int argc, char ** argv)
 {
@@ -601,7 +605,7 @@ int main(int argc, char ** argv)
   options.enable_rosout(false);
   options.start_parameter_services(true);
   options.start_parameter_event_publisher(false);
-  auto node = std::make_shared<manus_revo3_retarget::RetargetNodeCpp>(options);
+  auto node = std::make_shared<revo3_retarget::RetargetNodeCpp>(options);
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;

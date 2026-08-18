@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from manus_revo3_retarget.mit_linear_interpolator import (
+from revo3_retarget.mit_linear_interpolator import (
     LinearMitCommandInterpolator,
     duration_from_hz,
 )

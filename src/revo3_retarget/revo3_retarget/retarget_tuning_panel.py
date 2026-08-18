@@ -380,7 +380,7 @@ class RetargetTuningPanel:
         )
         if not path:
             return
-        data = {"manus_revo3_retarget": {"ros__parameters": values}}
+        data = {"revo3_retarget": {"ros__parameters": values}}
         Path(path).write_text(yaml.safe_dump(data, sort_keys=True, allow_unicode=True), encoding="utf-8")
         self._status(f"Exported {path}")
 
@@ -389,12 +389,12 @@ class RetargetTuningPanel:
 
 
 def _default_node(side: str) -> str:
-    return f"/manus_revo3_retarget_{side}"
+    return f"/revo3_retarget_{side}"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Tk front-end for online Revo3 retarget tuning.")
-    parser.add_argument("--node", default="", help="Target retarget node, e.g. /manus_revo3_retarget_left.")
+    parser.add_argument("--node", default="", help="Target retarget node, e.g. /revo3_retarget_left.")
     parser.add_argument("--side", default="right", choices=("left", "right"))
     args = parser.parse_args(remove_ros_args(sys.argv)[1:])
 

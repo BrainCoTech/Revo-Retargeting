@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import rclpy
-from manus_ros2_msgs.msg import ManusGlove
+from glove_msgs.msg import GloveState
 from rclpy.node import Node
 
-from .manus_glove_io import manus_glove_from_dict
+from .glove_io import glove_from_dict
 
 VALID_HAND_MODES = {"left", "right", "both"}
 
@@ -22,7 +22,7 @@ class ReplayFrame:
     t: float
     topic: str
     side: str
-    msg: ManusGlove
+    msg: GloveState
 
 
 def _side_enabled(side: str, hand_mode: str) -> bool:
@@ -31,7 +31,7 @@ def _side_enabled(side: str, hand_mode: str) -> bool:
 
 
 def _canonical_topic(side: str) -> str:
-    return "/manus_glove_0" if side == "left" else "/manus_glove_1"
+    return "/glove_0" if side == "left" else "/glove_1"
 
 
 def _load_frames(path: Path, hand_mode: str, topic_mode: str) -> list[ReplayFrame]:
@@ -50,7 +50,7 @@ def _load_frames(path: Path, hand_mode: str, topic_mode: str) -> list[ReplayFram
             msg_data = record.get("msg")
             if not isinstance(msg_data, dict):
                 continue
-            msg = manus_glove_from_dict(msg_data)
+            msg = glove_from_dict(msg_data)
             side = str(record.get("side") or msg.side).strip().lower()
             if not _side_enabled(side, hand_mode):
                 continue
@@ -87,7 +87,7 @@ def _interpolate_pose(out_pose, a_pose, b_pose, alpha: float) -> None:
     out_pose.orientation.w = qw / norm
 
 
-def _interpolate_msg(a: ManusGlove, b: ManusGlove, alpha: float) -> ManusGlove:
+def _interpolate_msg(a: GloveState, b: GloveState, alpha: float) -> GloveState:
     out = copy.deepcopy(a)
     b_nodes = {int(node.node_id): node for node in b.raw_nodes}
     for node in out.raw_nodes:
@@ -165,9 +165,9 @@ def _load_sequence(
     return combined
 
 
-class ManusReplayNode(Node):
+class GloveReplayNode(Node):
     def __init__(self, frames: list[ReplayFrame], rate: float, loop: bool, drop_late_frames: bool):
-        super().__init__("manus_replay")
+        super().__init__("glove_replay")
         if not frames:
             raise ValueError("No frames to replay.")
 
@@ -181,7 +181,7 @@ class ManusReplayNode(Node):
         self._topic_publishers: dict[str, object] = {}
         for frame in self.frames:
             if frame.topic not in self._topic_publishers:
-                self._topic_publishers[frame.topic] = self.create_publisher(ManusGlove, frame.topic, 100)
+                self._topic_publishers[frame.topic] = self.create_publisher(GloveState, frame.topic, 100)
 
         self.timer = self.create_timer(0.001, self._tick)
         duration = self.frames[-1].t if self.frames else 0.0
@@ -223,7 +223,7 @@ class ManusReplayNode(Node):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Replay MANUS glove JSONL recordings onto /manus_glove_* topics.")
+    parser = argparse.ArgumentParser(description="Replay MANUS glove JSONL recordings onto /glove_* topics.")
     parser.add_argument("input", type=Path, nargs="+")
     parser.add_argument("--hand-mode", default="both", choices=sorted(VALID_HAND_MODES))
     parser.add_argument("--rate", type=float, default=1.0, help="Playback speed multiplier.")
@@ -244,7 +244,7 @@ def main() -> None:
         "--topic-mode",
         choices=("recorded", "canonical"),
         default="recorded",
-        help="Use recorded topics or publish left/right to /manus_glove_0/1.",
+        help="Use recorded topics or publish left/right to /glove_0/1.",
     )
     args = parser.parse_args()
 
@@ -257,7 +257,7 @@ def main() -> None:
         args.loop,
     )
     rclpy.init()
-    node = ManusReplayNode(frames, args.rate, args.loop, args.drop_late_frames)
+    node = GloveReplayNode(frames, args.rate, args.loop, args.drop_late_frames)
     try:
         while rclpy.ok() and not node.stop_requested:
             rclpy.spin_once(node, timeout_sec=0.1)

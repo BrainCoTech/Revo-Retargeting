@@ -1,5 +1,5 @@
 ---
-manus_revo3_retarget:
+revo3_retarget:
   ros__parameters:
     legacy_left_physical_index_angle_scale: 1.0
     legacy_left_physical_four_finger_mcp_scale: 1.0

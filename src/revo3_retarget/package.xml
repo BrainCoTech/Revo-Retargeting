@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>manus_revo3_retarget</name>
-  <version>0.0.1</version>
-  <description>Manus to Revo3 retargeting node</description>
+  <name>revo3_retarget</name>
+  <version>0.1.0</version>
+  <description>Glove-agnostic hand retargeting node for Revo3 dexterous hand (consumes glove_msgs/GloveState).</description>
   <maintainer email="support@example.com">Example</maintainer>
   <license>MIT</license>
 
@@ -12,7 +12,7 @@
 
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
-  <depend>manus_ros2_msgs</depend>
+  <depend>glove_msgs</depend>
   <depend>revo3_mit_controller_msgs</depend>
   <depend>ament_index_cpp</depend>
   <depend>eigen3_cmake_module</depend>

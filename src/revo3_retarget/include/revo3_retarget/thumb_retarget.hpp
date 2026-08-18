@@ -1,13 +1,13 @@
 #pragma once
 
-#include "manus_revo3_retarget/retarget_common.hpp"
+#include "revo3_retarget/retarget_common.hpp"
 
 #include <memory>
 #include <optional>
 
 #include <Eigen/Dense>
 
-namespace manus_revo3_retarget
+namespace revo3_retarget
 {
 
 constexpr std::size_t kManusKeypointCount = 25;
@@ -84,16 +84,16 @@ private:
 };
 
 extern "C" {
-void * manus_revo3_thumb_create();
-void manus_revo3_thumb_destroy(void * handle);
-bool manus_revo3_thumb_initialize(void * handle, const char * model_base, const char * side, std::string * error);
-void manus_revo3_thumb_set_config(void * handle, const ThumbConfig * config);
-void manus_revo3_thumb_apply(
+void * revo3_thumb_create();
+void revo3_thumb_destroy(void * handle);
+bool revo3_thumb_initialize(void * handle, const char * model_base, const char * side, std::string * error);
+void revo3_thumb_set_config(void * handle, const ThumbConfig * config);
+void revo3_thumb_apply(
   void * handle,
   const Ergonomics * ergonomics,
   const ManusKeypoints * keypoints,
   JointArray * q);
-int manus_revo3_thumb_last_iteration_count(void * handle);
+int revo3_thumb_last_iteration_count(void * handle);
 }
 
-}  // namespace manus_revo3_retarget
+}  // namespace revo3_retarget

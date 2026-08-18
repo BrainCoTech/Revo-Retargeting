@@ -44,7 +44,7 @@ def _load_ros_parameters(path):
         raise ValueError(f"Parameter file must contain a mapping: {path}")
 
     merged = {}
-    for key in ("/**", "manus_revo3_retarget", "/manus_revo3_retarget"):
+    for key in ("/**", "revo3_retarget", "/revo3_retarget"):
         node_params = data.get(key)
         if not isinstance(node_params, dict):
             continue
@@ -70,10 +70,10 @@ def _create_runtime_nodes(context, *args, **kwargs):
         hand_mode = hand_type
     if hand_mode not in ("left", "right", "both"):
         raise ValueError("hand_mode must be one of: left, right, both")
-    manus_publish_rate_hz = float(LaunchConfiguration("manus_publish_rate_hz").perform(context))
-    if not math.isfinite(manus_publish_rate_hz) or manus_publish_rate_hz <= 0.0:
-        raise ValueError("manus_publish_rate_hz must be a finite positive value")
-    launch_manus_publisher = LaunchConfiguration("launch_manus_publisher").perform(context).strip().lower() in (
+    glove_publish_rate_hz = float(LaunchConfiguration("glove_publish_rate_hz").perform(context))
+    if not math.isfinite(glove_publish_rate_hz) or glove_publish_rate_hz <= 0.0:
+        raise ValueError("glove_publish_rate_hz must be a finite positive value")
+    launch_glove_publisher = LaunchConfiguration("launch_glove_publisher").perform(context).strip().lower() in (
         "1",
         "true",
         "yes",
@@ -117,13 +117,13 @@ def _create_runtime_nodes(context, *args, **kwargs):
         common_parameter_dicts.append(_load_ros_parameters(calibration_config))
 
     nodes = []
-    if launch_manus_publisher:
+    if launch_glove_publisher:
         nodes.append(
             Node(
                 package="manus_ros2",
                 executable="manus_data_publisher",
                 name="manus_data_publisher",
-                parameters=[{"publish_rate_hz": manus_publish_rate_hz}],
+                parameters=[{"publish_rate_hz": glove_publish_rate_hz}],
                 output="screen",
             )
         )
@@ -137,12 +137,12 @@ def _create_runtime_nodes(context, *args, **kwargs):
                 side_parameter_dicts.append(_load_ros_parameters(side_calibration_config))
         nodes.append(
             Node(
-                package="manus_revo3_retarget",
+                package="revo3_retarget",
                 executable="retarget_node",
                 name=(
-                    f"manus_revo3_retarget_{side}"
+                    f"revo3_retarget_{side}"
                     if hand_mode == "both"
-                    else "manus_revo3_retarget"
+                    else "revo3_retarget"
                 ),
                 parameters=[
                     *side_parameter_dicts,
@@ -160,7 +160,7 @@ def _create_runtime_nodes(context, *args, **kwargs):
 
 
 def generate_launch_description():
-    package_share = get_package_share_directory("manus_revo3_retarget")
+    package_share = get_package_share_directory("revo3_retarget")
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -174,14 +174,14 @@ def generate_launch_description():
             description="Backward-compatible alias for hand_mode.",
         ),
         DeclareLaunchArgument(
-            "launch_manus_publisher",
+            "launch_glove_publisher",
             default_value="true",
-            description="Start manus_ros2 manus_data_publisher.",
+            description="Start the glove publisher (manus_ros2 manus_data_publisher).",
         ),
         DeclareLaunchArgument(
-            "manus_publish_rate_hz",
+            "glove_publish_rate_hz",
             default_value="60.0",
-            description="MANUS glove ROS publish frequency in Hz.",
+            description="Glove ROS publish frequency in Hz.",
         ),
         DeclareLaunchArgument(
             "use_revo3_namespace",

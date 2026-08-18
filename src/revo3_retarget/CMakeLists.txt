@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(manus_revo3_retarget)
+project(revo3_retarget)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -9,7 +9,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(manus_ros2_msgs REQUIRED)
+find_package(glove_msgs REQUIRED)
 find_package(revo3_mit_controller_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
@@ -48,7 +48,7 @@ target_link_libraries(retarget_node ${PROJECT_NAME}_algorithms ${CMAKE_DL_LIBS})
 ament_target_dependencies(retarget_node
   rclcpp
   std_msgs
-  manus_ros2_msgs
+  glove_msgs
   revo3_mit_controller_msgs
   ament_index_cpp
 )
@@ -81,32 +81,32 @@ install(DIRECTORY scripts/
   USE_SOURCE_PERMISSIONS
 )
 
-install(PROGRAMS manus_revo3_retarget/command_state_viewer.py
+install(PROGRAMS revo3_retarget/command_state_viewer.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME command_state_viewer
 )
 
-install(PROGRAMS manus_revo3_retarget/joint_state_aligner.py
+install(PROGRAMS revo3_retarget/joint_state_aligner.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME joint_state_aligner
 )
 
-install(PROGRAMS manus_revo3_retarget/manus_record.py
+install(PROGRAMS revo3_retarget/glove_record.py
   DESTINATION lib/${PROJECT_NAME}
-  RENAME manus_record
+  RENAME glove_record
 )
 
-install(PROGRAMS manus_revo3_retarget/manus_replay.py
+install(PROGRAMS revo3_retarget/glove_replay.py
   DESTINATION lib/${PROJECT_NAME}
-  RENAME manus_replay
+  RENAME glove_replay
 )
 
-install(PROGRAMS manus_revo3_retarget/quintic_joint_test.py
+install(PROGRAMS revo3_retarget/quintic_joint_test.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME quintic_joint_test
 )
 
-install(PROGRAMS manus_revo3_retarget/retarget_tuning_panel.py
+install(PROGRAMS revo3_retarget/retarget_tuning_panel.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME retarget_tuning_panel
 )

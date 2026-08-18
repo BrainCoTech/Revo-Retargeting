@@ -74,14 +74,14 @@ fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 LOG_ROOT="${LOG_ROOT:-${PACKAGE_DIR}/log}"
-BAG_NAME="${BAG_NAME:-manus_revo3_retarget_${TIMESTAMP}}"
+BAG_NAME="${BAG_NAME:-revo3_retarget_${TIMESTAMP}}"
 RUN_DIR="${LOG_ROOT}/${BAG_NAME}"
 BAG_DIR="${RUN_DIR}/mcap"
 STARTUP_DELAY="${STARTUP_DELAY:-3}"
 
 DEFAULT_TOPICS=(
-  "/manus_glove_0"
-  "/manus_glove_1"
+  "/glove_0"
+  "/glove_1"
   "/revo3_left/joint_forward_mit_controller/commands"
   "/revo3_right/joint_forward_mit_controller/commands"
   "/revo3_left/joint_forward_mit_controller/retarget_targets"
@@ -115,18 +115,18 @@ fi
 
 echo "Log directory: ${RUN_DIR}"
 echo "MCAP bag directory: ${BAG_DIR}"
-printf 'Starting: ros2 launch manus_revo3_retarget pipeline_launch.py'
+printf 'Starting: ros2 launch revo3_retarget pipeline_launch.py'
 printf ' %q' "${LAUNCH_ARGS[@]}"
 printf '\n'
 
-ros2 launch manus_revo3_retarget pipeline_launch.py "${LAUNCH_ARGS[@]}" \
+ros2 launch revo3_retarget pipeline_launch.py "${LAUNCH_ARGS[@]}" \
   > >(tee -a "${LAUNCH_LOG}") \
   2> >(tee -a "${LAUNCH_LOG}" >&2) &
 LAUNCH_PID=$!
 
 ALIGNER_PID=""
 if [[ "${ENABLE_JOINT_STATE_ALIGNER:-1}" == "1" ]]; then
-  ALIGNER_COMMAND=(ros2 run manus_revo3_retarget joint_state_aligner)
+  ALIGNER_COMMAND=(ros2 run revo3_retarget joint_state_aligner)
   for launch_arg in "${LAUNCH_ARGS[@]}"; do
     case "${launch_arg}" in
       hand_mode:=*)

@@ -1,4 +1,4 @@
-#include "manus_revo3_retarget/thumb_retarget.hpp"
+#include "revo3_retarget/thumb_retarget.hpp"
 
 #include <algorithm>
 #include <array>
@@ -11,7 +11,7 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 
-namespace manus_revo3_retarget
+namespace revo3_retarget
 {
 
 namespace
@@ -406,17 +406,17 @@ double ThumbRetarget::joint_high(int adr) const
   return (adr >= 0 && static_cast<std::size_t>(adr) < jhigh_.size()) ? jhigh_[static_cast<std::size_t>(adr)] : M_PI;
 }
 
-extern "C" void * manus_revo3_thumb_create()
+extern "C" void * revo3_thumb_create()
 {
   return new ThumbRetarget();
 }
 
-extern "C" void manus_revo3_thumb_destroy(void * handle)
+extern "C" void revo3_thumb_destroy(void * handle)
 {
   delete static_cast<ThumbRetarget *>(handle);
 }
 
-extern "C" bool manus_revo3_thumb_initialize(
+extern "C" bool revo3_thumb_initialize(
   void * handle,
   const char * model_base,
   const char * side,
@@ -431,7 +431,7 @@ extern "C" bool manus_revo3_thumb_initialize(
   return static_cast<ThumbRetarget *>(handle)->initialize(model_base, side, error);
 }
 
-extern "C" void manus_revo3_thumb_set_config(void * handle, const ThumbConfig * config)
+extern "C" void revo3_thumb_set_config(void * handle, const ThumbConfig * config)
 {
   if (handle == nullptr || config == nullptr) {
     return;
@@ -439,7 +439,7 @@ extern "C" void manus_revo3_thumb_set_config(void * handle, const ThumbConfig * 
   static_cast<ThumbRetarget *>(handle)->set_config(*config);
 }
 
-extern "C" void manus_revo3_thumb_apply(
+extern "C" void revo3_thumb_apply(
   void * handle,
   const Ergonomics * ergonomics,
   const ManusKeypoints * keypoints,
@@ -451,7 +451,7 @@ extern "C" void manus_revo3_thumb_apply(
   static_cast<ThumbRetarget *>(handle)->apply(*ergonomics, *keypoints, *q);
 }
 
-extern "C" int manus_revo3_thumb_last_iteration_count(void * handle)
+extern "C" int revo3_thumb_last_iteration_count(void * handle)
 {
   if (handle == nullptr) {
     return 0;
@@ -459,4 +459,4 @@ extern "C" int manus_revo3_thumb_last_iteration_count(void * handle)
   return static_cast<ThumbRetarget *>(handle)->last_iteration_count();
 }
 
-}  // namespace manus_revo3_retarget
+}  // namespace revo3_retarget

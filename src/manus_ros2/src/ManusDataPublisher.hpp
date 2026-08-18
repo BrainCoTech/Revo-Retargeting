@@ -10,10 +10,10 @@
 #include <set>
 
 #include "rclcpp/rclcpp.hpp"
-#include "manus_ros2_msgs/msg/manus_ergonomics.hpp"
-#include "manus_ros2_msgs/msg/manus_glove.hpp"
-#include "manus_ros2_msgs/msg/manus_raw_node.hpp"
-#include "manus_ros2_msgs/msg/manus_vibration_command.hpp"
+#include "glove_msgs/msg/manus_ergonomics.hpp"
+#include "glove_msgs/msg/glove_state.hpp"
+#include "glove_msgs/msg/manus_raw_node.hpp"
+#include "glove_msgs/msg/vibration_command.hpp"
 
 /// @brief The type of connection to core.
 enum class ConnectionType : int
@@ -64,7 +64,7 @@ struct GloveRawSkeletonData
 {
     GloveRawSkeletonData() = default;
 
-    rclcpp::Publisher<manus_ros2_msgs::msg::ManusGlove>::SharedPtr manusGlovesPub;
+    rclcpp::Publisher<glove_msgs::msg::GloveState>::SharedPtr manusGlovesPub;
 };
 
 class ManusDataPublisher : public SDKClientPlatformSpecific, public rclcpp::Node
@@ -115,7 +115,7 @@ protected:
     void UpdateVibrationSubscribers();
 
     // Callback for vibration command
-    void OnVibrationCommand(const manus_ros2_msgs::msg::ManusVibrationCommand::SharedPtr msg, uint32_t glove_id);
+    void OnVibrationCommand(const glove_msgs::msg::VibrationCommand::SharedPtr msg, uint32_t glove_id);
 
     GloveLandscapeData GetGloveLandscapeData(uint32_t p_GloveID);
 
@@ -141,7 +141,7 @@ protected:
     CoordinateSystemVUH m_CoordinateSystem = {AxisView::AxisView_XFromViewer, AxisPolarity::AxisPolarity_PositiveZ, Side::Side_Right, 1.0f};
     HandMotion m_HandMotion = HandMotion::HandMotion_None;
 
-    std::map<uint32_t, rclcpp::Publisher<manus_ros2_msgs::msg::ManusGlove>::SharedPtr> m_GlovePublisher;
+    std::map<uint32_t, rclcpp::Publisher<glove_msgs::msg::GloveState>::SharedPtr> m_GlovePublisher;
 
     std::mutex m_RawSkeletonMutex;
     std::map<uint32_t, ClientRawSkeleton> m_GloveDataMap;
@@ -163,7 +163,7 @@ protected:
     std::vector<GestureLandscapeData> m_GestureLandscapeData;
 
     // Vibration command subscribers, mapped by glove_id
-    std::map<uint32_t, rclcpp::Subscription<manus_ros2_msgs::msg::ManusVibrationCommand>::SharedPtr> m_VibrationSubscribers;
+    std::map<uint32_t, rclcpp::Subscription<glove_msgs::msg::VibrationCommand>::SharedPtr> m_VibrationSubscribers;
 
     // MANUS message publishers
     rclcpp::TimerBase::SharedPtr m_PublishTimer;
