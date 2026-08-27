@@ -1,14 +1,20 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>hex_glove_driver</name>
+  <name>revo2_hand_retarget</name>
   <version>0.1.0</version>
-  <description>Transport-only ROS2 driver for Hexacercle glove UDP data</description>
-  <maintainer email="1131359622@qq.com">jiimmy</maintainer>
-  <license>MIT</license>
+  <description>Source-neutral hand kinematics retargeting for Revo2</description>
+  <maintainer email="jackhanceli@outlook.com">jackhance</maintainer>
+  <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
+  <depend>geometry_msgs</depend>
+  <depend>hand_teleop_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

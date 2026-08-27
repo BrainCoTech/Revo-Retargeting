@@ -4,7 +4,7 @@ package_name = 'hex_glove_driver'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='0.1.0',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -15,7 +15,7 @@ setup(
     zip_safe=True,
     maintainer='jiimmy',
     maintainer_email='1131359622@qq.com',
-    description='ROS2 driver bridge for Hexacercle glove UDP data',
+    description='Transport-only ROS2 driver for Hexacercle glove UDP data',
     license='MIT',
     extras_require={
         'test': [

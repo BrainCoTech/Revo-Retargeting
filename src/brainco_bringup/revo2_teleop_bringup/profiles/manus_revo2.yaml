@@ -1,0 +1,17 @@
+hand_mode: right
+
+input:
+  source: manus
+  launch_driver: true
+  parameters:
+    left_input_topic: /manus_glove_0
+    right_input_topic: /manus_glove_1
+    left_output_topic: /hand_kinematics/left
+    right_output_topic: /hand_kinematics/right
+    left_frame_id: hand_retarget_left
+    right_frame_id: hand_retarget_right
+
+retarget:
+  control_config: retarget.yaml
+  algorithm_config: ""
+  start_delay_sec: 18.0

@@ -1,236 +1,89 @@
 # Revo2 Retargeting
 
-ROS 2 Humble workspace for teleoperating BrainCo Revo2 hands with HumanDex or MANUS gloves.
+ROS 2 Humble workspace for teleoperating BrainCo Revo2 hands from HumanDex,
+MANUS, or Hex gloves.
 
 中文版: [README_CN.md](README_CN.md)
 
-The current HumanDex hardware control path is:
+## Architecture
+
+Every input backend terminates at the same device-neutral boundary:
 
 ```text
-HumanDex MCU
-  -> /humandex_<side>/joint_states
-  -> humandex_urdf/joint_state_mux
-      |-> /joint_states                         joint-angle observation
-      `-> /humandex_eef_pose                    palm-local fingertip FK; control input
-          -> glove_input_adapter
-          -> /manus_glove_0 (left) | /manus_glove_1 (right)  compatibility boundary
-          -> manus_revo2_retarget
-          -> /revo2_<side>/revo2_pid_controller/target_joint_states
-          -> revo2_pid_controller
-              <-> Revo2 position/velocity state interfaces
-          -> Revo2 velocity command interface
-          -> Revo2 hardware
+device driver / upstream acquisition
+  -> hand_input_adapters
+  -> hand_teleop_msgs/HandKinematics
+  -> revo2_hand_retarget
+  -> revo2_pid_controller target JointState
+  -> revo2_driver
 ```
 
-`/humandex_<side>/tactile` and `/joint_states` are observation branches and do not currently enter
-the retargeting control path. `/manus_glove_*` only reuses the existing retarget input contract; it
-does not imply that the data came from MANUS. MANUS remains an alternative input through
-`manus_ros2`, which publishes the same compatibility message directly.
+`HandKinematics` contains one side and one source timestamp per message. Joint
+angles are radians, landmarks are meters, and missing measurements are omitted
+instead of fabricated. Device adapters own coordinate/unit conversion; the
+retargeter has no dependency on MANUS messages or HumanDex/Hex transport.
 
-## Package Layout
+Main packages:
 
 ```text
-src/brainco_capabilities/manus_ros2_msgs     MANUS ROS 2 messages
-src/brainco_capabilities/manus_revo2_retarget
-src/brainco_capabilities/glove_input_adapter Glove pose normalization/adaptation
-src/brainco_drivers/manus_ros2               MANUS SDK hardware bridge
-src/brainco_drivers/hex_glove_driver         Hex glove UDP bridge
-src/brainco_drivers/revo2_driver             Revo2 ros2_control driver
-src/brainco_description/revo2_description    Revo2 hand description
-
-../BrainCo-HumanDex/src/humandex_urdf        HumanDex acquisition, joints, and local FK
-```
-
-Detailed MANUS retargeting, tuning, and troubleshooting notes live in:
-
-```text
-src/brainco_capabilities/manus_revo2_retarget/README.md
-```
-
-Hex glove setup is documented separately:
-
-```text
-src/brainco_capabilities/manus_revo2_retarget/README_HEX.md
-```
-
-HumanDex glove setup is documented separately:
-
-```text
-src/brainco_capabilities/manus_revo2_retarget/README_HUMANDEX.md
-```
-
-## Setup
-
-Target environment:
-
-- Ubuntu 22.04
-- ROS 2 Humble
-- Python 3.10
-
-Create and activate a Python environment:
-
-```bash
-conda create -n manusglove python=3.10 -y
-conda activate manusglove
-python -m pip install --upgrade pip
-python -m pip install rospkg catkin_pkg colcon-common-extensions
-python -m pip install -r requirements.txt
-python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-```
-
-Install the BrainCo Stark SDK used by `revo2_driver`:
-
-```bash
-bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
-```
-
-MANUS SDK shared libraries are not stored in this repository. Put the official MANUS SDK files under:
-
-```text
-src/brainco_drivers/manus_ros2/ManusSDK/include/
-src/brainco_drivers/manus_ros2/ManusSDK/lib/
-```
-
-The expected runtime libraries are:
-
-```text
-src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK.so
-src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
+src/brainco_capabilities/hand_teleop_msgs       neutral input contract
+src/brainco_capabilities/hand_input_adapters    HumanDex, MANUS, Hex adapters
+src/brainco_capabilities/revo2_hand_retarget    device-neutral retarget core
+src/brainco_bringup/revo2_teleop_bringup        profile-driven composition
+src/brainco_drivers/hex_glove_driver             raw UDP transport only
+src/brainco_drivers/manus_ros2                   native MANUS SDK bridge
+src/brainco_drivers/revo2_driver                 Revo2 ros2_control driver
 ```
 
 ## Build
 
+Target environment: Ubuntu 22.04, ROS 2 Humble, Python 3.10.
+
 ```bash
 source /opt/ros/humble/setup.bash
-python -m colcon build --symlink-install
+python -m colcon build
 source install/setup.bash
 ```
 
-## Start Teleoperation
-
-HumanDex right-hand real-hardware launch:
-
-```bash
-ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py \
-  hand_mode:=right
-```
-
-HumanDex left hand or both hands:
-
-```bash
-ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py hand_mode:=left
-ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py hand_mode:=both
-```
-
-MANUS right-hand real-hardware launch:
-
-```bash
-ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
-  hand_mode:=right \
-  controller_backend:=ros2_control
-```
-
-Disable the plot window:
-
-```bash
-ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
-  hand_mode:=right \
-  controller_backend:=ros2_control \
-  launch_plot:=false
-```
-
-MANUS left hand or both hands:
-
-```bash
-ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=left
-ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=both
-```
-
-## Controller Behavior
-
-`revo2_driver` intentionally starts with `joint_forward_pos_controller` active by default. This is the safer default for standalone hardware bring-up because the hand can be tested with direct position commands and does not depend on a live glove retargeting stream.
-
-Hardware teleoperation uses `revo2_pid_controller` instead:
-
-```text
-glove input -> retarget target JointState -> revo2_pid_controller -> velocity command interface
-```
-
-The real-hand pipeline includes a helper that tries to switch from the default position controller to `revo2_pid_controller`. If that automatic switch fails, check the current controller state:
-
-```bash
-ROS2CLI_DISABLE_DAEMON=1 ros2 control list_controllers \
-  -c /revo2_right/controller_manager
-```
-
-Expected teleoperation state:
-
-```text
-revo2_joint_state            active
-joint_forward_pos_controller inactive
-revo2_pid_controller         active
-joint_forward_vel_controller inactive
-```
-
-If `joint_forward_pos_controller` is still active and `revo2_pid_controller` is inactive, switch only the active position controller:
-
-```bash
-ROS2CLI_DISABLE_DAEMON=1 ros2 control switch_controllers \
-  -c /revo2_right/controller_manager \
-  --deactivate joint_forward_pos_controller \
-  --activate revo2_pid_controller \
-  --activate-asap \
-  --strict
-```
-
-After a successful manual switch, relaunching with `switch_controllers:=false` avoids repeating the automatic switch helper:
-
-```bash
-ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
-  hand_mode:=right \
-  controller_backend:=ros2_control \
-  switch_controllers:=false \
-  launch_plot:=false
-```
-
-## Hardware Setup
-
-Configure Revo2 serial aliases and permissions once on a new computer:
-
-```bash
-cd src/brainco_drivers/revo2_driver/setup
-bash bootstrap_revo2.sh
-bash check_revo2_setup.sh
-cd -
-```
-
-For MANUS official glove calibration, see:
-
-```text
-src/brainco_capabilities/manus_revo2_retarget/README.md
-```
-
-## Troubleshooting
-
-If build fails with missing BrainCo Stark SDK files, run:
+Install the BrainCo Stark SDK when building `revo2_driver`:
 
 ```bash
 bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
 ```
 
-If build fails with missing MANUS libraries, install the official MANUS SDK files into `src/brainco_drivers/manus_ros2/ManusSDK/lib/`.
+The MANUS profile additionally requires the official SDK libraries under
+`src/brainco_drivers/manus_ros2/ManusSDK/`.
 
-If runtime starts but the hand does not move, confirm the controller is active:
+## Launch
 
-```bash
-ROS2CLI_DISABLE_DAEMON=1 ros2 control list_controllers -c /revo2_right/controller_manager
-ros2 topic echo /revo2_right/revo2_pid_controller/target_joint_states --once
-```
-
-If `ros2 control` reports `!rclpy.ok()` or `xmlrpc.client.Fault`, restart the ROS 2 CLI daemon or disable it for that command:
+All inputs use one entry point and differ only by profile:
 
 ```bash
-ros2 daemon stop
-ros2 daemon start
-ROS2CLI_DISABLE_DAEMON=1 ros2 control list_controllers -c /revo2_right/controller_manager
+ros2 launch revo2_teleop_bringup teleop.launch.py \
+  profile:=humandex_revo2 hand_mode:=right
+
+ros2 launch revo2_teleop_bringup teleop.launch.py \
+  profile:=manus_revo2 hand_mode:=right
+
+ros2 launch revo2_teleop_bringup teleop.launch.py \
+  profile:=hex_revo2 hand_mode:=right
 ```
+
+HumanDex acquisition remains external. The default MANUS and Hex profiles start
+their own input drivers; override with `launch_input_driver:=false` when an
+existing process owns the device.
+
+Start with a read-only offline pipeline before enabling Revo2 hardware:
+
+```bash
+ros2 launch revo2_teleop_bringup teleop.launch.py \
+  profile:=humandex_revo2 hand_mode:=right \
+  launch_revo2_driver:=false switch_controllers:=false
+```
+
+Confirm `/hand_kinematics/right` and the retarget target topic contain sane data
+before launching real hardware. The Revo2 driver intentionally starts from its
+safer position-controller configuration; the full teleoperation bringup switches
+to `revo2_pid_controller` only when requested.
+
+See package-level READMEs for contract fields, adapter parameters, and profiles.
