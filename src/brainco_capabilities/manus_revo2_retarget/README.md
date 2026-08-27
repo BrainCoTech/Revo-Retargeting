@@ -2,7 +2,8 @@
 
 这个包用于把 MANUS 手套数据重定向到 Revo2 灵巧手。当前推荐真机链路是 `controller_backend:=ros2_control`：retarget 节点只发布目标关节角度，`revo2_driver` 内的 `revo2_pid_controller` 作为 ros2_control controller 直接读取硬件 state interface 并写 velocity command interface。
 
-Hex 手套链路不写在这个 MANUS README 里，见单独文档：[README_HEX.md](README_HEX.md)。
+Hex 和 HumanDex 手套链路不写在这个 MANUS README 里，分别见
+[README_HEX.md](README_HEX.md) 和 [README_HUMANDEX.md](README_HUMANDEX.md)。
 
 推荐链路是：
 
@@ -95,7 +96,7 @@ source install/setup.bash
 ```bash
 cd /path/to/Revo-Retargeting
 conda activate manusglove
-python -m colcon build --packages-select manus_ros2_msgs manus_ros2 revo2_description revo2_driver manus_revo2_retarget --symlink-install
+python -m colcon build --packages-select manus_ros2_msgs manus_ros2 glove_input_adapter revo2_description revo2_driver manus_revo2_retarget --symlink-install
 source install/setup.bash
 ```
 
@@ -623,8 +624,8 @@ ros2 run manus_ros2 manus_calibration_tool --side left --overwrite
 默认情况下，开发 workspace 会优先保存到源码包的 `manus_ros2/calibrations/` 下，例如：
 
 ```text
-src/brainco_capabilities/manus_ros2/calibrations/metaglovepro/Calibration_right.mcal
-src/brainco_capabilities/manus_ros2/calibrations/metaglove/Calibration_left.mcal
+src/brainco_drivers/manus_ros2/calibrations/metaglovepro/Calibration_right.mcal
+src/brainco_drivers/manus_ros2/calibrations/metaglove/Calibration_left.mcal
 ```
 
 ### 自定义标定目录

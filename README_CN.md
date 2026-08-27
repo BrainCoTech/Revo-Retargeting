@@ -1,29 +1,43 @@
 # Revo2 Retargeting
 
-这是一个用于 BrainCo Revo2 灵巧手 + MANUS 手套遥操作的 ROS 2 Humble workspace。
+这是一个用于 HumanDex/MANUS 手套遥操作 BrainCo Revo2 灵巧手的 ROS 2 Humble workspace。
 
 English: [README.md](README.md)
 
-当前推荐真机链路是：
+当前 HumanDex 真机控制链路是：
 
 ```text
-MANUS SDK / manus_ros2
-  -> manus_ros2_msgs/ManusGlove
-  -> manus_revo2_retarget
-  -> sensor_msgs/JointState target
-  -> revo2_driver revo2_pid_controller
-  -> Revo2 hardware velocity command interface
+HumanDex MCU
+  -> /humandex_<side>/joint_states
+  -> humandex_urdf/joint_state_mux
+      |-> /joint_states                         关节角观测
+      `-> /humandex_eef_pose                    掌根局部指尖 FK，控制输入
+          -> glove_input_adapter
+          -> /manus_glove_0(left) | /manus_glove_1(right)  兼容接口
+          -> manus_revo2_retarget
+          -> /revo2_<side>/revo2_pid_controller/target_joint_states
+          -> revo2_pid_controller
+              <-> Revo2 position/velocity state interfaces
+          -> Revo2 velocity command interface
+          -> Revo2 hardware
 ```
+
+`/humandex_<side>/tactile` 和 `/joint_states` 当前不进入重定向控制主链；前者用于触觉观测，
+后者用于关节角观测。`/manus_glove_*` 只是复用现有 retarget 输入协议，并不表示数据来自
+MANUS。MANUS 仍可作为另一种输入方式，通过 `manus_ros2` 直接发布同一兼容消息。
 
 ## 包结构
 
 ```text
-src/brainco_capabilities/manus_ros2          MANUS SDK bridge
 src/brainco_capabilities/manus_ros2_msgs     MANUS ROS 2 messages
 src/brainco_capabilities/manus_revo2_retarget
+src/brainco_capabilities/glove_input_adapter 手套位姿归一化与适配
+src/brainco_drivers/manus_ros2               MANUS SDK 硬件 bridge
 src/brainco_drivers/hex_glove_driver         Hex 手套 UDP bridge
 src/brainco_drivers/revo2_driver             Revo2 ros2_control driver
 src/brainco_description/revo2_description    Revo2 hand description
+
+../BrainCo-HumanDex/src/humandex_urdf        HumanDex 采集、关节角与掌根局部 FK
 ```
 
 更详细的 MANUS retargeting、调参和排查说明在：
@@ -36,6 +50,12 @@ Hex 手套说明单独放在：
 
 ```text
 src/brainco_capabilities/manus_revo2_retarget/README_HEX.md
+```
+
+HumanDex 手套说明单独放在：
+
+```text
+src/brainco_capabilities/manus_revo2_retarget/README_HUMANDEX.md
 ```
 
 ## 环境准备
@@ -66,15 +86,15 @@ bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
 MANUS SDK 的动态库不会提交到仓库。请把官方 MANUS SDK 文件放到：
 
 ```text
-src/brainco_capabilities/manus_ros2/ManusSDK/include/
-src/brainco_capabilities/manus_ros2/ManusSDK/lib/
+src/brainco_drivers/manus_ros2/ManusSDK/include/
+src/brainco_drivers/manus_ros2/ManusSDK/lib/
 ```
 
 运行时至少需要：
 
 ```text
-src/brainco_capabilities/manus_ros2/ManusSDK/lib/libManusSDK.so
-src/brainco_capabilities/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
+src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK.so
+src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
 ```
 
 ## 构建
@@ -82,16 +102,27 @@ src/brainco_capabilities/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
 ```bash
 conda activate manusglove
 source /opt/ros/humble/setup.bash
-python -m colcon build --symlink-install --packages-select \
-  manus_ros2_msgs manus_ros2 hex_glove_driver \
-  revo2_description revo2_driver \
-  manus_revo2_retarget
+python -m colcon build --symlink-install
 source install/setup.bash
 ```
 
 ## 启动遥操作
 
-推荐右手真机启动：
+HumanDex 右手真机启动：
+
+```bash
+ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py \
+  hand_mode:=right
+```
+
+HumanDex 左手或双手：
+
+```bash
+ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py hand_mode:=left
+ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py hand_mode:=both
+```
+
+MANUS 右手真机启动：
 
 ```bash
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
@@ -108,7 +139,7 @@ ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
   launch_plot:=false
 ```
 
-左手或双手：
+MANUS 左手或双手：
 
 ```bash
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=left
@@ -117,12 +148,12 @@ ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=both
 
 ## Controller 默认逻辑
 
-`revo2_driver` 默认激活 `joint_forward_pos_controller`。这是有意保留的安全默认值：单独调硬件时，可以直接用 position command 测试手，不依赖 MANUS 手套和 retarget 节点持续发布目标。
+`revo2_driver` 默认激活 `joint_forward_pos_controller`。这是有意保留的安全默认值：单独调硬件时，可以直接用 position command 测试手，不依赖手套和 retarget 节点持续发布目标。
 
-MANUS 遥操作推荐使用 `revo2_pid_controller`：
+真机遥操作使用 `revo2_pid_controller`：
 
 ```text
-MANUS -> retarget target JointState -> revo2_pid_controller -> velocity command interface
+glove input -> retarget target JointState -> revo2_pid_controller -> velocity command interface
 ```
 
 真机 pipeline 里有一个辅助脚本会尝试从默认的 position controller 自动切到 `revo2_pid_controller`。如果自动切换失败，先查看当前 controller 状态：
@@ -195,7 +226,7 @@ bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
 如果构建时报 MANUS SDK 动态库缺失，把官方 MANUS SDK 的 `.so` 文件放到：
 
 ```text
-src/brainco_capabilities/manus_ros2/ManusSDK/lib/
+src/brainco_drivers/manus_ros2/ManusSDK/lib/
 ```
 
 如果启动了但手不动，确认 controller 和 retarget target topic：

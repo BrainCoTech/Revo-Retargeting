@@ -42,12 +42,14 @@ target='{target_controller}'
 controller_active() {{
   local name="$1"
   timeout 5 ros2 control list_controllers -c "$cm" 2>/dev/null | \\
+    sed -E 's/\x1B\[[0-9;]*[mK]//g' | \\
     awk -v name="$name" '$1 == name && $NF == "active" {{found=1}} END {{exit found ? 0 : 1}}'
 }}
 
 controller_exists() {{
   local name="$1"
   timeout 5 ros2 control list_controllers -c "$cm" 2>/dev/null | \\
+    sed -E 's/\x1B\[[0-9;]*[mK]//g' | \\
     awk -v name="$name" '$1 == name {{found=1}} END {{exit found ? 0 : 1}}'
 }}
 

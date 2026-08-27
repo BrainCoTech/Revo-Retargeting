@@ -19,11 +19,16 @@ dist/
 *.db3
 *.mcap
 *.log
+/artifacts/
+/test/
+/src/brainco_capabilities/glove_input_adapter/test/
+/MUJOCO_LOG.TXT
+/log.txt
 
 # MANUS SDK runtime files are installed locally, not committed.
-src/brainco_capabilities/manus_ros2/ManusSDK.zip
-src/brainco_capabilities/manus_ros2/ManusSDK/lib/*.so*
-src/brainco_capabilities/manus_ros2/calibrations/**/*.mcal
+src/brainco_drivers/manus_ros2/ManusSDK.zip
+src/brainco_drivers/manus_ros2/ManusSDK/lib/*.so*
+src/brainco_drivers/manus_ros2/calibrations/**/*.mcal
 
 # BrainCo Stark SDK runtime files are downloaded locally, not committed.
 src/brainco_drivers/revo2_driver/vendor/dist/

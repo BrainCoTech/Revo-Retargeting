@@ -345,6 +345,7 @@ _CONTROL_CONFIG_FIELDS = {
     "velocity_max": (("pd_velocity", "velocity_max"), ("velocity_max",)),
     "velocity_slew_rate": (("pd_velocity", "velocity_slew_rate"), ("velocity_slew_rate",)),
     "velocity_feedback_timeout": (("pd_velocity", "velocity_feedback_timeout"), ("velocity_feedback_timeout",)),
+    "glove_data_timeout": (("input", "glove_data_timeout"), ("glove_data_timeout",)),
     "feedback_position_scale": (("feedback", "position_scale"), ("motor_feedback", "position_scale"), ("feedback_position_scale",), ("motor_status_position_scale",)),
     "feedback_position_scales": (("feedback", "position_scales"), ("motor_feedback", "position_scales"), ("feedback_position_scales",), ("motor_status_position_scales",)),
     "feedback_position_offsets": (("feedback", "position_offsets"), ("motor_feedback", "position_offsets"), ("feedback_position_offsets",), ("motor_status_position_offsets",)),
@@ -467,6 +468,7 @@ class ManusRevo2Node(Node):
         velocity_max=1.2,
         velocity_slew_rate=0.2,
         velocity_feedback_timeout=0.3,
+        glove_data_timeout=0.3,
         feedback_position_scale=1.0,
         feedback_position_scales=None,
         feedback_position_offsets=None,
@@ -558,6 +560,9 @@ class ManusRevo2Node(Node):
         # 仅在收到有效手套数据后才允许对应手下发电机命令，避免启动时默认值冲击
         self.left_data_ready = not self.enable_left
         self.right_data_ready = not self.enable_right
+        self.glove_data_timeout = float(max(0.0, glove_data_timeout))
+        self._last_glove_data_time = {"left": None, "right": None}
+        self._last_glove_timeout_log_time = {"left": 0.0, "right": 0.0}
         self._glove_msg_counts = {"left": 0, "right": 0, "unknown": 0}
         self._last_glove_side = None
         self._last_glove_raw_node_count = 0
@@ -992,12 +997,36 @@ class ManusRevo2Node(Node):
         return ergonomics
 
     def _mark_hand_data_ready(self, hand: str):
+        self._last_glove_data_time[hand] = time.monotonic()
         if hand == "left" and not self.left_data_ready:
             self.left_data_ready = True
             logger.info("检测到左手手套有效数据，开始发送左手控制。")
         elif hand == "right" and not self.right_data_ready:
             self.right_data_ready = True
             logger.info("检测到右手手套有效数据，开始发送右手控制。")
+
+    def _expire_stale_glove_data(self):
+        if self.glove_data_timeout <= 0.0:
+            return
+        now = time.monotonic()
+        for side, enabled in (("left", self.enable_left), ("right", self.enable_right)):
+            if not enabled:
+                continue
+            last_time = self._last_glove_data_time[side]
+            ready = self.left_data_ready if side == "left" else self.right_data_ready
+            if not ready or last_time is None or now - last_time <= self.glove_data_timeout:
+                continue
+            if side == "left":
+                self.left_data_ready = False
+            else:
+                self.right_data_ready = False
+            if now - self._last_glove_timeout_log_time[side] >= 1.0:
+                self._last_glove_timeout_log_time[side] = now
+                logger.warning(
+                    "%s glove input timed out after %.3f s; target publishing paused.",
+                    side,
+                    self.glove_data_timeout,
+                )
 
     def _record_glove_status(self, msg: ManusGlove, side: str):
         count_key = side if side in ("left", "right") else "unknown"
@@ -1221,6 +1250,7 @@ class ManusRevo2Node(Node):
 
     def retarget_callback(self):
         """重定向计算回调"""
+        self._expire_stale_glove_data()
         if not (
             (self.enable_left and self.left_data_ready)
             or (self.enable_right and self.right_data_ready)
@@ -2317,6 +2347,7 @@ class ManusRevo2Retargeter:
         velocity_max=1.2,
         velocity_slew_rate=0.2,
         velocity_feedback_timeout=0.3,
+        glove_data_timeout=0.3,
         feedback_position_scale=1.0,
         feedback_position_scales=None,
         feedback_position_offsets=None,
@@ -2381,6 +2412,7 @@ class ManusRevo2Retargeter:
             velocity_max=velocity_max,
             velocity_slew_rate=velocity_slew_rate,
             velocity_feedback_timeout=velocity_feedback_timeout,
+            glove_data_timeout=glove_data_timeout,
             feedback_position_scale=feedback_position_scale,
             feedback_position_scales=feedback_position_scales,
             feedback_position_offsets=feedback_position_offsets,
@@ -2727,6 +2759,12 @@ def parse_cli_args(argv=None):
         help="Seconds before stale JointState feedback forces pd_velocity target speed to zero.",
     )
     parser.add_argument(
+        "--glove-data-timeout",
+        type=float,
+        default=0.3,
+        help="Seconds before stale glove input pauses target publication. 0 disables the timeout.",
+    )
+    parser.add_argument(
         "--feedback-position-scale",
         "--motor-status-position-scale",
         dest="feedback_position_scale",
@@ -2881,6 +2919,7 @@ def main(argv=None):
             velocity_max=cli_args.velocity_max,
             velocity_slew_rate=cli_args.velocity_slew_rate,
             velocity_feedback_timeout=cli_args.velocity_feedback_timeout,
+            glove_data_timeout=cli_args.glove_data_timeout,
             feedback_position_scale=cli_args.feedback_position_scale,
             feedback_position_scales=cli_args.feedback_position_scales,
             feedback_position_offsets=cli_args.feedback_position_offsets,

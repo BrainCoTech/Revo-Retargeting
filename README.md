@@ -1,29 +1,44 @@
 # Revo2 Retargeting
 
-ROS 2 Humble workspace for teleoperating BrainCo Revo2 hands with MANUS gloves.
+ROS 2 Humble workspace for teleoperating BrainCo Revo2 hands with HumanDex or MANUS gloves.
 
 中文版: [README_CN.md](README_CN.md)
 
-This branch contains the runnable Revo2 workspace. The recommended hardware path is:
+The current HumanDex hardware control path is:
 
 ```text
-MANUS SDK / manus_ros2
-  -> manus_ros2_msgs/ManusGlove
-  -> manus_revo2_retarget
-  -> sensor_msgs/JointState target
-  -> revo2_driver revo2_pid_controller
-  -> Revo2 hardware velocity command interface
+HumanDex MCU
+  -> /humandex_<side>/joint_states
+  -> humandex_urdf/joint_state_mux
+      |-> /joint_states                         joint-angle observation
+      `-> /humandex_eef_pose                    palm-local fingertip FK; control input
+          -> glove_input_adapter
+          -> /manus_glove_0 (left) | /manus_glove_1 (right)  compatibility boundary
+          -> manus_revo2_retarget
+          -> /revo2_<side>/revo2_pid_controller/target_joint_states
+          -> revo2_pid_controller
+              <-> Revo2 position/velocity state interfaces
+          -> Revo2 velocity command interface
+          -> Revo2 hardware
 ```
+
+`/humandex_<side>/tactile` and `/joint_states` are observation branches and do not currently enter
+the retargeting control path. `/manus_glove_*` only reuses the existing retarget input contract; it
+does not imply that the data came from MANUS. MANUS remains an alternative input through
+`manus_ros2`, which publishes the same compatibility message directly.
 
 ## Package Layout
 
 ```text
-src/brainco_capabilities/manus_ros2          MANUS SDK bridge
 src/brainco_capabilities/manus_ros2_msgs     MANUS ROS 2 messages
 src/brainco_capabilities/manus_revo2_retarget
+src/brainco_capabilities/glove_input_adapter Glove pose normalization/adaptation
+src/brainco_drivers/manus_ros2               MANUS SDK hardware bridge
 src/brainco_drivers/hex_glove_driver         Hex glove UDP bridge
 src/brainco_drivers/revo2_driver             Revo2 ros2_control driver
 src/brainco_description/revo2_description    Revo2 hand description
+
+../BrainCo-HumanDex/src/humandex_urdf        HumanDex acquisition, joints, and local FK
 ```
 
 Detailed MANUS retargeting, tuning, and troubleshooting notes live in:
@@ -36,6 +51,12 @@ Hex glove setup is documented separately:
 
 ```text
 src/brainco_capabilities/manus_revo2_retarget/README_HEX.md
+```
+
+HumanDex glove setup is documented separately:
+
+```text
+src/brainco_capabilities/manus_revo2_retarget/README_HUMANDEX.md
 ```
 
 ## Setup
@@ -66,31 +87,42 @@ bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
 MANUS SDK shared libraries are not stored in this repository. Put the official MANUS SDK files under:
 
 ```text
-src/brainco_capabilities/manus_ros2/ManusSDK/include/
-src/brainco_capabilities/manus_ros2/ManusSDK/lib/
+src/brainco_drivers/manus_ros2/ManusSDK/include/
+src/brainco_drivers/manus_ros2/ManusSDK/lib/
 ```
 
 The expected runtime libraries are:
 
 ```text
-src/brainco_capabilities/manus_ros2/ManusSDK/lib/libManusSDK.so
-src/brainco_capabilities/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
+src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK.so
+src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
 ```
 
 ## Build
 
 ```bash
 source /opt/ros/humble/setup.bash
-python -m colcon build --symlink-install --packages-select \
-  manus_ros2_msgs manus_ros2 hex_glove_driver \
-  revo2_description revo2_driver \
-  manus_revo2_retarget
+python -m colcon build --symlink-install
 source install/setup.bash
 ```
 
 ## Start Teleoperation
 
-Recommended right-hand real-hardware launch:
+HumanDex right-hand real-hardware launch:
+
+```bash
+ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py \
+  hand_mode:=right
+```
+
+HumanDex left hand or both hands:
+
+```bash
+ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py hand_mode:=left
+ros2 launch manus_revo2_retarget humandex_real_hand_pipeline_launch.py hand_mode:=both
+```
+
+MANUS right-hand real-hardware launch:
 
 ```bash
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
@@ -107,7 +139,7 @@ ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py \
   launch_plot:=false
 ```
 
-Left hand or both hands:
+MANUS left hand or both hands:
 
 ```bash
 ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=left
@@ -116,12 +148,12 @@ ros2 launch manus_revo2_retarget real_hand_pipeline_launch.py hand_mode:=both
 
 ## Controller Behavior
 
-`revo2_driver` intentionally starts with `joint_forward_pos_controller` active by default. This is the safer default for standalone hardware bring-up because the hand can be tested with direct position commands and does not depend on a live MANUS retargeting stream.
+`revo2_driver` intentionally starts with `joint_forward_pos_controller` active by default. This is the safer default for standalone hardware bring-up because the hand can be tested with direct position commands and does not depend on a live glove retargeting stream.
 
-The recommended MANUS teleoperation path uses `revo2_pid_controller` instead:
+Hardware teleoperation uses `revo2_pid_controller` instead:
 
 ```text
-MANUS -> retarget target JointState -> revo2_pid_controller -> velocity command interface
+glove input -> retarget target JointState -> revo2_pid_controller -> velocity command interface
 ```
 
 The real-hand pipeline includes a helper that tries to switch from the default position controller to `revo2_pid_controller`. If that automatic switch fails, check the current controller state:
@@ -186,7 +218,7 @@ If build fails with missing BrainCo Stark SDK files, run:
 bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
 ```
 
-If build fails with missing MANUS libraries, install the official MANUS SDK files into `src/brainco_capabilities/manus_ros2/ManusSDK/lib/`.
+If build fails with missing MANUS libraries, install the official MANUS SDK files into `src/brainco_drivers/manus_ros2/ManusSDK/lib/`.
 
 If runtime starts but the hand does not move, confirm the controller is active:
 

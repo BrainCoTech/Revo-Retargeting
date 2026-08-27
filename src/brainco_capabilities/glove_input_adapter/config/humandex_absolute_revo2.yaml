@@ -1,0 +1,17 @@
+/**:
+  ros__parameters:
+    four_source_joint: PIP
+    # Temporary initial endpoints; recalibrate from independent PIP recordings.
+    four_open_rad: 0.20943951023931956
+    four_closed_rad: -0.20943951023931956
+    four_target_max_rad: 1.4661
+
+    thumb_prox_source_joint: CMR
+    thumb_prox_open_rad: -0.20943951023931956
+    thumb_prox_closed_rad: 0.20943951023931956
+    thumb_prox_target_max_rad: 1.0472
+
+    thumb_meta_source_joint: CMP
+    thumb_meta_open_rad: -0.10471975511965977
+    thumb_meta_closed_rad: -0.41887902047863906
+    thumb_meta_target_max_rad: 1.5184
