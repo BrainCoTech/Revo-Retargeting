@@ -21,8 +21,9 @@ dist/
 *.mcap
 *.log
 /artifacts/
-/test/
-/src/brainco_capabilities/glove_input_adapter/test/
+# Local-only test code
+test/
+tests/
 /MUJOCO_LOG.TXT
 /log.txt
 
