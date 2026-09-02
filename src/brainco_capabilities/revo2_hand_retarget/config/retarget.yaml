@@ -5,8 +5,8 @@
 skip_calibration: true
 # Do not run or load the retargeter thumb-calibration file by default.
 # Device calibration belongs to the selected input driver and adapter.
-use_default_revo3_calibration: true
-algorithm: revo3_thumb
+use_default_pose_thumb_calibration: true
+algorithm: pose_thumb
 control_mode: pd_velocity
 end_effector: real_hand
 
@@ -14,7 +14,7 @@ input:
   # Stop refreshing the PID target if any input adapter stops producing data.
   input_data_timeout: 0.3
 
-revo3_thumb:
+pose_thumb:
   left:
     thumb_ik_position_scale: 1.00
     thumb_joint_offset_deg: 6.0

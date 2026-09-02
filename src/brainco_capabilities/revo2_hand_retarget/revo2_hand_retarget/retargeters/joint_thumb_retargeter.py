@@ -6,11 +6,11 @@ import numpy as np
 
 from revo2_hand_retarget.revo2_joints import REVO2_JOINT_LIMITS_RAD
 from revo2_hand_retarget.retargeters import BaseRetargeter, RetargeterRegistry
-from revo2_hand_retarget.retargeters.revo3_thumb_retargeter import (
-    DEFAULT_REVO3_PARAMS,
+from revo2_hand_retarget.retargeters.pose_thumb_retargeter import (
+    DEFAULT_POSE_THUMB_PARAMS,
     FOUR_FINGER_JOINT_OFFSET,
     FOUR_FINGER_NAMES,
-    Revo3ThumbRetargeter,
+    PoseThumbRetargeter,
     _apply_ema_to_landmark_targets,
     _four_finger_targets_from_joints,
 )
@@ -104,18 +104,18 @@ def _thumb_targets_from_joints(joint_positions, params: dict[str, float]) -> tup
     )
 
 
-class JointThumbRetargeter(Revo3ThumbRetargeter):
+class JointThumbRetargeter(PoseThumbRetargeter):
     """Map canonical thumb joint semantics directly to Revo2 thumb joints."""
 
     @staticmethod
     def default_runtime_params():
-        params = dict(DEFAULT_REVO3_PARAMS)
+        params = dict(DEFAULT_POSE_THUMB_PARAMS)
         params.update(DEFAULT_JOINT_THUMB_PARAMS)
         return params
 
     @staticmethod
     def _merge_runtime_params(current_params, new_params):
-        merged = Revo3ThumbRetargeter._merge_runtime_params(current_params, new_params)
+        merged = PoseThumbRetargeter._merge_runtime_params(current_params, new_params)
         for key, default_value in DEFAULT_JOINT_THUMB_PARAMS.items():
             if key in new_params:
                 merged[key] = float(new_params[key])

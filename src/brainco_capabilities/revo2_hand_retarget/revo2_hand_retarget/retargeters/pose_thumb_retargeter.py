@@ -1,4 +1,4 @@
-"""Revo3-style thumb retargeter for Revo2 hardware.
+"""Pose-based thumb retargeter for Revo2 hardware.
 
 This retargeter improves thumb tracking by using a MuJoCo-based
 Jacobian IK solver that fits both fingertip and proximal-link
@@ -28,12 +28,12 @@ try:
     import mujoco
 except Exception as exc:  # pragma: no cover
     raise ImportError(
-        "mujoco is required for Revo3ThumbRetargeter. "
+        "mujoco is required for PoseThumbRetargeter. "
         "Install it with: pip install mujoco>=3.0"
     ) from exc
 
 
-DEFAULT_REVO3_PARAMS = {
+DEFAULT_POSE_THUMB_PARAMS = {
     "thumb_ik_position_scale": 1.05,
     "thumb_joint_offset_deg": 6.0,
     "thumb_cmp_scale": 1.0,
@@ -75,7 +75,7 @@ AFFINE_REGULARIZATION = 0.1
 
 
 # ---------------------------------------------------------------------------
-# Landmark utilities (ported from Revo3)
+# Pose-landmark utilities
 # ---------------------------------------------------------------------------
 def _apply_thumb_reach_scale(thumb_xyz, center_4, thumb_reach_scale):
     vec = np.asarray(thumb_xyz, dtype=float) - np.asarray(center_4, dtype=float)
@@ -331,8 +331,8 @@ def _solve_thumb_ik(
 # ---------------------------------------------------------------------------
 # Retargeter class
 # ---------------------------------------------------------------------------
-class Revo3ThumbRetargeter(BaseRetargeter):
-    """Retargeter that uses Revo3-style MuJoCo IK for the thumb.
+class PoseThumbRetargeter(BaseRetargeter):
+    """Retargeter that uses fingertip-pose MuJoCo IK for the thumb.
 
     The four fingers prefer canonical aggregate flexion angles. DexRetargeter
     is only an optional fallback when those angles are unavailable.
@@ -393,7 +393,7 @@ class Revo3ThumbRetargeter(BaseRetargeter):
 
     @staticmethod
     def default_runtime_params():
-        return dict(DEFAULT_REVO3_PARAMS)
+        return dict(DEFAULT_POSE_THUMB_PARAMS)
 
     def _ensure_side_enabled(self, side: str):
         side = str(side).strip().lower()
@@ -411,7 +411,7 @@ class Revo3ThumbRetargeter(BaseRetargeter):
         if mesh_dir.is_dir():
             # MuJoCo may strip the mesh subdirectory during URDF import, so
             # stage both basename and original "meshes/foo.STL" paths.
-            with tempfile.TemporaryDirectory(prefix="revo3_mujoco_") as tmp:
+            with tempfile.TemporaryDirectory(prefix="pose_thumb_mujoco_") as tmp:
                 stage = Path(tmp)
                 staged_urdf = stage / urdf_path.name
                 staged_mesh_dir = stage / "meshes"
@@ -688,7 +688,7 @@ class Revo3ThumbRetargeter(BaseRetargeter):
         return a, float(np.rad2deg(offset_rad))
 
     def solve_calibration_for_side(self, side: str, pose_observations: dict):
-        """Solve Revo3 runtime parameters from 4-pose observations."""
+        """Solve pose-thumb runtime parameters from four pose observations."""
         side = self._ensure_side_enabled(side)
 
         ordered_poses = []
@@ -924,8 +924,8 @@ class Revo3ThumbRetargeter(BaseRetargeter):
 
 
 
-def _build_revo3_thumb_retargeter(config_path: Path, enabled_sides=None) -> BaseRetargeter:
-    return Revo3ThumbRetargeter(config_path, enabled_sides=enabled_sides)
+def _build_pose_thumb_retargeter(config_path: Path, enabled_sides=None) -> BaseRetargeter:
+    return PoseThumbRetargeter(config_path, enabled_sides=enabled_sides)
 
 
-RetargeterRegistry.register("revo3_thumb", _build_revo3_thumb_retargeter)
+RetargeterRegistry.register("pose_thumb", _build_pose_thumb_retargeter)

@@ -32,15 +32,15 @@ end_effector = 'real_hand'  # real_hand  sim_hand
 VALID_HAND_MODES = {"left", "right", "both"}
 VALID_END_EFFECTORS = {"real_hand", "sim_hand"}
 VALID_CONTROL_MODES = {"position_speed", "pd_velocity", "pd_position_speed"}
-REVO3_CALIBRATION_PROTOCOL = "standard4_v1"
-REVO3_SCHEMA_VERSION = 2
-REVO3_POSE_SEQUENCE = [
+POSE_THUMB_CALIBRATION_PROTOCOL = "standard4_v1"
+POSE_THUMB_SCHEMA_VERSION = 2
+POSE_THUMB_POSE_SEQUENCE = [
     ("open", "五指张开"),
     ("rotate", "拇指外旋"),
     ("pinch", "拇食捏合"),
     ("flex", "拇指内收屈曲"),
 ]
-REVO3_REQUIRED_PARAM_KEYS = {
+POSE_THUMB_REQUIRED_PARAM_KEYS = {
     "thumb_ik_position_scale",
     "thumb_joint_offset_deg",
     "thumb_cmp_scale",
@@ -51,7 +51,7 @@ REVO3_REQUIRED_PARAM_KEYS = {
     "ema_prev",
     "ema_cur",
 }
-REVO3_OPTIONAL_RUNTIME_PARAM_KEYS = {
+POSE_THUMB_OPTIONAL_RUNTIME_PARAM_KEYS = {
     "thumb_meta_sign",
     "thumb_meta_zero_deg",
     "thumb_meta_range_deg",
@@ -62,7 +62,7 @@ REVO3_OPTIONAL_RUNTIME_PARAM_KEYS = {
     "thumb_prox_dip_weight",
     "thumb_ik_max_iterations",
 }
-REVO3_RUNTIME_PARAM_KEYS = REVO3_REQUIRED_PARAM_KEYS | REVO3_OPTIONAL_RUNTIME_PARAM_KEYS
+POSE_THUMB_RUNTIME_PARAM_KEYS = POSE_THUMB_REQUIRED_PARAM_KEYS | POSE_THUMB_OPTIONAL_RUNTIME_PARAM_KEYS
 CALIBRATION_COUNTDOWN_SEC = 3
 CALIBRATION_SAMPLE_SEC = 1.2
 CALIBRATION_SAMPLE_INTERVAL_SEC = 0.02
@@ -189,8 +189,8 @@ def _is_dex_retargeter_algorithm(algorithm):
     return str(algorithm).lower().startswith("dex")
 
 
-def _is_revo3_style_algorithm(algorithm):
-    return str(algorithm).lower() in {"revo3_thumb", "joint_thumb"}
+def _is_pose_thumb_style_algorithm(algorithm):
+    return str(algorithm).lower() in {"pose_thumb", "joint_thumb"}
 
 
 def _parse_six_float_vector(value, name):
@@ -254,11 +254,11 @@ def _nested_config_value(config, *paths):
     return None
 
 
-def _normalize_revo3_thumb_params(params, hand_mode):
+def _normalize_pose_thumb_params(params, hand_mode):
     if not params:
         return {}
     if not isinstance(params, dict):
-        raise ValueError("revo3_thumb config must be a YAML mapping.")
+        raise ValueError("pose_thumb config must be a YAML mapping.")
 
     valid_sides = ("left", "right")
     enabled_sides = tuple(side for side in valid_sides if hand_mode in (side, "both"))
@@ -270,18 +270,18 @@ def _normalize_revo3_thumb_params(params, hand_mode):
             if value is None:
                 continue
             if not isinstance(value, dict):
-                raise ValueError(f"revo3_thumb.{key} must be a YAML mapping.")
+                raise ValueError(f"pose_thumb.{key} must be a YAML mapping.")
             side_params[key] = {
                 name: value[name]
-                for name in REVO3_RUNTIME_PARAM_KEYS
+                for name in POSE_THUMB_RUNTIME_PARAM_KEYS
                 if name in value
             }
-        elif key in REVO3_RUNTIME_PARAM_KEYS:
+        elif key in POSE_THUMB_RUNTIME_PARAM_KEYS:
             shared[key] = value
         elif key in {"description", "comment", "notes"}:
             continue
         else:
-            logger.warning("Ignoring unknown revo3_thumb parameter: %s", key)
+            logger.warning("Ignoring unknown pose_thumb parameter: %s", key)
 
     normalized = {}
     for side in enabled_sides:
@@ -293,7 +293,7 @@ def _normalize_revo3_thumb_params(params, hand_mode):
     return normalized
 
 
-def _merge_revo3_thumb_params(base_params, override_params):
+def _merge_pose_thumb_params(base_params, override_params):
     merged = {}
     for side in ("left", "right"):
         side_merged = {}
@@ -310,8 +310,8 @@ _CONTROL_CONFIG_FIELDS = {
     "hand_mode": (("hand_mode",),),
     "skip_calibration": (("skip_calibration",),),
     "calibration_file": (("calibration_file",),),
-    "use_default_revo3_calibration": (("use_default_revo3_calibration",),),
-    "revo3_thumb_params": (("revo3_thumb",), ("revo3_thumb_params",)),
+    "use_default_pose_thumb_calibration": (("use_default_pose_thumb_calibration",),),
+    "pose_thumb_params": (("pose_thumb",), ("pose_thumb_params",)),
     "config_file": (("retarget_config_file",), ("config_file",)),
     "algorithm": (("algorithm",),),
     "end_effector": (("end_effector",),),
@@ -444,8 +444,8 @@ class Revo2HandRetargetNode(Node):
         hand_mode='both',
         skip_calibration=False,
         calibration_file=None,
-        use_default_revo3_calibration=False,
-        revo3_thumb_params=None,
+        use_default_pose_thumb_calibration=False,
+        pose_thumb_params=None,
         config_file=None,
         algorithm=None,
         end_effector_mode=None,
@@ -531,9 +531,9 @@ class Revo2HandRetargetNode(Node):
         if self.control_mode in {"pd_velocity", "pd_position_speed"} and self.end_effector != "real_hand":
             raise ValueError(f"{self.control_mode} control mode only supports real_hand output.")
         self.skip_calibration = skip_calibration
-        self.use_default_revo3_calibration = use_default_revo3_calibration
-        self.revo3_thumb_param_overrides = _normalize_revo3_thumb_params(
-            revo3_thumb_params,
+        self.use_default_pose_thumb_calibration = use_default_pose_thumb_calibration
+        self.pose_thumb_param_overrides = _normalize_pose_thumb_params(
+            pose_thumb_params,
             self.hand_mode,
         )
         self.calibration_file = Path(calibration_file).expanduser() if calibration_file else None
@@ -777,7 +777,7 @@ class Revo2HandRetargetNode(Node):
         self.record_thumb_calibration_flag = True
         # 用来校准大拇指位置的统一手部数据
         self.thumb_open_rotate_tip_pos = [[0, 0, 0] for _ in range(4)]
-        self.revo3_calibration = None
+        self.pose_thumb_calibration = None
         # 相似度数组
         self.thumb_sim_value = [0] * 4
 
@@ -926,30 +926,30 @@ class Revo2HandRetargetNode(Node):
         self.retarget_timer = self.create_timer(0.01, self.retarget_callback)
         # 定时器：大拇指相似度计算
         if self.skip_calibration:
-            if _is_revo3_style_algorithm(self.algorithm):
-                if self.use_default_revo3_calibration:
+            if _is_pose_thumb_style_algorithm(self.algorithm):
+                if self.use_default_pose_thumb_calibration:
                     params_by_side = {}
-                    logger.info("已跳过标定文件，使用 revo3 默认参数进入控制模式")
+                    logger.info("已跳过标定文件，使用 pose-thumb 默认参数进入控制模式")
                 else:
-                    params_by_side = self.load_revo3_calibration_data()
-                params_by_side = _merge_revo3_thumb_params(
+                    params_by_side = self.load_pose_thumb_calibration_data()
+                params_by_side = _merge_pose_thumb_params(
                     params_by_side,
-                    self.revo3_thumb_param_overrides,
+                    self.pose_thumb_param_overrides,
                 )
                 if not hasattr(self.hand_retargeting, "apply_calibration"):
-                    raise RuntimeError("revo3_thumb retargeter 缺少 apply_calibration 接口")
+                    raise RuntimeError("pose_thumb retargeter 缺少 apply_calibration 接口")
                 self.hand_retargeting.apply_calibration(params_by_side)
-                if self.revo3_thumb_param_overrides:
+                if self.pose_thumb_param_overrides:
                     logger.info(
-                        "已应用 revo3 风格拇指 YAML 参数覆盖: %s",
-                        self.revo3_thumb_param_overrides,
+                        "已应用 pose-thumb YAML 参数覆盖: %s",
+                        self.pose_thumb_param_overrides,
                     )
                 self.record_thumb_calibration_flag = False
-                if not self.use_default_revo3_calibration:
-                    logger.info("已跳过标定，加载 revo3 标定参数进入控制模式")
+                if not self.use_default_pose_thumb_calibration:
+                    logger.info("已跳过标定，加载 pose-thumb 标定参数进入控制模式")
             else:
-                if self.use_default_revo3_calibration:
-                    logger.warning("--use-default-revo3-calibration 只对 revo3_thumb 算法生效，当前算法将继续读取标定文件")
+                if self.use_default_pose_thumb_calibration:
+                    logger.warning("--use-default-pose-thumb-calibration 只对 pose_thumb 算法生效，当前算法将继续读取标定文件")
                 self.load_thumb_calibration_data()
                 self.record_thumb_calibration_flag = False
                 logger.info("已跳过标定，加载标定数据进入控制模式")
@@ -1274,8 +1274,8 @@ class Revo2HandRetargetNode(Node):
             t_ctrl_0 = time.time() if self.enable_timing_print else None
             try:
                 # 旧算法 dex_vector 需要靠标定+相似度混合来修补拇指旋转；
-                # revo3 风格算法已经自带 MuJoCo IK，跳过相似度覆盖。
-                if not _is_revo3_style_algorithm(self.algorithm):
+                # Pose-thumb 算法已经自带 MuJoCo IK，跳过相似度覆盖。
+                if not _is_pose_thumb_style_algorithm(self.algorithm):
                     sim_threshold = 0.8
                     # left hand
                     if (
@@ -1473,8 +1473,8 @@ class Revo2HandRetargetNode(Node):
 
     def record_thumb_calibration_data(self):
         try:
-            if _is_revo3_style_algorithm(self.algorithm):
-                self._record_revo3_calibration_data()
+            if _is_pose_thumb_style_algorithm(self.algorithm):
+                self._record_pose_thumb_calibration_data()
             else:
                 self._record_legacy_thumb_calibration_data()
         except Exception as e:
@@ -1581,7 +1581,7 @@ class Revo2HandRetargetNode(Node):
             "thumb_pip_noise": float(np.mean(np.var(pip_arr, axis=0))),
         }
 
-    def _collect_revo3_pose(self, hand: str, gesture_desc: str):
+    def _collect_pose_thumb_pose(self, hand: str, gesture_desc: str):
         side_text = "左手" if hand == "left" else "右手"
         for sec in range(CALIBRATION_COUNTDOWN_SEC, 0, -1):
             print(f"[{side_text}] 请保持“{gesture_desc}”，{sec}s 后开始采样...")
@@ -1590,16 +1590,16 @@ class Revo2HandRetargetNode(Node):
         print(f"[{side_text}] “{gesture_desc}”采样完成\n")
         return pose_data
 
-    def _record_revo3_calibration_data(self):
+    def _record_pose_thumb_calibration_data(self):
         if not hasattr(self.hand_retargeting, "solve_calibration_for_side"):
-            raise RuntimeError("revo3_thumb retargeter 缺少 solve_calibration_for_side 接口")
+            raise RuntimeError("pose_thumb retargeter 缺少 solve_calibration_for_side 接口")
         if not hasattr(self.hand_retargeting, "apply_calibration"):
-            raise RuntimeError("revo3_thumb retargeter 缺少 apply_calibration 接口")
+            raise RuntimeError("pose_thumb retargeter 缺少 apply_calibration 接口")
 
-        print(f"**** 开始 Revo3 手势校准（模式: {self.hand_mode}）****\n")
+        print(f"**** 开始 Pose Thumb 手势校准（模式: {self.hand_mode}）****\n")
         time.sleep(1)
 
-        revo3_payload = {"protocol": REVO3_CALIBRATION_PROTOCOL}
+        pose_thumb_payload = {"protocol": POSE_THUMB_CALIBRATION_PROTOCOL}
 
         for hand in ("left", "right"):
             if hand == "left" and not self.enable_left:
@@ -1609,21 +1609,21 @@ class Revo2HandRetargetNode(Node):
 
             side_text = "左手" if hand == "left" else "右手"
             self._wait_for_hand_data_ready(hand)
-            print(f"---- 开始 {side_text} Revo3 四姿态标定 ----")
+            print(f"---- 开始 {side_text} Pose Thumb 四姿态标定 ----")
 
             side_poses = {}
-            for pose_name, gesture_desc in REVO3_POSE_SEQUENCE:
-                side_poses[pose_name] = self._collect_revo3_pose(hand, gesture_desc)
+            for pose_name, gesture_desc in POSE_THUMB_POSE_SEQUENCE:
+                side_poses[pose_name] = self._collect_pose_thumb_pose(hand, gesture_desc)
 
             side_params, side_quality = self.hand_retargeting.solve_calibration_for_side(
                 hand,
                 side_poses,
             )
-            if self.revo3_thumb_param_overrides.get(hand):
-                side_params.update(self.revo3_thumb_param_overrides[hand])
+            if self.pose_thumb_param_overrides.get(hand):
+                side_params.update(self.pose_thumb_param_overrides[hand])
             self.hand_retargeting.apply_calibration({hand: side_params})
 
-            revo3_payload[hand] = {
+            pose_thumb_payload[hand] = {
                 "poses": side_poses,
                 "params": side_params,
                 "quality": side_quality,
@@ -1639,7 +1639,7 @@ class Revo2HandRetargetNode(Node):
             fit_rmse = side_quality.get("fit_rmse", -1.0)
             print(f"{side_text} 参数拟合完成，fit_rmse={fit_rmse:.5f}\n")
 
-        self.revo3_calibration = revo3_payload
+        self.pose_thumb_calibration = pose_thumb_payload
 
         save_ok = self.save_thumb_calibration_data()
         if not save_ok:
@@ -1647,7 +1647,7 @@ class Revo2HandRetargetNode(Node):
             print("**** 标定已完成，但保存失败，未进入控制模式 ****\n")
             return
 
-        print("**** Revo3 标定文件已保存，开始实时控制 ****\n")
+        print("**** Pose Thumb 标定文件已保存，开始实时控制 ****\n")
         time.sleep(1)
         self.record_thumb_calibration_flag = False
 
@@ -1657,13 +1657,13 @@ class Revo2HandRetargetNode(Node):
         try:
             self.calibration_file.parent.mkdir(parents=True, exist_ok=True)
             payload = {
-                "schema_version": REVO3_SCHEMA_VERSION,
+                "schema_version": POSE_THUMB_SCHEMA_VERSION,
                 "hand_mode": self.hand_mode,
                 "thumb_open_rotate_tip_pos": self.thumb_open_rotate_tip_pos,
                 "saved_at_unix": time.time(),
             }
-            if isinstance(self.revo3_calibration, dict):
-                payload["revo3_calibration"] = self.revo3_calibration
+            if isinstance(self.pose_thumb_calibration, dict):
+                payload["pose_thumb_calibration"] = self.pose_thumb_calibration
             with self.calibration_file.open("w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
             logger.info(f"标定数据已保存: {self.calibration_file}")
@@ -1699,7 +1699,7 @@ class Revo2HandRetargetNode(Node):
         self.thumb_open_rotate_tip_pos = calibration
         logger.info(f"标定数据已加载: {self.calibration_file}")
 
-    def load_revo3_calibration_data(self):
+    def load_pose_thumb_calibration_data(self):
         if self.calibration_file is None:
             raise ValueError("skip_calibration 模式下必须传入 --calibration-file")
         if not self.calibration_file.exists():
@@ -1715,9 +1715,9 @@ class Revo2HandRetargetNode(Node):
             logger.warning(
                 f"标定文件 schema_version 非法({schema_raw})，已按旧版文件(schema_version=1)兼容处理。"
             )
-        if schema_version < REVO3_SCHEMA_VERSION:
+        if schema_version < POSE_THUMB_SCHEMA_VERSION:
             logger.warning(
-                "revo3 标定文件版本较旧(schema_version="
+                "pose-thumb 标定文件版本较旧(schema_version="
                 f"{schema_version})，将尝试兼容加载；建议重新执行标定生成最新文件。"
             )
 
@@ -1736,31 +1736,41 @@ class Revo2HandRetargetNode(Node):
         ):
             self.thumb_open_rotate_tip_pos = legacy_calibration
 
-        revo3_payload = payload.get("revo3_calibration")
-        if not isinstance(revo3_payload, dict):
-            if schema_version < REVO3_SCHEMA_VERSION:
+        pose_thumb_payload = payload.get("pose_thumb_calibration")
+        if not isinstance(pose_thumb_payload, dict):
+            legacy_payload = payload.get("revo3_calibration")
+            if isinstance(legacy_payload, dict):
+                pose_thumb_payload = legacy_payload
                 logger.warning(
-                    "旧版标定文件缺少 revo3_calibration 字段，将使用默认 revo3 参数启动；"
+                    "标定文件使用旧字段 revo3_calibration，"
+                    "已按 pose_thumb_calibration 兼容加载。"
+                )
+        if not isinstance(pose_thumb_payload, dict):
+            if schema_version < POSE_THUMB_SCHEMA_VERSION:
+                logger.warning(
+                    "旧版标定文件缺少 pose_thumb_calibration 字段，"
+                    "将使用默认 pose-thumb 参数启动；"
                     "建议尽快重新标定以获得最佳效果。"
                 )
-                self.revo3_calibration = None
+                self.pose_thumb_calibration = None
                 return {}
             raise ValueError(
-                f"revo3 模式要求标定文件包含 revo3_calibration 字段: {self.calibration_file}"
+                f"pose-thumb 模式要求标定文件包含 "
+                f"pose_thumb_calibration 字段: {self.calibration_file}"
             )
 
-        protocol = revo3_payload.get("protocol")
-        if protocol is None and schema_version < REVO3_SCHEMA_VERSION:
-            protocol = REVO3_CALIBRATION_PROTOCOL
-            revo3_payload["protocol"] = protocol
+        protocol = pose_thumb_payload.get("protocol")
+        if protocol is None and schema_version < POSE_THUMB_SCHEMA_VERSION:
+            protocol = POSE_THUMB_CALIBRATION_PROTOCOL
+            pose_thumb_payload["protocol"] = protocol
             logger.warning(
-                "旧版 revo3 标定文件缺少 protocol 字段，已按 "
-                f"{REVO3_CALIBRATION_PROTOCOL} 兼容处理。"
+                "旧版 pose-thumb 标定文件缺少 protocol 字段，已按 "
+                f"{POSE_THUMB_CALIBRATION_PROTOCOL} 兼容处理。"
             )
-        if protocol != REVO3_CALIBRATION_PROTOCOL:
+        if protocol != POSE_THUMB_CALIBRATION_PROTOCOL:
             raise ValueError(
-                "revo3 标定协议不匹配: "
-                f"expect {REVO3_CALIBRATION_PROTOCOL}, got {protocol}"
+                "pose-thumb 标定协议不匹配: "
+                f"expect {POSE_THUMB_CALIBRATION_PROTOCOL}, got {protocol}"
             )
 
         params_by_side = {}
@@ -1770,32 +1780,34 @@ class Revo2HandRetargetNode(Node):
             if side == "right" and not self.enable_right:
                 continue
 
-            side_payload = revo3_payload.get(side)
+            side_payload = pose_thumb_payload.get(side)
             if not isinstance(side_payload, dict):
-                if schema_version < REVO3_SCHEMA_VERSION:
+                if schema_version < POSE_THUMB_SCHEMA_VERSION:
                     logger.warning(
-                        f"旧版 revo3 标定缺少 {side} 数据，将对该手使用默认参数。"
+                        f"旧版 pose-thumb 标定缺少 {side} 数据，"
+                        "将对该手使用默认参数。"
                     )
                     continue
-                raise ValueError(f"revo3 标定缺少 {side} 数据")
+                raise ValueError(f"pose-thumb 标定缺少 {side} 数据")
 
             params = side_payload.get("params")
             if not isinstance(params, dict):
-                if schema_version < REVO3_SCHEMA_VERSION:
+                if schema_version < POSE_THUMB_SCHEMA_VERSION:
                     logger.warning(
-                        f"旧版 revo3 标定缺少 {side}.params，将对该手使用默认参数。"
+                        f"旧版 pose-thumb 标定缺少 {side}.params，"
+                        "将对该手使用默认参数。"
                     )
                     continue
-                raise ValueError(f"revo3 标定缺少 {side}.params")
-            missing = sorted(REVO3_REQUIRED_PARAM_KEYS - set(params.keys()))
+                raise ValueError(f"pose-thumb 标定缺少 {side}.params")
+            missing = sorted(POSE_THUMB_REQUIRED_PARAM_KEYS - set(params.keys()))
             if missing:
-                if schema_version < REVO3_SCHEMA_VERSION:
+                if schema_version < POSE_THUMB_SCHEMA_VERSION:
                     logger.warning(
-                        f"旧版 revo3 标定缺少 {side}.params 字段 {missing}，"
+                        f"旧版 pose-thumb 标定缺少 {side}.params 字段 {missing}，"
                         "将使用默认值补齐。"
                     )
                 else:
-                    raise ValueError(f"revo3 标定缺少 {side}.params 字段: {missing}")
+                    raise ValueError(f"pose-thumb 标定缺少 {side}.params 字段: {missing}")
 
             params_by_side[side] = params
 
@@ -1814,8 +1826,8 @@ class Revo2HandRetargetNode(Node):
                     else:
                         self.thumb_open_rotate_tip_pos[3] = rotate_pose["thumb_tip"]
 
-        self.revo3_calibration = revo3_payload
-        logger.info(f"revo3 标定参数已加载: {self.calibration_file}")
+        self.pose_thumb_calibration = pose_thumb_payload
+        logger.info(f"pose-thumb 标定参数已加载: {self.calibration_file}")
         return params_by_side
 
     def thumb_sim_callback(self):
@@ -2285,8 +2297,8 @@ class Revo2HandRetargeter:
         ros_args=None,
         skip_calibration=False,
         calibration_file=None,
-        use_default_revo3_calibration=False,
-        revo3_thumb_params=None,
+        use_default_pose_thumb_calibration=False,
+        pose_thumb_params=None,
         config_file=None,
         algorithm=None,
         end_effector_mode=None,
@@ -2350,8 +2362,8 @@ class Revo2HandRetargeter:
             hand_mode=hand_mode,
             skip_calibration=skip_calibration,
             calibration_file=calibration_file,
-            use_default_revo3_calibration=use_default_revo3_calibration,
-            revo3_thumb_params=revo3_thumb_params,
+            use_default_pose_thumb_calibration=use_default_pose_thumb_calibration,
+            pose_thumb_params=pose_thumb_params,
             config_file=config_file,
             algorithm=algorithm,
             end_effector_mode=end_effector_mode,
@@ -2472,10 +2484,10 @@ def parse_cli_args(argv=None):
              "an existing legacy ~/.manus_revo2 file is reused.",
     )
     parser.add_argument(
-        "--use-default-revo3-calibration",
+        "--use-default-pose-thumb-calibration",
         action="store_true",
-        help="With --skip-calibration and revo3-style thumb algorithms, do not load a calibration file; "
-             "use the built-in revo3 default runtime parameters.",
+        help="With --skip-calibration and pose-thumb algorithms, do not load a calibration file; "
+             "use the built-in pose-thumb runtime parameters.",
     )
     parser.add_argument(
         "--config-file",
@@ -2866,8 +2878,8 @@ def main(argv=None):
             ros_args=ros_args,
             skip_calibration=cli_args.skip_calibration,
             calibration_file=cli_args.calibration_file,
-            use_default_revo3_calibration=cli_args.use_default_revo3_calibration,
-            revo3_thumb_params=getattr(cli_args, "revo3_thumb_params", None),
+            use_default_pose_thumb_calibration=cli_args.use_default_pose_thumb_calibration,
+            pose_thumb_params=getattr(cli_args, "pose_thumb_params", None),
             config_file=cli_args.config_file,
             algorithm=cli_args.algorithm,
             end_effector_mode=cli_args.end_effector,

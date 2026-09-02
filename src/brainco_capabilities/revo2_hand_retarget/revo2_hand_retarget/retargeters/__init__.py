@@ -107,8 +107,8 @@ _import_builtin(
     "revo2_hand_retarget.retargeters.dex_retargeter",
 )
 _import_builtin(
-    "revo3_thumb",
-    "revo2_hand_retarget.retargeters.revo3_thumb_retargeter",
+    "pose_thumb",
+    "revo2_hand_retarget.retargeters.pose_thumb_retargeter",
 )
 _import_builtin(
     "joint_thumb",

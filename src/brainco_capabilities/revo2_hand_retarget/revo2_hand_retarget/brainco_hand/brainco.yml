@@ -1,7 +1,7 @@
 # algorithm choices:
 #   dex_vector    – legacy dex-retargeting (fingertip-only, requires dex-retargeting pkg)
-#   revo3_thumb   – Revo3-style MuJoCo IK for the thumb + dex for the other fingers
-algorithm: revo3_thumb
+#   pose_thumb   – fingertip-pose MuJoCo IK for the thumb + dex for the other fingers
+algorithm: pose_thumb
 
 left:
   type: vector # position DexPilot vector
