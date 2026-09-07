@@ -1,0 +1,71 @@
+# Thumb offset trial; based on dv1_left_measured.yaml.
+# DV1 open/fist ranges; firmware zero and FK angles are unchanged.
+/humandex_hand_adapter:
+  ros__parameters:
+    input_mode: dv1_joint_states
+    hand_mode: left
+    joint_topic: /humandex_left/joint_states
+    left_input_frame_id: left_palm_link
+    left_palm_translation_m:
+    - 0.0
+    - 0.0
+    - 0.0
+    left_palm_rpy_rad:
+    - 0.0
+    - 0.0
+    - 0.0
+    fk_ema_alpha: 0.2
+    max_age_sec: 0.5
+    # Five XYZ triples, metres, in each DIP_Link local frame.
+    # Order: index / middle / ring / little / thumb.
+    # Thumb: approximate SDK mesh +Z endpoint, NOT a measured anatomical fingertip.
+    tip_offsets_m:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - -0.003  # thumb local X: -3 mm
+    - 0.009   # thumb local Y: +9 mm
+    - 0.032   # thumb local Z: +32 mm
+    four_finger_mapping: calibrated
+    four_finger_wrap_angles: true
+    four_finger_weights:
+    - 1.0
+    - 1.0
+    - 1.0
+    four_finger_flexion_range_rad: 1.4661
+    four_finger_calibration_label: measured left 2026-09-07T13:07:40.882435+00:00
+    left_four_finger_open_rad:
+    - 0.006108652381980217
+    - -0.12583823906879132
+    - -0.39217548292312543
+    - 0.25342180738957687
+    - -0.14608405839192562
+    - -0.3628539514896212
+    - 0.3426081321664869
+    - -0.5923647481268755
+    - -0.16004669240787983
+    - 0.18587756533739608
+    - -0.7136651311404809
+    - -0.2345722514680375
+    left_four_finger_closed_rad:
+    - 0.9581857593448868
+    - 1.9116591297093892
+    - 0.9119345341670373
+    - 1.4480996803796957
+    - 2.0242328664630236
+    - 1.0815805374608862
+    - 1.4819590678683854
+    - 1.7587682872346857
+    - 0.4867723283812184
+    - 1.4805628044667891
+    - 1.363974810433568
+    - 1.163960078155018

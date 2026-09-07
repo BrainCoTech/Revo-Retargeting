@@ -56,6 +56,9 @@ bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
 
 ## 启动
 
+HumanDex / RevoHuman 的设备识别、话题检查和无真机分步骤启动，见
+[HumanDex 手套启动指南](docs/humandex_startup_CN.md)。该指南也说明外部采集驱动与本仓库适配器的边界。
+
 所有手套共用一个入口，只切换 profile：
 
 ```bash

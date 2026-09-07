@@ -139,6 +139,14 @@ ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
 
 这将启动整个左手的控制，包含拇指。启动后约 16 秒切换控制器，18 秒启动 retarget。
 
+`port` 是手套端口，不是 Revo2 端口。Revo2 默认使用驱动里的
+`/dev/revo2_hand_left` 别名；若尚未建立别名，可复制驱动的
+`config/protocol_modbus_left.yaml` 为本地文件，将 `hardware.port` 改成已确认的
+Revo2 串口，并在上面的启动命令添加
+`revo2_protocol_config_file:=/绝对路径/revo2_left_local.yaml`。
+该参数只传给当前选中侧的机器人驱动，不修改手套端口或默认驱动配置。
+重启整条链路前务必停止之前的 SDK + adapter launch，避免串口独占冲突或重复发布。
+
 ## 离线验证
 
 ```bash

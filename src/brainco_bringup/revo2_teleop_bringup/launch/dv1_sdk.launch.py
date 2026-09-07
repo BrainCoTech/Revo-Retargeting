@@ -49,6 +49,12 @@ def create_actions(context):
             name = 'real_hand_pipeline_launch.py'
             arguments.update(launch_driver='true', launch_retarget='true',
                              switch_controllers='true', launch_plot='false', if_sim='false')
+            protocol_config = value('revo2_protocol_config_file').strip()
+            if protocol_config:
+                path = Path(protocol_config).expanduser().resolve()
+                if not path.is_file():
+                    raise ValueError(f'Revo2 protocol config not found: {path}')
+                arguments[f'{side}_protocol_config_file'] = str(path)
         actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(str(retarget_share / 'launch' / name)),
             launch_arguments=arguments.items()))
@@ -60,7 +66,9 @@ def generate_launch_description():
         DeclareLaunchArgument('hand_mode', default_value='left', choices=['left', 'right']),
         DeclareLaunchArgument('sdk_path', default_value=''),
         DeclareLaunchArgument('urdf_path', default_value=''),
-        DeclareLaunchArgument('port', default_value=''),
+        DeclareLaunchArgument('port', default_value='', description='RevoHuman glove serial port'),
+        DeclareLaunchArgument('revo2_protocol_config_file', default_value='',
+                             description='Optional Revo2 robot protocol YAML for the selected side'),
         DeclareLaunchArgument('sdk_python', default_value='/usr/bin/python3'),
         DeclareLaunchArgument('adapter_config', default_value=''),
         DeclareLaunchArgument('control_config', default_value='retarget.yaml'),
