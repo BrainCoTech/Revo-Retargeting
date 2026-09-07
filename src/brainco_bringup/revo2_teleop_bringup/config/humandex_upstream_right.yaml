@@ -1,0 +1,129 @@
+# Upstream-only input test; no robot control.
+# Source: BrainCo-HumanDex humandex_sim @ 15b9716 config/config.yaml.
+# Right hand only, independent encoder sources, tactile reads disabled.
+# Retains the upstream model/zero/sign/FK defaults for comparison.
+/humandex_left/brainco_mcu:
+  ros__parameters:
+    port: ''
+    addr: 1
+    timeout: 0.5
+    baud: 115200
+    debug: false
+    read_rate_hz: 200.0
+    read_angles: true
+    read_tactile: true
+    read_raw_angles: false
+    read_status: false
+    read_tactile_diag: true
+    read_device_info: false
+    read_rates: false
+    tactile_mode: auto
+    terminal_output_interval_sec: 1.0
+    print_timer_frequency: true
+    timer_frequency_interval_sec: 1.0
+    print_full_tactile: false
+    tactile_preview_count: 16
+    publish_state: true
+    joint_state_topic: joint_states
+    tactile_topic: tactile
+    joint_zero_offset_deg: 180.0
+    joint_lowpass_alpha: 0.1
+    calibrate_idx: 0
+    calibrate_wait: true
+    calibrate_wait_timeout: 8.0
+    zero_idx: 0
+    zero_raw: 0
+    slave_addr_value: 1
+    sn_value: ''
+    joint_name: [left_index_DIP_joint, left_index_PIP_joint, left_index_MCP_joint,
+      left_index_MPR_joint, left_middle_DIP_joint, left_middle_PIP_joint, left_middle_MCP_joint,
+      left_middle_MPR_joint, left_ring_DIP_joint, left_ring_PIP_joint, left_ring_MCP_joint,
+      left_ring_MPR_joint, left_little_DIP_joint, left_little_PIP_joint, left_little_MCP_joint,
+      left_little_MPR_joint, left_thumb_DIP_joint, left_thumb_PIP_joint, left_thumb_MCP_joint,
+      left_thumb_CMR_joint, left_thumb_CMP_joint]
+    joint_mimic_source: [left_little_DIP_joint, left_little_PIP_joint, left_little_MCP_joint,
+      left_little_MPR_joint, left_little_DIP_joint, left_little_PIP_joint, left_little_MCP_joint,
+      left_little_MPR_joint, left_little_DIP_joint, left_little_PIP_joint, left_little_MCP_joint,
+      left_little_MPR_joint, none, none, none, none, left_little_DIP_joint, left_little_PIP_joint,
+      left_little_MCP_joint, left_little_MPR_joint, none]
+    joint_scale: [-1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0,
+      -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0]
+    joint_zero_bias_deg: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+/humandex_right/brainco_mcu:
+  ros__parameters:
+    port: /dev/ttyACM0
+    addr: 1
+    timeout: 0.5
+    baud: 115200
+    debug: false
+    read_rate_hz: 200.0
+    read_angles: true
+    read_tactile: false
+    read_raw_angles: false
+    read_status: false
+    read_tactile_diag: false
+    read_device_info: false
+    read_rates: false
+    tactile_mode: auto
+    terminal_output_interval_sec: 1.0
+    print_timer_frequency: true
+    timer_frequency_interval_sec: 1.0
+    print_full_tactile: false
+    tactile_preview_count: 16
+    publish_state: true
+    joint_state_topic: joint_states
+    tactile_topic: tactile
+    joint_zero_offset_deg: 180.0
+    joint_lowpass_alpha: 0.2
+    calibrate_idx: 0
+    calibrate_wait: true
+    calibrate_wait_timeout: 8.0
+    zero_idx: 0
+    zero_raw: 0
+    slave_addr_value: 1
+    sn_value: ''
+    joint_name: [right_index_DIP_joint, right_index_PIP_joint, right_index_MCP_joint,
+      right_index_MPR_joint, right_middle_DIP_joint, right_middle_PIP_joint, right_middle_MCP_joint,
+      right_middle_MPR_joint, right_ring_DIP_joint, right_ring_PIP_joint, right_ring_MCP_joint,
+      right_ring_MPR_joint, right_little_DIP_joint, right_little_PIP_joint, right_little_MCP_joint,
+      right_little_MPR_joint, right_thumb_DIP_joint, right_thumb_PIP_joint, right_thumb_MCP_joint,
+      right_thumb_CMR_joint, right_thumb_CMP_joint]
+    joint_mimic_source: [none, none, none, none, none, none, none, none, none, none,
+      none, none, none, none, none, none, none, none, none, none, none]
+    joint_scale: [1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, -1.0,
+      1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0]
+    joint_zero_bias_deg: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+joint_state_mux:
+  ros__parameters:
+    left_joint_state_topic: /humandex_left/joint_states
+    right_joint_state_topic: /humandex_right/joint_states
+    output_topic: joint_states
+    active_hands: [left, right]
+    publish_unpaired: false
+    stale_timeout_sec: 0.5
+    sync_slop_sec: 0.005
+    interpolation_max_gap_sec: 0.03
+    queue_size: 30
+    fk_enabled: true
+    urdf_path: ''
+    eef_pose_topic: /humandex_eef_pose
+    eef_pose_frame_id: hand_base_link_local
+    left_base_link: left_palm_Link
+    right_base_link: right_palm_Link
+    eef_tip_links: [left_index_DIP_Link, left_middle_DIP_Link, left_ring_DIP_Link,
+      left_little_DIP_Link, left_thumb_DIP_Link, right_index_DIP_Link, right_middle_DIP_Link,
+      right_ring_DIP_Link, right_little_DIP_Link, right_thumb_DIP_Link]
+    eef_tip_offsets_m: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0]
+tactile_plot:
+  ros__parameters: {left_tactile_topic: /humandex_left/tactile, right_tactile_topic: /humandex_right/tactile,
+    plot_rate_hz: 10.0, stale_timeout_sec: 0.5, plot_mode: heatmap, tactile_enable_matplotlib: false,
+    tactile_enable_ros_image: true, point_plot_source: zeroed, tactile_zero_enabled: true,
+    tactile_zero_duration_sec: 2.0, tactile_zero_method: median, tactile_zero_clip_negative: true,
+    tactile_display_use_mad_deadband: true, left_tactile_display_absolute_threshold: 35.0,
+    right_tactile_display_absolute_threshold: 5.0, tactile_display_scale_mode: fixed,
+    tactile_display_fixed_max_value: 300.0, heatmap_gaussian_sigma: 1.5, heatmap_image_topic: /humandex/tactile_heatmap/image,
+    heatmap_image_width: 480, heatmap_image_height: 320}

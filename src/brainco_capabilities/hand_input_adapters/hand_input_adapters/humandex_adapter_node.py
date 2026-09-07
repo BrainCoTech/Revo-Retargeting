@@ -10,7 +10,10 @@ from hand_teleop_msgs.msg import HandKinematics
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from sensor_msgs.msg import JointState
+
+from .finger_flexion import CalibratedFingerFlexion
 
 from .common import (
     append_joint,
@@ -43,6 +46,8 @@ class HumanDexHandAdapter(Node):
         self.declare_parameter("four_finger_open_rad", 0.20943951023931956)
         self.declare_parameter("four_finger_closed_rad", -0.20943951023931956)
         self.declare_parameter("four_finger_flexion_range_rad", 1.4661)
+        self.declare_parameter("four_finger_mapping", "pip")
+        self.declare_parameter("four_finger_weights", [1.0, 1.0, 1.0])
 
         self.sides = selected_sides(self.get_parameter("hand_mode").value)
         self.frames = {
@@ -63,6 +68,22 @@ class HumanDexHandAdapter(Node):
         self.four_range = float(self.get_parameter("four_finger_flexion_range_rad").value)
         if abs(self.four_closed - self.four_open) < 1e-9 or self.four_range <= 0.0:
             raise ValueError("invalid HumanDex four-finger calibration range")
+        mapping = self.get_parameter("four_finger_mapping").value
+        if mapping not in ("pip", "calibrated"):
+            raise ValueError("four_finger_mapping must be pip or calibrated")
+        self.finger_calibrations = {}
+        if mapping == "calibrated":
+            for side in self.sides:
+                opened = f"{side}_four_finger_open_rad"
+                closed = f"{side}_four_finger_closed_rad"
+                self.declare_parameter(opened, Parameter.Type.DOUBLE_ARRAY)
+                self.declare_parameter(closed, Parameter.Type.DOUBLE_ARRAY)
+                self.finger_calibrations[side] = CalibratedFingerFlexion(
+                    self.get_parameter(opened).value,
+                    self.get_parameter(closed).value,
+                    self.get_parameter("four_finger_weights").value,
+                    self.four_range,
+                )
         self.joint_cache: OrderedDict[int, JointState] = OrderedDict()
         self.pose_cache: OrderedDict[int, PoseArray] = OrderedDict()
         self.published = {side: 0 for side in self.sides}
@@ -81,7 +102,7 @@ class HumanDexHandAdapter(Node):
         )
         self.get_logger().info(
             "HumanDex adapter waiting for exact-stamp JointState/PoseArray pairs: "
-            f"hand_mode={','.join(self.sides)}"
+            f"hand_mode={','.join(self.sides)}, four_finger_mapping={mapping}"
         )
 
     def _joint_callback(self, message: JointState) -> None:
@@ -160,15 +181,27 @@ class HumanDexHandAdapter(Node):
                     append_joint(output, canonical, value)
 
             measured = dict(zip(output.joint_names, output.joint_positions_rad))
-            for finger in ("index", "middle", "ring", "little"):
-                pip = measured.get(f"{finger}_pip")
-                if pip is None:
+            if side in self.finger_calibrations:
+                try:
+                    flexion = self.finger_calibrations[side].compute(measured)
+                except (KeyError, ValueError) as exc:
+                    self.get_logger().warning(
+                        f"Dropping HumanDex {side} frame: invalid bending joints ({exc}).",
+                        throttle_duration_sec=2.0,
+                    )
                     continue
-                normalized = min(
-                    1.0,
-                    max(0.0, (pip - self.four_open) / (self.four_closed - self.four_open)),
-                )
-                append_joint(output, f"{finger}_flexion", normalized * self.four_range)
+                for name, value in flexion.items():
+                    append_joint(output, name, value)
+            else:
+                for finger in ("index", "middle", "ring", "little"):
+                    pip = measured.get(f"{finger}_pip")
+                    if pip is None:
+                        continue
+                    normalized = min(
+                        1.0,
+                        max(0.0, (pip - self.four_open) / (self.four_closed - self.four_open)),
+                    )
+                    append_joint(output, f"{finger}_flexion", normalized * self.four_range)
 
             for name, pose in zip(FINGERTIP_ORDER, poses_by_side[side]):
                 append_landmark(
