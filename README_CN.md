@@ -85,3 +85,10 @@ ros2 launch revo2_teleop_bringup teleop.launch.py \
 完整遥操作启动层只在明确启用时切到 `revo2_pid_controller`。
 
 字段定义、适配器参数和 profile 说明见各包 README。
+
+### RevoHuman SDK + DV1 FK
+
+新增原始 driver 与 DV1 运动学适配层，直接输出 `HandKinematics`。
+四指使用三个弯曲编码器，拇指默认以 DIP_Link 原点作为末端，支持 YAML tip 偏移微调。
+构建、启动与标定见 [RevoHuman 接入说明](src/brainco_capabilities/revohuman_kinematics/README.md)。
+统一启动 profile 为 `revohuman_revo2`；零位、方向与拇指参数仍需实测标定。

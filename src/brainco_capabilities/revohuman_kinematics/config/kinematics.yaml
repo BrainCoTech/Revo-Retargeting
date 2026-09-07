@@ -1,0 +1,45 @@
+# Initial geometry/configuration, NOT a measured device calibration.
+# Arrays follow SDK ID order: index 0..3, middle 4..7, ring 8..11,
+# little 12..15 (DIP,PIP,MCP,MPR); thumb 16..20 (DIP,PIP,MCP,CMR,CMP).
+# q_urdf_rad = deg2rad(sign * (raw_deg - zero_deg) + offset_deg).
+# wrap_degrees takes the shortest displacement from zero ([-180,180)).
+wrap_degrees: true
+# Four finger flexion uses ALL THREE bending encoders, no MPR contribution.
+# Each normalized angle is clamped to [0,1]; weighted mean * output_range_rad.
+# Open/closed values refer to corrected URDF joint angles, in degrees.
+four_finger:
+  weights: [1.0, 1.0, 1.0]  # DIP, PIP, MCP
+  open_deg: [0.0, 0.0, 0.0]
+  closed_deg: [90.0, 90.0, 90.0]
+  output_range_rad: 1.4661
+# Four-finger MPR encoders remain in FK but never enter flexion aggregation.
+# Require all 21 valid samples, including those used by FK.
+sides:
+  left:
+    zero_deg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    sign: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    offset_deg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    # Optional output-frame alignment: output_T_palm (radians/metres).
+    palm_translation_m: [0.0, 0.0, 0.0]
+    palm_rpy_rad: [0.0, 0.0, 0.0]
+    tip_offsets_m:
+      thumb: [0.0, 0.0, 0.0]
+      index: [0.0, 0.0, 0.0]
+      middle: [0.0, 0.0, 0.0]
+      ring: [0.0, 0.0, 0.0]
+      little: [0.0, 0.0, 0.0]
+  right:
+    zero_deg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    sign: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    offset_deg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    # Optional output-frame alignment: output_T_palm (radians/metres).
+    palm_translation_m: [0.0, 0.0, 0.0]
+    palm_rpy_rad: [0.0, 0.0, 0.0]
+    tip_offsets_m:
+      thumb: [0.0, 0.0, 0.0]
+      index: [0.0, 0.0, 0.0]
+      middle: [0.0, 0.0, 0.0]
+      ring: [0.0, 0.0, 0.0]
+      little: [0.0, 0.0, 0.0]
+# Per-side four_finger overrides may replace weights/open_deg/closed_deg/range.
+# Per-finger overrides can be placed under four_finger.fingers.index, etc.

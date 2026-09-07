@@ -10,6 +10,7 @@
   <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>hand_input_adapters</exec_depend>
+  <exec_depend>revohuman_kinematics</exec_depend>
   <exec_depend>hex_glove_driver</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

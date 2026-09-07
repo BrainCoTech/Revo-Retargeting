@@ -13,7 +13,7 @@ from launch_ros.actions import Node
 import yaml
 
 
-SUPPORTED_INPUTS = {"humandex", "manus", "hex"}
+SUPPORTED_INPUTS = {"humandex", "manus", "hex", "revohuman"}
 
 
 def _as_bool(value) -> bool:
@@ -53,7 +53,15 @@ def _input_actions(source: str, hand_mode: str, config: dict, launch_driver: boo
     params = dict(config.get("parameters") or {})
     params["hand_mode"] = hand_mode
 
-    if source == "humandex":
+    if source == "revohuman":
+        share = Path(get_package_share_directory("revohuman_kinematics"))
+        arguments = dict(config.get("launch_arguments") or {})
+        arguments.update(hand_mode=hand_mode, launch_driver=str(launch_driver).lower())
+        actions.append(IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(str(share / "launch/input.launch.py")),
+            launch_arguments={k: str(v) for k, v in arguments.items()}.items(),
+        ))
+    elif source == "humandex":
         actions.append(Node(
             package="hand_input_adapters",
             executable="humandex_hand_adapter",
@@ -112,6 +120,14 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
         else bool(input_config.get("launch_driver", source != "humandex"))
     )
 
+    if source == "revohuman":
+        arguments = dict(input_config.get("launch_arguments") or {})
+        for key in ("sdk_path", "left_port", "right_port", "config_file"):
+            override = LaunchConfiguration("revohuman_" + key).perform(context).strip()
+            if override:
+                arguments[key] = override
+        input_config["launch_arguments"] = arguments
+
     if source == "humandex":
         parameters = dict(input_config.get("parameters") or {})
         joint_topic = LaunchConfiguration("humandex_joint_topic").perform(context).strip()
@@ -157,6 +173,10 @@ def generate_launch_description():
         DeclareLaunchArgument("profile", default_value="humandex_revo2"),
         DeclareLaunchArgument("hand_mode", default_value=""),
         DeclareLaunchArgument("launch_input_driver", default_value=""),
+        DeclareLaunchArgument("revohuman_sdk_path", default_value=""),
+        DeclareLaunchArgument("revohuman_left_port", default_value=""),
+        DeclareLaunchArgument("revohuman_right_port", default_value=""),
+        DeclareLaunchArgument("revohuman_config_file", default_value=""),
         DeclareLaunchArgument("humandex_joint_topic", default_value=""),
         DeclareLaunchArgument("humandex_pose_topic", default_value=""),
         DeclareLaunchArgument("launch_revo2_driver", default_value="true", choices=["true", "false"]),

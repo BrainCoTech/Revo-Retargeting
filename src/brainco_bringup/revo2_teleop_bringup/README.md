@@ -21,3 +21,9 @@ ros2 launch revo2_teleop_bringup teleop.launch.py \
   launch_revo2_driver:=false \
   switch_controllers:=false
 ```
+
+RevoHuman SDK / DV1 input is available as `profile:=revohuman_revo2`.
+Pass `revohuman_sdk_path`, `revohuman_left_port` / `revohuman_right_port`,
+and optionally `revohuman_config_file`. This profile starts the SDK driver and
+FK adapter; `launch_input_driver:=false` leaves the FK adapter running for an
+already active raw publisher. See the `revohuman_kinematics` README for calibration.

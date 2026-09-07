@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>revohuman_driver</name>
+  <version>0.1.0</version>
+  <description>RevoHuman raw sensor transport for ROS 2.</description>
+  <maintainer email="dev@brainco.cn">BrainCo</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>revohuman_msgs</exec_depend>
+  <exec_depend>python3-serial</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
