@@ -7,6 +7,7 @@ from geometry_msgs.msg import Pose, PoseArray
 from sensor_msgs.msg import JointState
 
 from hand_input_adapters.humandex_adapter_node import HumanDexHandAdapter
+from hand_input_adapters.palm_transform import PalmTransform
 from test_finger_flexion import OPEN, CLOSED, upstream, load_calibration
 
 
@@ -17,6 +18,8 @@ class HumanDexPairTest(unittest.TestCase):
         harness = SimpleNamespace(
             sides=('right',), frames={'right': 'hand_retarget_right'},
             finger_calibrations={'right': load_calibration()},
+            input_frames={'right': ''},
+            palm_transforms={'right': PalmTransform([0.] * 3, [0.] * 3)},
             output_publishers={'right': SimpleNamespace(publish=sent.append)},
             published={'right': 0},
             _present_sides=HumanDexHandAdapter._present_sides,

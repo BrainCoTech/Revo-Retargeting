@@ -11,7 +11,7 @@ setup(
     packages=[],
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
-        ("share/" + package_name, ["package.xml"]),
+        ("share/" + package_name, ["package.xml", "README_DV1.md"]),
         ("share/" + package_name + "/launch", glob("launch/*.launch.py")),
         ("share/" + package_name + "/profiles", glob("profiles/*.yaml")),
         ("share/" + package_name + "/tools", glob("tools/*")),

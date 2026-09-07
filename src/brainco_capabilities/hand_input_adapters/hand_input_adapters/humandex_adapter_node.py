@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import OrderedDict
 import math
 
-from geometry_msgs.msg import PoseArray
+from geometry_msgs.msg import Pose, PoseArray
 from hand_teleop_msgs.msg import HandKinematics
 import rclpy
 from rclpy.executors import ExternalShutdownException
@@ -14,6 +14,7 @@ from rclpy.parameter import Parameter
 from sensor_msgs.msg import JointState
 
 from .finger_flexion import CalibratedFingerFlexion
+from .palm_transform import PalmTransform
 
 from .common import (
     append_joint,
@@ -31,10 +32,11 @@ FINGERTIP_ORDER = ("index_tip", "middle_tip", "ring_tip", "little_tip", "thumb_t
 
 
 class HumanDexHandAdapter(Node):
-    """Pair mux outputs by exact source stamp and publish one message per hand."""
+    """Pair legacy mux outputs, or calculate DV1 FK directly from JointState."""
 
     def __init__(self) -> None:
         super().__init__("humandex_hand_adapter")
+        self.declare_parameter("input_mode", "paired")
         self.declare_parameter("hand_mode", "right")
         self.declare_parameter("joint_topic", "/joint_states")
         self.declare_parameter("pose_topic", "/humandex_eef_pose")
@@ -48,12 +50,24 @@ class HumanDexHandAdapter(Node):
         self.declare_parameter("four_finger_flexion_range_rad", 1.4661)
         self.declare_parameter("four_finger_mapping", "pip")
         self.declare_parameter("four_finger_weights", [1.0, 1.0, 1.0])
+        self.declare_parameter("four_finger_wrap_angles", False)
+        self.declare_parameter("four_finger_calibration_label", "unspecified")
 
         self.sides = selected_sides(self.get_parameter("hand_mode").value)
         self.frames = {
             side: str(self.get_parameter(f"{side}_frame_id").value)
             for side in self.sides
         }
+        self.palm_transforms = {}
+        self.input_frames = {}
+        for side in self.sides:
+            for key, value in (("palm_translation_m", [0.0, 0.0, 0.0]),
+                               ("palm_rpy_rad", [0.0, 0.0, 0.0]), ("input_frame_id", "")):
+                self.declare_parameter(f"{side}_{key}", value)
+            self.palm_transforms[side] = PalmTransform(
+                self.get_parameter(f"{side}_palm_translation_m").value,
+                self.get_parameter(f"{side}_palm_rpy_rad").value)
+            self.input_frames[side] = self.get_parameter(f"{side}_input_frame_id").value
         self.output_publishers = {
             side: self.create_publisher(
                 HandKinematics,
@@ -83,10 +97,35 @@ class HumanDexHandAdapter(Node):
                     self.get_parameter(closed).value,
                     self.get_parameter("four_finger_weights").value,
                     self.four_range,
+                    self.get_parameter("four_finger_wrap_angles").value,
                 )
         self.joint_cache: OrderedDict[int, JointState] = OrderedDict()
         self.pose_cache: OrderedDict[int, PoseArray] = OrderedDict()
         self.published = {side: 0 for side in self.sides}
+
+        self.joint_fk = None
+        input_mode = self.get_parameter("input_mode").value
+        if input_mode == "dv1_joint_states":
+            if len(self.sides) != 1:
+                raise ValueError("DV1 direct input requires one hand per adapter process")
+            from revohuman_kinematics.joint_fk import JointStateFK
+            side = self.sides[0]
+            for key, value in (("urdf_path", ""), ("tip_offsets_m", [0.0] * 15),
+                               ("fk_ema_alpha", 0.2), ("max_age_sec", 0.5),
+                               ("fk_joint_topic", f"/humandex_{side}/fk_joint_states"),
+                               ("fk_pose_topic", f"/humandex_{side}/eef_pose")):
+                self.declare_parameter(key, value)
+            self.joint_fk = JointStateFK(
+                self.get_parameter("urdf_path").value, side,
+                self.get_parameter("tip_offsets_m").value,
+                self.get_parameter("fk_ema_alpha").value,
+                self.get_parameter("max_age_sec").value)
+            self.fk_joint_pub = self.create_publisher(
+                JointState, self.get_parameter("fk_joint_topic").value, 20)
+            self.fk_pose_pub = self.create_publisher(
+                PoseArray, self.get_parameter("fk_pose_topic").value, 20)
+        elif input_mode != "paired":
+            raise ValueError("input_mode must be paired or dv1_joint_states")
 
         self.create_subscription(
             JointState,
@@ -94,20 +133,55 @@ class HumanDexHandAdapter(Node):
             self._joint_callback,
             20,
         )
-        self.create_subscription(
-            PoseArray,
-            str(self.get_parameter("pose_topic").value),
-            self._pose_callback,
-            20,
-        )
+        if input_mode == "paired":
+            self.create_subscription(
+                PoseArray,
+                str(self.get_parameter("pose_topic").value),
+                self._pose_callback,
+                20,
+            )
         self.get_logger().info(
-            "HumanDex adapter waiting for exact-stamp JointState/PoseArray pairs: "
-            f"hand_mode={','.join(self.sides)}, four_finger_mapping={mapping}"
+            f"HumanDex adapter input_mode={input_mode}, "
+            f"hand_mode={','.join(self.sides)}, four_finger_mapping={mapping}, "
+            f"calibration={self.get_parameter('four_finger_calibration_label').value}"
         )
+        if self.joint_fk is not None:
+            self.get_logger().info(
+                f"DV1 FK from JointState radians: {self.get_parameter('urdf_path').value}; "
+                f"base={self.joint_fk.base_link}, tips=DIP_Link + local offsets")
 
     def _joint_callback(self, message: JointState) -> None:
+        if self.joint_fk is not None:
+            self._publish_from_joint_state(message)
+            return
         self._cache(self.joint_cache, stamp_key(message.header), message)
         self._try_publish(stamp_key(message.header))
+
+    def _publish_from_joint_state(self, message: JointState) -> None:
+        from revohuman_kinematics.joint_fk import quaternion_xyzw
+        try:
+            q, transforms = self.joint_fk.compute(
+                message.name, message.position, stamp_key(message.header),
+                self.get_clock().now().nanoseconds, message.header.frame_id)
+        except ValueError as exc:
+            self.get_logger().warning(f"Dropping DV1 JointState: {exc}", throttle_duration_sec=2.0)
+            return
+        measured = JointState()
+        measured.header.stamp = message.header.stamp
+        measured.header.frame_id = self.joint_fk.base_link
+        measured.name = list(self.joint_fk.joint_names)
+        measured.position = q.tolist()
+        poses = PoseArray()
+        poses.header = measured.header
+        for transform in transforms:
+            pose = Pose()
+            pose.position = finite_point(*transform[:3, 3])
+            quat = quaternion_xyzw(transform[:3, :3]).tolist()
+            pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = quat
+            poses.poses.append(pose)
+        self.fk_joint_pub.publish(measured)
+        self.fk_pose_pub.publish(poses)
+        self._publish_pair(measured, poses)
 
     def _pose_callback(self, message: PoseArray) -> None:
         self._cache(self.pose_cache, stamp_key(message.header), message)
@@ -169,6 +243,12 @@ class HumanDexHandAdapter(Node):
         for side in self.sides:
             if side not in poses_by_side:
                 continue
+            expected_frame = self.input_frames[side]
+            if expected_frame and pose_array.header.frame_id != expected_frame:
+                self.get_logger().warning(
+                    f"Dropping {side} poses: expected frame {expected_frame}, "
+                    f"got {pose_array.header.frame_id!r}.", throttle_duration_sec=2.0)
+                continue
             output = HandKinematics()
             output.header.stamp = pose_array.header.stamp
             output.header.frame_id = self.frames[side]
@@ -207,7 +287,8 @@ class HumanDexHandAdapter(Node):
                 append_landmark(
                     output,
                     name,
-                    finite_point(pose.position.x, pose.position.y, pose.position.z),
+                    finite_point(*self.palm_transforms[side].apply(
+                        (pose.position.x, pose.position.y, pose.position.z))),
                 )
 
             reason = validate_message(output)
@@ -228,13 +309,15 @@ class HumanDexHandAdapter(Node):
 
 def main(args=None) -> int:
     rclpy.init(args=args)
-    node = HumanDexHandAdapter()
+    node = None
     try:
+        node = HumanDexHandAdapter()
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
     return 0
