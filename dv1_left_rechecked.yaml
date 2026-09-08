@@ -1,4 +1,5 @@
-# DV1 open/fist ranges; firmware zero and FK angles are unchanged.
+# Open endpoints rechecked with 600 frames; original fist endpoints retained.
+# Firmware zero, FK angles, palm transform, and tip offsets are unchanged.
 /humandex_hand_adapter:
   ros__parameters:
     input_mode: dv1_joint_states
@@ -38,20 +39,21 @@
     - 1.0
     - 1.0
     four_finger_flexion_range_rad: 1.4661
-    four_finger_calibration_label: measured left 2026-09-08T03:09:40.051312+00:00
+    four_finger_calibration_label: 'left: open rechecked 2026-09-08T03:18:16Z; fist
+      retained from 2026-09-08T03:09:40.051312+00:00'
     left_four_finger_open_rad:
-    - -0.2012364627549461
-    - -0.2380629099720264
-    - 0.15812683023068663
-    - 0.07784168463894758
-    - -0.6276203990171609
-    - 0.3293436298513299
-    - 0.37088246604879505
-    - -0.7391469382195983
-    - 0.1411971364863409
-    - 0.17558012275062929
-    - -0.7778932476138727
-    - 0.516442925665122
+    - -0.20472712125893455
+    - -0.06911503837897559
+    - 0.23753931119642857
+    - 0.15882496193148388
+    - -0.3363249468593077
+    - 0.24434609527920603
+    - 0.454047404906325
+    - -0.6054547175168326
+    - 0.118856922060814
+    - 0.550476846079011
+    - -0.9222319767538041
+    - 0.4164355595258469
     left_four_finger_closed_rad:
     - 0.6544984694978737
     - 1.5905185473424321
