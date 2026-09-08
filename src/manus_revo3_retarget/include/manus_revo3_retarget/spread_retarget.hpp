@@ -7,6 +7,8 @@ namespace manus_revo3_retarget
 
 struct SpreadConfig
 {
+  std::string joint_suffix{"spread"};
+  bool relative_to_middle{true};
   double index_offset_deg{0.0};
   double middle_offset_deg{0.0};
   double ring_offset_deg{0.0};
@@ -25,7 +27,7 @@ class SpreadRetarget
 {
 public:
   void set_config(const SpreadConfig & config);
-  void apply(const Ergonomics & ergonomics, JointArray & q) const;
+  void apply(const JointPositions & joints, JointArray & q) const;
 
 private:
   SpreadConfig config_;

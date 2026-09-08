@@ -59,13 +59,13 @@ enum JointIndex : std::size_t
   ThumbCMR = 20,
 };
 
-using Ergonomics = std::unordered_map<std::string, double>;
+using JointPositions = std::unordered_map<std::string, double>;
 using JointArray = std::array<double, kJointCount>;
 
-inline double ergonomic_value(const Ergonomics & ergonomics, const std::string & name, double fallback = 0.0)
+inline double joint_value(const JointPositions & joints, const std::string & name, double fallback = 0.0)
 {
-  const auto it = ergonomics.find(name);
-  if (it == ergonomics.end()) {
+  const auto it = joints.find(name);
+  if (it == joints.end()) {
     return fallback;
   }
   return finite_or(it->second, fallback);

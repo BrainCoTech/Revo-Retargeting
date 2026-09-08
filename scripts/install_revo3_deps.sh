@@ -63,7 +63,7 @@ Next:
   ${PYTHON_BIN} -m colcon build --symlink-install --packages-select \\
     manus_ros2_msgs manus_ros2 \\
     revo3_mit_controller_msgs revo3_description revo3_mit_controller revo3_driver \\
-    manus_revo3_retarget
+    hand_teleop_msgs hand_input_adapters manus_revo3_retarget
 
 For real hardware serial aliases and permissions:
   cd src/brainco_revo3_ros2/revo3_driver/setup

@@ -3,7 +3,7 @@
 <package format="3">
   <name>manus_revo3_retarget</name>
   <version>0.0.1</version>
-  <description>Manus to Revo3 retargeting node</description>
+  <description>Canonical HandKinematics to Revo3 retargeting node</description>
   <maintainer email="support@example.com">Example</maintainer>
   <license>MIT</license>
 
@@ -12,7 +12,10 @@
 
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
-  <depend>manus_ros2_msgs</depend>
+  <depend>hand_teleop_msgs</depend>
+  <exec_depend>hand_input_adapters</exec_depend>
+  <!-- MANUS-only recording and replay tools retain their native file format. -->
+  <exec_depend>manus_ros2_msgs</exec_depend>
   <depend>revo3_mit_controller_msgs</depend>
   <depend>ament_index_cpp</depend>
   <depend>eigen3_cmake_module</depend>

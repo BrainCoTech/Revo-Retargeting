@@ -20,7 +20,7 @@ class FourFingerRetarget
 {
 public:
   void set_config(const FourFingerConfig & config);
-  void apply(const Ergonomics & ergonomics, JointArray & q) const;
+  void apply(const JointPositions & joints, JointArray & q) const;
 
 private:
   FourFingerConfig config_;

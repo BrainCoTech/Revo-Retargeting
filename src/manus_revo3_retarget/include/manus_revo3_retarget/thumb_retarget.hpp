@@ -10,8 +10,7 @@
 namespace manus_revo3_retarget
 {
 
-constexpr std::size_t kManusKeypointCount = 25;
-using ManusKeypoints = std::array<std::optional<Eigen::Vector3d>, kManusKeypointCount>;
+using HandLandmarks = std::unordered_map<std::string, Eigen::Vector3d>;
 
 struct ThumbConfig
 {
@@ -24,9 +23,7 @@ struct ThumbConfig
   double pip_scale{1.0};
   double dip_scale{1.0};
   double spread_sign{1.0};
-  double manus_out_y_sign{-1.0};
-  double manus_z_rotation_rad{M_PI / 2.0};
-  double manus_scale_xz{1.0};
+  std::string cmr_joint_name{"thumb_mcp_spread"};
   double reach_scale{1.0};
   double ik_position_scale{1.0};
   double pip_ik_scale{1.0};
@@ -49,20 +46,19 @@ public:
   ~ThumbRetarget();
   bool initialize(const std::string & model_base, const std::string & side, std::string * error);
   void set_config(const ThumbConfig & config);
-  void apply(const Ergonomics & ergonomics, const ManusKeypoints & keypoints, JointArray & q);
+  void apply(const JointPositions & joints, const HandLandmarks & landmarks, JointArray & q);
   int last_iteration_count() const;
 
 private:
   struct Impl;
 
-  Eigen::Vector3d transform_manus_xyz(const Eigen::Vector3d & xyz) const;
   Eigen::Vector3d apply_reach_scale(const Eigen::Vector3d & thumb, const Eigen::Vector3d & center) const;
-  void posture_target(const Ergonomics & ergonomics, Eigen::VectorXd & target, Eigen::VectorXd & weights) const;
+  void posture_target(const JointPositions & joints, Eigen::VectorXd & target, Eigen::VectorXd & weights) const;
   void solve_ik(
     const Eigen::Vector3d & tip_target,
     const std::optional<Eigen::Vector3d> & dip_target,
     const std::optional<Eigen::Vector3d> & pip_target,
-    const Ergonomics & ergonomics);
+    const JointPositions & joints);
   void apply_output_calibration(JointArray & q) const;
   int joint_qpos_adr(const std::string & joint_name) const;
   int joint_dof_adr(const std::string & joint_name) const;
@@ -90,8 +86,8 @@ bool manus_revo3_thumb_initialize(void * handle, const char * model_base, const 
 void manus_revo3_thumb_set_config(void * handle, const ThumbConfig * config);
 void manus_revo3_thumb_apply(
   void * handle,
-  const Ergonomics * ergonomics,
-  const ManusKeypoints * keypoints,
+  const JointPositions * joints,
+  const HandLandmarks * landmarks,
   JointArray * q);
 int manus_revo3_thumb_last_iteration_count(void * handle);
 }

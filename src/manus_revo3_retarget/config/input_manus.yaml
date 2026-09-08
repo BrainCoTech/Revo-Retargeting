@@ -1,0 +1,9 @@
+/**:
+  ros__parameters:
+    # MANUS adapter has already converted degrees and (-y, -x, z) coordinates.
+    spread_joint_suffix: spread
+    spread_relative_to_middle: true
+    finger_spread_sign: -1.0
+    thumb_cmr_joint_name: thumb_mcp_spread
+    left_thumb_cmr_input_sign: 1.0
+    right_thumb_cmr_input_sign: -1.0

@@ -1,8 +1,17 @@
-# Manus Revo3 Retarget
+# Revo3 HandKinematics Retarget
 
-This package is the Manus-to-Revo3 retarget layer for the
-`revoarm_hardware/Revoarm_ws` workspace. The runtime retarget node is C++ and
-uses Pinocchio with the URDFs from `revo3_description`.
+本包保留 `manus_revo3_retarget` 包名以兼容现有脚本。C++ retarget 节点现在只订阅
+`hand_teleop_msgs/HandKinematics`；MANUS 和 HumanDex 由独立 adapter 接入。
+Pinocchio 求解器、21 个输出关节、MIT 插值和控制器话题保持原有结构。
+
+```text
+MANUS → manus_hand_adapter ───────┐
+                                 ├→ HandKinematics → Revo3 retarget → MIT controller
+HumanDex mux → humandex_hand_adapter ┘
+```
+
+HumanDex 的采集和 FK 由 BrainCo-HumanDex 启动；此处只监听 `/joint_states` 和
+`/humandex_eef_pose`。
 
 ## Runtime Assumptions
 
@@ -10,7 +19,7 @@ uses Pinocchio with the URDFs from `revo3_description`.
   `revo3_driver/launch/revo3_system.launch.py` or
   `revo3_driver/launch/dual_revo3_system.launch.py`.
 - This package publishes `revo3_mit_controller_msgs/msg/Revo3MITCommand`.
-- Retargeting runs directly from the Manus subscription callback. MIT commands
+- Retargeting runs directly from the HandKinematics subscription callback. MIT commands
   are published by a separate timer at `mit_command_publish_hz` (default 200 Hz)
   using the latest retarget target.
 - Default command topics:
@@ -23,7 +32,7 @@ uses Pinocchio with the URDFs from `revo3_description`.
 ```bash
 cd revoarm_hardware/Revoarm_ws
 source /opt/ros/humble/setup.bash
-colcon build --packages-select manus_ros2 manus_revo3_retarget
+colcon build --packages-select manus_ros2_msgs manus_ros2 hand_teleop_msgs hand_input_adapters manus_revo3_retarget
 source install/setup.bash
 ```
 
@@ -33,6 +42,39 @@ source install/setup.bash
 source install/setup.bash
 ros2 launch manus_revo3_retarget pipeline_launch.py hand_mode:=both
 ```
+
+默认启动 MANUS publisher 和 adapter。选择 HumanDex 时不会启动 MANUS 或 HumanDex 驱动：
+
+```bash
+ros2 launch manus_revo3_retarget pipeline_launch.py input_source:=humandex hand_mode:=right
+```
+
+已有 HandKinematics 发布者时，可用 `input_source:=external` 跳过 adapter，并通过
+`input_config:=/path/to/input.yaml` 指定字段映射。`left_input_topic` 和
+`right_input_topic` 同时传给 adapter 和 retargeter，默认是 `/hand_kinematics/left` 和
+`/hand_kinematics/right`。
+
+输入必须包含正的源时间戳、正确的 side 和 `hand_retarget_<side>` frame；数组长度、
+名称唯一性和有限数值均会检查。四指的 MCP/PIP/DIP、所选侧摆字段和五个 tip 必须完整；
+缺失帧不更新目标。`thumb_pip`、`thumb_dip` 位置及拇指角度参考可省略。
+`source` 仅作消息元数据，算法不根据设备名选择行为。
+
+| 配置 | MANUS | HumanDex |
+|---|---|---|
+| 四指屈曲 | `index_mcp/pip/dip` 等，rad | 同名字段，rad |
+| `spread_joint_suffix` | `spread` | `mpr` |
+| `spread_relative_to_middle` | `true` | `false` |
+| `thumb_cmr_joint_name` | `thumb_mcp_spread` | `thumb_cmr` |
+| 坐标转换 | adapter 执行 `(-y, -x, z)` | adapter 透传掌心局部坐标 |
+
+输入配置位于 `config/input_manus.yaml` 和 `config/input_humandex.yaml`，在原有
+retarget 配置之后、用户 calibration override 之前加载。字段选择和输入正负号可通过
+这些配置修改；retargeter 不再转换 MANUS 角度单位或使用 MANUS node ID。
+
+HumanDex 配置只完成接口接入，尚未验证实机零位、方向和行程。当前 HumanDex adapter
+仍把上游 DIP link 原点称为 tip，并保留原有四指 aggregate flexion；Revo3 不使用
+这些 aggregate 值，独立读取 MCP/PIP/DIP。准确 tip/PIP/DIP 点位和手型标定仍需后续完成。
+本次保留既有 MIT 定时发布行为：输入停止时继续发布最后目标，不能将输入校验当作失联停机策略。
 
 `hand_mode:=both` starts two independent retarget processes:
 `manus_revo3_retarget_left` and `manus_revo3_retarget_right`. Each process only
@@ -47,8 +89,8 @@ ros2 launch manus_revo3_retarget pipeline_launch.py \
   mit_command_publish_hz:=200
 ```
 
-Default parameters are split by function. By default, no side-specific tuning
-override is loaded, so these four YAML files are the effective startup config:
+Default parameters are split by function. These four YAML files are loaded
+before the selected `input_<source>.yaml` field mapping:
 
 - `config/control.yaml`: topics, MIT publish rate, global MIT kp/kd.
 - `config/thumb_retarget.yaml`: thumb IK and thumb calibration.

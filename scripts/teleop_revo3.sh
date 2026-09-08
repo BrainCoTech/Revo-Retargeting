@@ -117,13 +117,9 @@ if [[ "${START_REVO3_DRIVER}" == "1" ]]; then
   start_managed "Revo3 driver" "${SCRIPT_DIR}/start_revo3_driver.sh" "${MODE}"
 fi
 
-if [[ "${START_MANUS_PUBLISHER}" == "1" ]]; then
-  start_managed "MANUS publisher" ros2 run manus_ros2 manus_data_publisher
-fi
-
 start_managed "Revo3 retarget" ros2 launch manus_revo3_retarget pipeline_launch.py \
   hand_mode:="${MODE}" \
-  launch_manus_publisher:=false \
+  launch_manus_publisher:="${START_MANUS_PUBLISHER}" \
   "$@"
 
 wait_for_any

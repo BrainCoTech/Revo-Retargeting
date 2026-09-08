@@ -1,0 +1,10 @@
+/**:
+  ros__parameters:
+    # Select the measured URDF joint fields, without synthesizing MANUS angles.
+    # These choices do not calibrate HumanDex zero points or robot joint ranges.
+    spread_joint_suffix: mpr
+    spread_relative_to_middle: false
+    finger_spread_sign: 1.0
+    thumb_cmr_joint_name: thumb_cmr
+    left_thumb_cmr_input_sign: 1.0
+    right_thumb_cmr_input_sign: 1.0

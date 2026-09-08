@@ -16,10 +16,14 @@ namespace manus_revo3_retarget
 
 namespace
 {
-constexpr int kThumbTipNode = 4;
-constexpr int kThumbDipNode = 3;
-constexpr int kThumbPipNode = 2;
-constexpr std::array<int, 4> kFourFingerTipNodes = {9, 14, 19, 24};
+constexpr std::array<const char *, 4> kFourFingerTips = {
+  "index_tip", "middle_tip", "ring_tip", "little_tip"};
+
+std::optional<Eigen::Vector3d> landmark(const HandLandmarks & landmarks, const std::string & name)
+{
+  const auto it = landmarks.find(name);
+  return it == landmarks.end() ? std::nullopt : std::optional<Eigen::Vector3d>(it->second);
+}
 constexpr std::array<double, 5> kPostureWeights = {0.0, 0.25, 0.9, 1.2, 1.0};
 
 double clamp(double value, double low, double high)
@@ -130,27 +134,27 @@ int ThumbRetarget::last_iteration_count() const
   return last_iteration_count_;
 }
 
-void ThumbRetarget::apply(const Ergonomics & ergonomics, const ManusKeypoints & keypoints, JointArray & q)
+void ThumbRetarget::apply(const JointPositions & joints, const HandLandmarks & landmarks, JointArray & q)
 {
   if (!impl_ || !impl_->data) {
     return;
   }
-  const auto thumb_raw = keypoints[static_cast<std::size_t>(kThumbTipNode)];
+  const auto thumb_raw = landmark(landmarks, "thumb_tip");
   if (!thumb_raw) {
     apply_output_calibration(q);
     return;
   }
 
   std::vector<Eigen::Vector3d> four_targets;
-  four_targets.reserve(kFourFingerTipNodes.size());
-  for (const int node_id : kFourFingerTipNodes) {
-    const auto & raw = keypoints[static_cast<std::size_t>(node_id)];
+  four_targets.reserve(kFourFingerTips.size());
+  for (const auto * name : kFourFingerTips) {
+    const auto raw = landmark(landmarks, name);
     if (!raw) {
       continue;
     }
-    four_targets.push_back(transform_manus_xyz(*raw));
+    four_targets.push_back(*raw);
   }
-  if (four_targets.size() != kFourFingerTipNodes.size()) {
+  if (four_targets.size() != kFourFingerTips.size()) {
     apply_output_calibration(q);
     return;
   }
@@ -161,40 +165,28 @@ void ThumbRetarget::apply(const Ergonomics & ergonomics, const ManusKeypoints & 
   }
   center /= static_cast<double>(four_targets.size());
 
-  Eigen::Vector3d thumb_target = apply_reach_scale(transform_manus_xyz(*thumb_raw), center);
+  Eigen::Vector3d thumb_target = apply_reach_scale(*thumb_raw, center);
   if (filtered_thumb_target_) {
     filtered_thumb_target_ = config_.ema_prev * (*filtered_thumb_target_) + config_.ema_cur * thumb_target;
   } else {
     filtered_thumb_target_ = thumb_target;
   }
 
-  std::optional<Eigen::Vector3d> dip_target;
-  if (keypoints[static_cast<std::size_t>(kThumbDipNode)]) {
-    dip_target = apply_reach_scale(transform_manus_xyz(*keypoints[static_cast<std::size_t>(kThumbDipNode)]), center);
+  auto dip_target = landmark(landmarks, "thumb_dip");
+  if (dip_target) {
+    dip_target = apply_reach_scale(*dip_target, center);
   }
-  std::optional<Eigen::Vector3d> pip_target;
-  if (keypoints[static_cast<std::size_t>(kThumbPipNode)]) {
-    pip_target = apply_reach_scale(transform_manus_xyz(*keypoints[static_cast<std::size_t>(kThumbPipNode)]), center);
+  auto pip_target = landmark(landmarks, "thumb_pip");
+  if (pip_target) {
+    pip_target = apply_reach_scale(*pip_target, center);
   }
 
   solve_ik(
     (*filtered_thumb_target_) * config_.ik_position_scale,
     dip_target ? std::optional<Eigen::Vector3d>((*dip_target) * config_.ik_position_scale) : std::nullopt,
     pip_target ? std::optional<Eigen::Vector3d>((*pip_target) * config_.ik_position_scale) : std::nullopt,
-    ergonomics);
+    joints);
   apply_output_calibration(q);
-}
-
-Eigen::Vector3d ThumbRetarget::transform_manus_xyz(const Eigen::Vector3d & xyz) const
-{
-  const double c = std::cos(config_.manus_z_rotation_rad);
-  const double s = std::sin(config_.manus_z_rotation_rad);
-  const double rot_x = c * xyz.x() - s * xyz.y();
-  const double rot_y = s * xyz.x() + c * xyz.y();
-  return Eigen::Vector3d(
-    rot_x * config_.manus_scale_xz,
-    config_.manus_out_y_sign * rot_y * config_.manus_scale_xz,
-    xyz.z() * config_.manus_scale_xz);
 }
 
 Eigen::Vector3d ThumbRetarget::apply_reach_scale(const Eigen::Vector3d & thumb, const Eigen::Vector3d & center) const
@@ -203,7 +195,7 @@ Eigen::Vector3d ThumbRetarget::apply_reach_scale(const Eigen::Vector3d & thumb, 
 }
 
 void ThumbRetarget::posture_target(
-  const Ergonomics & ergonomics,
+  const JointPositions & joints,
   Eigen::VectorXd & target,
   Eigen::VectorXd & weights) const
 {
@@ -211,26 +203,26 @@ void ThumbRetarget::posture_target(
   target = Eigen::VectorXd::Constant(n, std::numeric_limits<double>::quiet_NaN());
   weights = Eigen::VectorXd::Zero(n);
   const std::array<std::tuple<int, const char *, bool>, 4> sources = {
-    std::make_tuple(1, "ThumbMCPSpread", false),
-    std::make_tuple(2, "ThumbMCPStretch", true),
-    std::make_tuple(3, "ThumbPIPStretch", true),
-    std::make_tuple(4, "ThumbDIPStretch", true),
+    std::make_tuple(1, config_.cmr_joint_name.c_str(), false),
+    std::make_tuple(2, "thumb_mcp", true),
+    std::make_tuple(3, "thumb_pip", true),
+    std::make_tuple(4, "thumb_dip", true),
   };
   for (const auto & [index, name, clamp_positive] : sources) {
     if (index >= n) {
       continue;
     }
-    double value_deg = ergonomic_value(ergonomics, name, std::numeric_limits<double>::quiet_NaN());
-    if (!std::isfinite(value_deg)) {
+    double value_rad = joint_value(joints, name, std::numeric_limits<double>::quiet_NaN());
+    if (!std::isfinite(value_rad)) {
       continue;
     }
     if (clamp_positive) {
-      value_deg = std::max(0.0, value_deg);
+      value_rad = std::max(0.0, value_rad);
     } else {
-      value_deg *= config_.spread_sign;
+      value_rad *= config_.spread_sign;
     }
     const int adr = thumb_qpos_adrs_[static_cast<std::size_t>(index)];
-    target[index] = clamp(deg_to_rad(value_deg), joint_low(adr), joint_high(adr));
+    target[index] = clamp(value_rad, joint_low(adr), joint_high(adr));
     weights[index] = kPostureWeights[static_cast<std::size_t>(index)];
   }
 }
@@ -239,7 +231,7 @@ void ThumbRetarget::solve_ik(
   const Eigen::Vector3d & tip_target,
   const std::optional<Eigen::Vector3d> & dip_target,
   const std::optional<Eigen::Vector3d> & pip_target,
-  const Ergonomics & ergonomics)
+  const JointPositions & joints)
 {
   const int n = static_cast<int>(std::min(thumb_qpos_adrs_.size(), thumb_dof_adrs_.size()));
   if (!impl_ || !impl_->data || n <= 0) {
@@ -250,7 +242,7 @@ void ThumbRetarget::solve_ik(
   Eigen::VectorXd q = current_q_;
   Eigen::VectorXd posture;
   Eigen::VectorXd posture_weights;
-  posture_target(ergonomics, posture, posture_weights);
+  posture_target(joints, posture, posture_weights);
   last_iteration_count_ = 0;
 
   for (int iter = 0; iter < std::max(0, config_.ik_max_iterations); ++iter) {
@@ -441,14 +433,14 @@ extern "C" void manus_revo3_thumb_set_config(void * handle, const ThumbConfig * 
 
 extern "C" void manus_revo3_thumb_apply(
   void * handle,
-  const Ergonomics * ergonomics,
-  const ManusKeypoints * keypoints,
+  const JointPositions * joints,
+  const HandLandmarks * landmarks,
   JointArray * q)
 {
-  if (handle == nullptr || ergonomics == nullptr || keypoints == nullptr || q == nullptr) {
+  if (handle == nullptr || joints == nullptr || landmarks == nullptr || q == nullptr) {
     return;
   }
-  static_cast<ThumbRetarget *>(handle)->apply(*ergonomics, *keypoints, *q);
+  static_cast<ThumbRetarget *>(handle)->apply(*joints, *landmarks, *q);
 }
 
 extern "C" int manus_revo3_thumb_last_iteration_count(void * handle)

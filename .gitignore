@@ -19,6 +19,11 @@ dist/
 *.db3
 *.log
 .manus_revo2/
+/artifacts/
+/test/
+/MUJOCO_LOG.TXT
+/log.txt
+src/hand_input_adapters/test/
 src/manus_ros2/ManusSDK/lib/*.so
 src/manus_ros2/ManusSDK/lib/*.so.*
 !src/manus_ros2/ManusSDK/lib/.gitkeep

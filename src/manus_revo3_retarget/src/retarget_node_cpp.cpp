@@ -14,20 +14,21 @@
 
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "ament_index_cpp/get_package_prefix.hpp"
-#include "manus_ros2_msgs/msg/manus_glove.hpp"
+#include "hand_teleop_msgs/msg/hand_kinematics.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "revo3_mit_controller_msgs/msg/revo3_mit_command.hpp"
 
 #include <dlfcn.h>
 
 #include "manus_revo3_retarget/four_finger_retarget.hpp"
+#include "manus_revo3_retarget/hand_kinematics_input.hpp"
 #include "manus_revo3_retarget/spread_retarget.hpp"
 #include "manus_revo3_retarget/thumb_retarget.hpp"
 
 namespace manus_revo3_retarget
 {
 
-using ManusGlove = manus_ros2_msgs::msg::ManusGlove;
+using HandKinematics = hand_teleop_msgs::msg::HandKinematics;
 using Revo3MITCommand = revo3_mit_controller_msgs::msg::Revo3MITCommand;
 
 class ThumbPlugin
@@ -74,9 +75,9 @@ public:
     set_config_(handle_, &config);
   }
 
-  void apply(const Ergonomics & ergonomics, const ManusKeypoints & keypoints, JointArray & q)
+  void apply(const JointPositions & joints, const HandLandmarks & landmarks, JointArray & q)
   {
-    apply_(handle_, &ergonomics, &keypoints, &q);
+    apply_(handle_, &joints, &landmarks, &q);
   }
 
   int last_iteration_count() const
@@ -89,7 +90,7 @@ private:
   using DestroyFn = void (*)(void *);
   using InitializeFn = bool (*)(void *, const char *, const char *, std::string *);
   using SetConfigFn = void (*)(void *, const ThumbConfig *);
-  using ApplyFn = void (*)(void *, const Ergonomics *, const ManusKeypoints *, JointArray *);
+  using ApplyFn = void (*)(void *, const JointPositions *, const HandLandmarks *, JointArray *);
   using LastIterationCountFn = int (*)(void *);
 
   static std::string dlerror_string()
@@ -167,10 +168,16 @@ public:
       right_ = create_side("right");
     }
 
-    sub_0_ = create_subscription<ManusGlove>(
-      "/manus_glove_0", 10, [this](ManusGlove::SharedPtr msg) { on_glove(*msg); });
-    sub_1_ = create_subscription<ManusGlove>(
-      "/manus_glove_1", 10, [this](ManusGlove::SharedPtr msg) { on_glove(*msg); });
+    if (left_) {
+      left_input_ = create_subscription<HandKinematics>(
+        string_param("left_input_topic", "/hand_kinematics/left"), 20,
+        [this](HandKinematics::SharedPtr msg) { on_hand_kinematics(*msg, left_); });
+    }
+    if (right_) {
+      right_input_ = create_subscription<HandKinematics>(
+        string_param("right_input_topic", "/hand_kinematics/right"), 20,
+        [this](HandKinematics::SharedPtr msg) { on_hand_kinematics(*msg, right_); });
+    }
 
     const double period_s = 1.0 / std::max(1.0, mit_command_publish_hz_);
     timer_ = create_wall_timer(
@@ -235,7 +242,9 @@ private:
     cfg.middle_dynamic = bool_param(p + "middle_spread_dynamic", false);
     cfg.ring_forward_scale = double_param(p + "ring_spread_forward_scale", 1.0);
     cfg.ring_backward_scale = double_param(p + "ring_spread_backward_scale", 1.0);
-    cfg.finger_spread_sign = -1.0;
+    cfg.joint_suffix = string_param("spread_joint_suffix", "spread");
+    cfg.relative_to_middle = bool_param("spread_relative_to_middle", true);
+    cfg.finger_spread_sign = double_param("finger_spread_sign", -1.0);
     return cfg;
   }
 
@@ -251,8 +260,8 @@ private:
     cfg.mcp_scale = double_param(p + "thumb_mcp_scale", 1.0);
     cfg.pip_scale = double_param(p + "thumb_pip_scale", 1.0);
     cfg.dip_scale = double_param(p + "thumb_dip_scale", 1.0);
-    cfg.spread_sign = side == "left" ? 1.0 : -1.0;
-    cfg.manus_out_y_sign = -1.0;
+    cfg.cmr_joint_name = string_param("thumb_cmr_joint_name", "thumb_mcp_spread");
+    cfg.spread_sign = double_param(side + "_thumb_cmr_input_sign", side == "left" ? 1.0 : -1.0);
     cfg.reach_scale = double_param(p + "thumb_reach_scale", 1.0);
     cfg.ik_position_scale = double_param(p + "thumb_ik_position_scale", 1.0);
     cfg.pip_ik_scale = double_param(p + "thumb_pip_ik_scale", 1.0);
@@ -270,49 +279,31 @@ private:
     return cfg;
   }
 
-  void on_glove(const ManusGlove & msg)
+  void on_hand_kinematics(
+    const HandKinematics & msg, const std::shared_ptr<SideState> & state)
   {
-    std::string side = msg.side;
-    for (auto & ch : side) {
-      ch = static_cast<char>(std::tolower(ch));
-    }
-
-    std::shared_ptr<SideState> state;
-    if ((side == "left" || side == "l") && left_) {
-      state = left_;
-    } else if ((side == "right" || side == "r") && right_) {
-      state = right_;
-    } else {
+    const auto spread_config = load_spread_config(state->side);
+    std::string error;
+    const auto observation = parse_hand_kinematics(
+      msg, state->side,
+      string_param(state->side + "_input_frame", "hand_retarget_" + state->side),
+      spread_config.joint_suffix, error);
+    if (!observation) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+        "Dropping %s HandKinematics: %s", state->side.c_str(), error.c_str());
       return;
     }
-
     state->four_finger.set_config(load_four_finger_config(state->side));
-    state->spread.set_config(load_spread_config(state->side));
+    state->spread.set_config(spread_config);
     state->thumb->set_config(load_thumb_config(state->side));
-
-    Ergonomics ergonomics;
-    ergonomics.reserve(msg.ergonomics.size());
-    for (const auto & item : msg.ergonomics) {
-      ergonomics[item.type] = static_cast<double>(item.value);
-    }
-
-    ManusKeypoints keypoints;
-    for (const auto & raw_node : msg.raw_nodes) {
-      const int node_id = raw_node.node_id;
-      if (node_id < 0 || node_id >= static_cast<int>(keypoints.size())) {
-        continue;
-      }
-      const auto & pos = raw_node.pose.position;
-      keypoints[static_cast<std::size_t>(node_id)] = Eigen::Vector3d(
-        static_cast<double>(pos.x), static_cast<double>(pos.y), static_cast<double>(pos.z));
-    }
+    const auto & joints = observation->joints;
+    const auto & landmarks = observation->landmarks;
 
     JointArray q{};
     q.fill(0.0);
-    state->four_finger.apply(ergonomics, q);
-    state->spread.apply(ergonomics, q);
-    state->thumb->set_config(load_thumb_config(state->side));
-    state->thumb->apply(ergonomics, keypoints, q);
+    state->four_finger.apply(joints, q);
+    state->spread.apply(joints, q);
+    state->thumb->apply(joints, landmarks, q);
 
     Revo3MITCommand out;
     out.header.stamp = now();
@@ -585,8 +576,8 @@ private:
   double mit_default_kd_{0.05};
   std::shared_ptr<SideState> left_;
   std::shared_ptr<SideState> right_;
-  rclcpp::Subscription<ManusGlove>::SharedPtr sub_0_;
-  rclcpp::Subscription<ManusGlove>::SharedPtr sub_1_;
+  rclcpp::Subscription<HandKinematics>::SharedPtr left_input_;
+  rclcpp::Subscription<HandKinematics>::SharedPtr right_input_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 

@@ -1,6 +1,6 @@
 # Revo3 Retargeting
 
-ROS 2 Humble workspace for teleoperating BrainCo Revo3 hands with MANUS gloves.
+ROS 2 Humble workspace for teleoperating BrainCo Revo3 hands through HandKinematics inputs.
 
 This branch is the runnable Revo3 workspace. The operator entrypoints are in `scripts/`.
 
@@ -11,10 +11,20 @@ This branch is the runnable Revo3 workspace. The operator entrypoints are in `sc
 ```text
 Revo3 driver
 MANUS publisher
-MANUS -> Revo3 retarget pipeline
+MANUS adapter -> HandKinematics -> Revo3 retarget pipeline
 ```
 
 The retarget pipeline uses `manus_revo3_retarget/launch/pipeline_launch.py` and publishes `revo3_mit_controller_msgs/msg/Revo3MITCommand` to the Revo3 MIT controller topics.
+
+使用 HumanDex 时，先在 BrainCo-HumanDex 中启动采集/FK，再运行：
+
+```bash
+./scripts/teleop.sh right input_source:=humandex
+```
+
+该选项只启动 HumanDex adapter，不启动 HumanDex 采集或 MANUS publisher。
+当前分支完成 Revo3 输入接口接入，HumanDex 的关节零位和实际 tip 点仍待标定。
+字段要求和配置见 [retarget README](src/manus_revo3_retarget/README.md)。
 
 ## Fresh Computer Setup
 
@@ -87,7 +97,7 @@ source /opt/ros/humble/setup.bash
 python -m colcon build --symlink-install --packages-select \
   manus_ros2_msgs manus_ros2 \
   revo3_mit_controller_msgs revo3_description revo3_mit_controller revo3_driver \
-  manus_revo3_retarget
+  hand_teleop_msgs hand_input_adapters manus_revo3_retarget
 source install/setup.bash
 ```
 
@@ -168,7 +178,9 @@ src/brainco_revo3_ros2/revo3_mit_controller_msgs
 src/brainco_revo3_ros2/revo3_mit_controller
 src/brainco_revo3_ros2/revo3_description
 src/brainco_revo3_ros2/revo3_driver
-src/manus_revo3_retarget        MANUS to Revo3 retarget pipeline
+src/hand_teleop_msgs            Device-neutral HandKinematics message
+src/hand_input_adapters         MANUS / HumanDex / Hex input adapters
+src/manus_revo3_retarget        HandKinematics to Revo3 retarget pipeline
 ```
 
 ## Troubleshooting

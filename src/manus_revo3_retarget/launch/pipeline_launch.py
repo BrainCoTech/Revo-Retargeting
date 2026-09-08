@@ -1,3 +1,4 @@
+import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -70,6 +71,11 @@ def _create_runtime_nodes(context, *args, **kwargs):
         hand_mode = hand_type
     if hand_mode not in ("left", "right", "both"):
         raise ValueError("hand_mode must be one of: left, right, both")
+    input_source = LaunchConfiguration("input_source").perform(context).strip().lower()
+    if input_source not in ("manus", "humandex", "external"):
+        raise ValueError("input_source must be manus, humandex, or external")
+    left_input_topic = LaunchConfiguration("left_input_topic").perform(context)
+    right_input_topic = LaunchConfiguration("right_input_topic").perform(context)
     manus_publish_rate_hz = float(LaunchConfiguration("manus_publish_rate_hz").perform(context))
     if not math.isfinite(manus_publish_rate_hz) or manus_publish_rate_hz <= 0.0:
         raise ValueError("manus_publish_rate_hz must be a finite positive value")
@@ -98,6 +104,8 @@ def _create_runtime_nodes(context, *args, **kwargs):
     right_calibration_config = LaunchConfiguration("right_calibration_config").perform(context)
 
     overrides = {
+        "left_input_topic": left_input_topic,
+        "right_input_topic": right_input_topic,
         "use_revo3_namespace": use_revo3_namespace,
         "command_topic_suffix": command_topic_suffix,
         "retarget_target_topic_suffix": retarget_target_topic_suffix,
@@ -110,6 +118,14 @@ def _create_runtime_nodes(context, *args, **kwargs):
         _load_ros_parameters(LaunchConfiguration("four_finger_retarget_config").perform(context)),
         _load_ros_parameters(LaunchConfiguration("spread_retarget_config").perform(context)),
     ]
+    input_config = LaunchConfiguration("input_config").perform(context).strip()
+    if not input_config and input_source != "external":
+        input_config = os.path.join(
+            get_package_share_directory("manus_revo3_retarget"),
+            "config", f"input_{input_source}.yaml",
+        )
+    if input_config:
+        parameter_dicts.append(_load_ros_parameters(input_config))
     if retarget_config:
         parameter_dicts.append(_load_ros_parameters(retarget_config))
     common_parameter_dicts = list(parameter_dicts)
@@ -117,7 +133,7 @@ def _create_runtime_nodes(context, *args, **kwargs):
         common_parameter_dicts.append(_load_ros_parameters(calibration_config))
 
     nodes = []
-    if launch_manus_publisher:
+    if input_source == "manus" and launch_manus_publisher:
         nodes.append(
             Node(
                 package="manus_ros2",
@@ -127,6 +143,26 @@ def _create_runtime_nodes(context, *args, **kwargs):
                 output="screen",
             )
         )
+
+    if input_source != "external":
+        adapter_parameters = {
+            "hand_mode": hand_mode,
+            "left_output_topic": left_input_topic,
+            "right_output_topic": right_input_topic,
+        }
+        if input_source == "humandex":
+            adapter_parameters.update({
+                "joint_topic": LaunchConfiguration("humandex_joint_topic").perform(context),
+                "pose_topic": LaunchConfiguration("humandex_pose_topic").perform(context),
+            })
+        nodes.append(Node(
+            package="hand_input_adapters",
+            executable=f"{input_source}_hand_adapter",
+            name=f"{input_source}_hand_adapter",
+            parameters=[adapter_parameters],
+            additional_env=python_env,
+            output="screen",
+        ))
 
     retarget_sides = ("left", "right") if hand_mode == "both" else (hand_mode,)
     for side in retarget_sides:
@@ -163,6 +199,18 @@ def generate_launch_description():
     package_share = get_package_share_directory("manus_revo3_retarget")
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            "input_source", default_value="manus", choices=["manus", "humandex", "external"],
+            description="Input adapter. HumanDex acquisition/FK always runs externally.",
+        ),
+        DeclareLaunchArgument(
+            "input_config", default_value="",
+            description="Explicit joint-field mapping YAML; defaults to input_<source>.yaml.",
+        ),
+        DeclareLaunchArgument("left_input_topic", default_value="/hand_kinematics/left"),
+        DeclareLaunchArgument("right_input_topic", default_value="/hand_kinematics/right"),
+        DeclareLaunchArgument("humandex_joint_topic", default_value="/joint_states"),
+        DeclareLaunchArgument("humandex_pose_topic", default_value="/humandex_eef_pose"),
         DeclareLaunchArgument(
             "hand_mode",
             default_value="both",

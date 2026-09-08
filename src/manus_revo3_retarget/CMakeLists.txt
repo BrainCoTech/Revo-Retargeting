@@ -9,7 +9,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(manus_ros2_msgs REQUIRED)
+find_package(hand_teleop_msgs REQUIRED)
 find_package(revo3_mit_controller_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
@@ -48,7 +48,7 @@ target_link_libraries(retarget_node ${PROJECT_NAME}_algorithms ${CMAKE_DL_LIBS})
 ament_target_dependencies(retarget_node
   rclcpp
   std_msgs
-  manus_ros2_msgs
+  hand_teleop_msgs
   revo3_mit_controller_msgs
   ament_index_cpp
 )
