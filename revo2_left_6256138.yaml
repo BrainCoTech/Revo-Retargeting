@@ -1,0 +1,25 @@
+# Local serial port override for the original 6256138 MANUS left-hand pipeline.
+# All control settings match protocol_modbus_left.yaml from this branch.
+hardware:
+  protocol: modbus
+  slave_id: 126
+  log_level: info
+  finger_unit_mode: normalized
+  ensure_physical_mode: false
+  ctrl_param_duration_ms: 10
+  position_command_scale: 572.9577951308232
+  position_state_scale: 0.0017453292519943296
+  velocity_state_scale: 0.0017453292519943296
+  velocity_command_scale: 572.9577951308232
+  velocity_device_min: -1000.0
+  velocity_device_max: 1000.0
+  position_device_min: 0.0
+  position_device_max: 1000.0
+  velocity_percentage: 100.0
+  port: /dev/ttyUSB0
+  baudrate: 460800
+  auto_detect: false
+  auto_detect_quick: true
+  auto_detect_port: ''
+  connection_retry_attempts: 20
+  connection_retry_interval_ms: 500

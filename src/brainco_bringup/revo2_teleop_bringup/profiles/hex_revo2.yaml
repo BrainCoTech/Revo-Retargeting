@@ -1,0 +1,28 @@
+hand_mode: right
+
+input:
+  source: hex
+  launch_driver: true
+  driver_parameters:
+    raw_angles_topic: /hex_glove/raw_angles
+    raw_positions_topic: /hex_glove/raw_positions
+  parameters:
+    angles_topic: /hex_glove/raw_angles
+    positions_topic: /hex_glove/raw_positions
+    left_output_topic: /hand_kinematics/left
+    right_output_topic: /hand_kinematics/right
+    left_frame_id: hand_retarget_left
+    right_frame_id: hand_retarget_right
+    max_pair_skew_sec: 0.03
+    position_scale: 0.01
+    angle_scale: 1.0
+    zero_angles_on_first_frame: false
+    left_flexion_sign: 1.0
+    right_flexion_sign: 1.0
+    left_spread_sign: 1.0
+    right_spread_sign: 1.0
+
+retarget:
+  control_config: retarget.yaml
+  algorithm_config: ""
+  start_delay_sec: 18.0

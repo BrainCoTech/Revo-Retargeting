@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>revo2_teleop_bringup</name>
+  <version>0.1.0</version>
+  <description>Compose input, retargeting, and Revo2 control from one profile.</description>
+  <maintainer email="dev@brainco.cn">BrainCo</maintainer>
+  <license>Proprietary</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>hand_input_adapters</exec_depend>
+  <exec_depend>revohuman_kinematics</exec_depend>
+  <exec_depend>hex_glove_driver</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>revo2_hand_retarget</exec_depend>
+  <exec_depend>manus_ros2</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>revo2_driver</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

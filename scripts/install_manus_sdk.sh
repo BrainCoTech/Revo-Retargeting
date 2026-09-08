@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="$(cd "${SCRIPT_DIR}/.." && pwd)"
-SDK_ROOT="${MANUS_SDK_DEST:-${WORKSPACE}/src/manus_ros2/ManusSDK}"
+SDK_ROOT="${MANUS_SDK_DEST:-${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK}"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {

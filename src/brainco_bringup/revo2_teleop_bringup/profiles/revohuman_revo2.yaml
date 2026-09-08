@@ -1,0 +1,10 @@
+hand_mode: left
+input:
+  source: revohuman
+  launch_driver: true
+  launch_arguments:
+    target_rate_hz: 100.0
+retarget:
+  control_config: retarget.yaml
+  algorithm_config: ""
+  start_delay_sec: 18.0

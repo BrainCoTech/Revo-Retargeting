@@ -1,3 +1,7 @@
-# Preserve vendor MANUS SDK files as-is. The shared libraries are installed
-# from an external package and are ignored by Git.
-src/manus_ros2/** -text
+# Preserve vendor MANUS files without line-ending conversion.
+src/brainco_drivers/manus_ros2/** -text
+
+# Binary assets
+*.STL binary
+*.stl binary
+*.png binary

@@ -96,16 +96,16 @@ require_cmd colcon
 
 require_path "${WORKSPACE}/src/brainco_revo3_ros2/revo3_driver/package.xml" "Revo3 driver submodule"
 require_path "${WORKSPACE}/src/manus_revo3_retarget/package.xml" "MANUS Revo3 retarget package"
-require_path "${WORKSPACE}/src/manus_ros2/ManusSDK/include/ManusSDK.h" "MANUS SDK header"
-if [[ -f "${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK.so" || -f "${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so" ]]; then
-  if [[ -f "${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK.so" ]]; then
-    require_real_file "${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK.so" "MANUS SDK library"
+require_path "${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK/include/ManusSDK.h" "MANUS SDK header"
+if [[ -f "${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK.so" || -f "${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so" ]]; then
+  if [[ -f "${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK.so" ]]; then
+    require_real_file "${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK.so" "MANUS SDK library"
   fi
-  if [[ -f "${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so" ]]; then
-    require_real_file "${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so" "MANUS SDK integrated library"
+  if [[ -f "${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so" ]]; then
+    require_real_file "${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so" "MANUS SDK integrated library"
   fi
 else
-  missing_manus_sdk+=("MANUS SDK library: ${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK*.so")
+  missing_manus_sdk+=("MANUS SDK library: ${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK*.so")
 fi
 
 require_ros_share ament_cmake

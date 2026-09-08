@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="$(cd "${SCRIPT_DIR}/.." && pwd)"
-SDK_ROOT="${MANUS_SDK_SOURCE:-${WORKSPACE}/src/manus_ros2/ManusSDK}"
+SDK_ROOT="${MANUS_SDK_SOURCE:-${WORKSPACE}/src/brainco_drivers/manus_ros2/ManusSDK}"
 DIST_DIR="${MANUS_SDK_DIST:-${WORKSPACE}/dist}"
 PACKAGE_NAME="${MANUS_SDK_PACKAGE_NAME:-manus-sdk-linux-x86_64}"
 TMP_DIR="$(mktemp -d)"
@@ -52,9 +52,9 @@ Install from the Revo-Retargeting workspace root:
 
 Expected destination:
 
-  src/manus_ros2/ManusSDK/include/ManusSDK.h
-  src/manus_ros2/ManusSDK/lib/libManusSDK.so
-  src/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
+  src/brainco_drivers/manus_ros2/ManusSDK/include/ManusSDK.h
+  src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK.so
+  src/brainco_drivers/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so
 
 Then rebuild:
 

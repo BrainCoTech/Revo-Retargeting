@@ -1,0 +1,362 @@
+<?xml version="1.0"?>
+<robot name="Revo_Human_DV1_URDF_Bimanual">
+  <link name="left_palm_link">
+    </link>
+  <link name="left_tracker">
+    </link>
+  <link name="left_thumb_CMP_Link">
+    </link>
+  <link name="left_thumb_CMR_Link">
+    </link>
+  <link name="left_thumb_MCP_Link">
+    </link>
+  <link name="left_thumb_PIP_Link">
+    </link>
+  <link name="left_thumb_DIP_Link">
+    </link>
+  <link name="left_index_MPR_Link">
+    </link>
+  <link name="left_index_MCP_Link">
+    </link>
+  <link name="left_index_PIP_Link">
+    </link>
+  <link name="left_index_DIP_Link">
+    </link>
+  <link name="left_middle_MPR_Link">
+    </link>
+  <link name="left_middle_MCP_Link">
+    </link>
+  <link name="left_middle_PIP_Link">
+    </link>
+  <link name="left_middle_DIP_Link">
+    </link>
+  <link name="left_ring_MPR_Link">
+    </link>
+  <link name="left_ring_MCP_Link">
+    </link>
+  <link name="left_ring_PIP_Link">
+    </link>
+  <link name="left_ring_DIP_Link">
+    </link>
+  <link name="left_little_MPR_Link">
+    </link>
+  <link name="left_little_MCP_Link">
+    </link>
+  <link name="left_little_PIP_Link">
+    </link>
+  <link name="left_little_DIP_Link">
+    </link>
+  <link name="right_palm_link">
+    </link>
+  <link name="right_tracker">
+    </link>
+  <link name="right_thumb_CMP_Link">
+    </link>
+  <link name="right_thumb_CMR_Link">
+    </link>
+  <link name="right_thumb_MCP_Link">
+    </link>
+  <link name="right_thumb_PIP_Link">
+    </link>
+  <link name="right_thumb_DIP_Link">
+    </link>
+  <link name="right_index_MPR_Link">
+    </link>
+  <link name="right_index_MCP_Link">
+    </link>
+  <link name="right_index_PIP_Link">
+    </link>
+  <link name="right_index_DIP_Link">
+    </link>
+  <link name="right_middle_MPR_Link">
+    </link>
+  <link name="right_middle_MCP_Link">
+    </link>
+  <link name="right_middle_PIP_Link">
+    </link>
+  <link name="right_middle_DIP_Link">
+    </link>
+  <link name="right_ring_MPR_Link">
+    </link>
+  <link name="right_ring_MCP_Link">
+    </link>
+  <link name="right_ring_PIP_Link">
+    </link>
+  <link name="right_ring_DIP_Link">
+    </link>
+  <link name="right_little_MPR_Link">
+    </link>
+  <link name="right_little_MCP_Link">
+    </link>
+  <link name="right_little_PIP_Link">
+    </link>
+  <link name="right_little_DIP_Link">
+    </link>
+  <joint name="left_tracker_joint" type="fixed">
+    <origin xyz="-0.005676321166 -0.0023415 0.08614770283" rpy="0 0 0" />
+    <parent link="left_palm_link" />
+    <child link="left_tracker" />
+  </joint>
+  <joint name="left_thumb_CMP_joint" type="continuous">
+    <origin xyz="0.0183304586411 -0.0380126914978 0.0413810270386" rpy="0 0 0" />
+    <parent link="left_palm_link" />
+    <child link="left_thumb_CMP_Link" />
+    <axis xyz="-0 0 1" />
+  </joint>
+  <joint name="left_thumb_CMR_joint" type="continuous">
+    <origin xyz="-0.000906812667847 -0.0202955265045 -0.00450249862671" rpy="0 0 0" />
+    <parent link="left_thumb_CMP_Link" />
+    <child link="left_thumb_CMR_Link" />
+    <axis xyz="1 -0 0" />
+  </joint>
+  <joint name="left_thumb_MCP_joint" type="continuous">
+    <origin xyz="0.00343429660797 -0.0142240467072 0.0127425270081" rpy="0 0 0" />
+    <parent link="left_thumb_CMR_Link" />
+    <child link="left_thumb_MCP_Link" />
+    <axis xyz="0.00474183281895 0.985060962553 0.172140683962" />
+  </joint>
+  <joint name="left_thumb_PIP_joint" type="continuous">
+    <origin xyz="0.0119696111679 -0.00660277938843 0.0374316949844" rpy="0 0 0" />
+    <parent link="left_thumb_MCP_Link" />
+    <child link="left_thumb_PIP_Link" />
+    <axis xyz="0.00474171323415 0.985060937057 0.172140833156" />
+  </joint>
+  <joint name="left_thumb_DIP_joint" type="continuous">
+    <origin xyz="-3.1852722168e-05 -0.00689192199707 0.0394017829895" rpy="0 0 0" />
+    <parent link="left_thumb_PIP_Link" />
+    <child link="left_thumb_DIP_Link" />
+    <axis xyz="0.00474164603753 0.985060924465 0.172140907067" />
+  </joint>
+  <joint name="left_index_MPR_joint" type="continuous">
+    <origin xyz="0.000447367310524 -0.0349576559067 0.119563808956" rpy="0 0 0" />
+    <parent link="left_palm_link" />
+    <child link="left_index_MPR_Link" />
+    <axis xyz="0.939767507622 0.341814323306 0" />
+  </joint>
+  <joint name="left_index_MCP_joint" type="continuous">
+    <origin xyz="0.00126878321171 0.00791688346863 0.0177528345757" rpy="0 0 0" />
+    <parent link="left_index_MPR_Link" />
+    <child link="left_index_MCP_Link" />
+    <axis xyz="-0.327495297042 0.900373189053 0.286487261234" />
+  </joint>
+  <joint name="left_index_PIP_joint" type="continuous">
+    <origin xyz="0.0153936679363 -0.00720810222626 0.0402377691269" rpy="0 0 0" />
+    <parent link="left_index_MCP_Link" />
+    <child link="left_index_PIP_Link" />
+    <axis xyz="-0.327501907915 0.900373260159 0.286479480423" />
+  </joint>
+  <joint name="left_index_DIP_joint" type="continuous">
+    <origin xyz="0.0025488409996 -0.00700288009644 0.0249090957642" rpy="0 0 0" />
+    <parent link="left_index_PIP_Link" />
+    <child link="left_index_DIP_Link" />
+    <axis xyz="-0.327501905296 0.900373296179 0.286479370209" />
+  </joint>
+  <joint name="left_middle_MPR_joint" type="continuous">
+    <origin xyz="-0.00330000007153 -0.0110000002384 0.12150295728" rpy="0 0 0" />
+    <parent link="left_palm_link" />
+    <child link="left_middle_MPR_Link" />
+    <axis xyz="1 -0 0" />
+  </joint>
+  <joint name="left_middle_MCP_joint" type="continuous">
+    <origin xyz="0.00390000009537 0.0110117454231 0.0155878628492" rpy="0 0 0" />
+    <parent link="left_middle_MPR_Link" />
+    <child link="left_middle_MCP_Link" />
+    <axis xyz="0.000184016571028 0.998681239001 0.0513395462216" />
+  </joint>
+  <joint name="left_middle_PIP_joint" type="continuous">
+    <origin xyz="0.0119999998808 -0.00265256723762 0.051431640625" rpy="0 0 0" />
+    <parent link="left_middle_MCP_Link" />
+    <child link="left_middle_PIP_Link" />
+    <axis xyz="0.000184001780052 0.99868123848 0.0513395564071" />
+  </joint>
+  <joint name="left_middle_DIP_joint" type="continuous">
+    <origin xyz="0 -0.00146792542934 0.0284621734619" rpy="0 0 0" />
+    <parent link="left_middle_PIP_Link" />
+    <child link="left_middle_DIP_Link" />
+    <axis xyz="0.000184037858422 0.99868123905 0.0513395451908" />
+  </joint>
+  <joint name="left_ring_MPR_joint" type="continuous">
+    <origin xyz="-0.00330000007153 0.0105000002384 0.119891430463" rpy="0 0 0" />
+    <parent link="left_palm_link" />
+    <child link="left_ring_MPR_Link" />
+    <axis xyz="1 -0 0" />
+  </joint>
+  <joint name="left_ring_MCP_joint" type="continuous">
+    <origin xyz="0.00390000009537 0.0138285424709 0.0131533810794" rpy="0 0 0" />
+    <parent link="left_ring_MPR_Link" />
+    <child link="left_ring_MCP_Link" />
+    <axis xyz="0.000184018307363 0.989646340615 -0.143527302782" />
+  </joint>
+  <joint name="left_ring_PIP_joint" type="continuous">
+    <origin xyz="0.0119999998808 0.0060212097168 0.0415661520958" rpy="0 0 0" />
+    <parent link="left_ring_MCP_Link" />
+    <child link="left_ring_PIP_Link" />
+    <axis xyz="0.000184024028665 0.989646352006 -0.143527224233" />
+  </joint>
+  <joint name="left_ring_DIP_joint" type="continuous">
+    <origin xyz="0 0.00372741699219 0.0257314281464" rpy="0 0 0" />
+    <parent link="left_ring_PIP_Link" />
+    <child link="left_ring_DIP_Link" />
+    <axis xyz="0.000184028615217 0.98964634188 -0.143527294046" />
+  </joint>
+  <joint name="left_little_MPR_joint" type="continuous">
+    <origin xyz="-0.00148010386527 0.0329322748184 0.112883000072" rpy="0 0 0" />
+    <parent link="left_palm_link" />
+    <child link="left_little_MPR_Link" />
+    <axis xyz="0.950990151681 -0.309221169078 0" />
+  </joint>
+  <joint name="left_little_MCP_joint" type="continuous">
+    <origin xyz="0.00875782467425 0.0143331480026 0.00986465299129" rpy="0 0 0" />
+    <parent link="left_little_MPR_Link" />
+    <child link="left_little_MCP_Link" />
+    <axis xyz="0.289257678229 0.889629810499 -0.353396089193" />
+  </joint>
+  <joint name="left_little_PIP_joint" type="continuous">
+    <origin xyz="0.0149057670832 0.00704241943359 0.029936974287" rpy="0 0 0" />
+    <parent link="left_little_MCP_Link" />
+    <child link="left_little_PIP_Link" />
+    <axis xyz="0.28925765676 0.88962979804 -0.353396138129" />
+  </joint>
+  <joint name="left_little_DIP_joint" type="continuous">
+    <origin xyz="0.0021831817627 0.00671913909912 0.018710609436" rpy="0 0 0" />
+    <parent link="left_little_PIP_Link" />
+    <child link="left_little_DIP_Link" />
+    <axis xyz="0.289257751332 0.889629756124 -0.35339616624" />
+  </joint>
+  <joint name="left_right_joint" type="fixed">
+    <origin xyz="0 -0.27 0" rpy="0 0 0" />
+    <parent link="left_palm_link" />
+    <child link="right_palm_link" />
+  </joint>
+  <joint name="right_tracker_joint" type="fixed">
+    <origin xyz="-0.005676321166 0.0023415 0.08614770283" rpy="0 0 0" />
+    <parent link="right_palm_link" />
+    <child link="right_tracker" />
+  </joint>
+  <joint name="right_thumb_CMP_joint" type="continuous">
+    <origin xyz="0.0183304586411 0.0380126914978 0.0413810270386" rpy="0 0 0" />
+    <parent link="right_palm_link" />
+    <child link="right_thumb_CMP_Link" />
+    <axis xyz="0 0 -1" />
+  </joint>
+  <joint name="right_thumb_CMR_joint" type="continuous">
+    <origin xyz="-0.000906812667847 0.0202955265045 -0.00450249862671" rpy="0 0 0" />
+    <parent link="right_thumb_CMP_Link" />
+    <child link="right_thumb_CMR_Link" />
+    <axis xyz="-1 -0 -0" />
+  </joint>
+  <joint name="right_thumb_MCP_joint" type="continuous">
+    <origin xyz="0.00343429660797 0.0142240467072 0.0127425270081" rpy="0 0 0" />
+    <parent link="right_thumb_CMR_Link" />
+    <child link="right_thumb_MCP_Link" />
+    <axis xyz="-0.00474183281895 0.985060962553 -0.172140683962" />
+  </joint>
+  <joint name="right_thumb_PIP_joint" type="continuous">
+    <origin xyz="0.0119696111679 0.00660277938843 0.0374316949844" rpy="0 0 0" />
+    <parent link="right_thumb_MCP_Link" />
+    <child link="right_thumb_PIP_Link" />
+    <axis xyz="-0.00474171323415 0.985060937057 -0.172140833156" />
+  </joint>
+  <joint name="right_thumb_DIP_joint" type="continuous">
+    <origin xyz="-3.1852722168e-05 0.00689192199707 0.0394017829895" rpy="0 0 0" />
+    <parent link="right_thumb_PIP_Link" />
+    <child link="right_thumb_DIP_Link" />
+    <axis xyz="-0.00474164603753 0.985060924465 -0.172140907067" />
+  </joint>
+  <joint name="right_index_MPR_joint" type="continuous">
+    <origin xyz="0.000447367310524 0.0349576559067 0.119563808956" rpy="0 0 0" />
+    <parent link="right_palm_link" />
+    <child link="right_index_MPR_Link" />
+    <axis xyz="-0.939767507622 0.341814323306 -0" />
+  </joint>
+  <joint name="right_index_MCP_joint" type="continuous">
+    <origin xyz="0.00126878321171 -0.00791688346863 0.0177528345757" rpy="0 0 0" />
+    <parent link="right_index_MPR_Link" />
+    <child link="right_index_MCP_Link" />
+    <axis xyz="0.327495297042 0.900373189053 -0.286487261234" />
+  </joint>
+  <joint name="right_index_PIP_joint" type="continuous">
+    <origin xyz="0.0153936679363 0.00720810222626 0.0402377691269" rpy="0 0 0" />
+    <parent link="right_index_MCP_Link" />
+    <child link="right_index_PIP_Link" />
+    <axis xyz="0.327501907915 0.900373260159 -0.286479480423" />
+  </joint>
+  <joint name="right_index_DIP_joint" type="continuous">
+    <origin xyz="0.0025488409996 0.00700288009644 0.0249090957642" rpy="0 0 0" />
+    <parent link="right_index_PIP_Link" />
+    <child link="right_index_DIP_Link" />
+    <axis xyz="0.327501905296 0.900373296179 -0.286479370209" />
+  </joint>
+  <joint name="right_middle_MPR_joint" type="continuous">
+    <origin xyz="-0.00330000007153 0.0110000002384 0.12150295728" rpy="0 0 0" />
+    <parent link="right_palm_link" />
+    <child link="right_middle_MPR_Link" />
+    <axis xyz="-1 -0 -0" />
+  </joint>
+  <joint name="right_middle_MCP_joint" type="continuous">
+    <origin xyz="0.00390000009537 -0.0110117454231 0.0155878628492" rpy="0 0 0" />
+    <parent link="right_middle_MPR_Link" />
+    <child link="right_middle_MCP_Link" />
+    <axis xyz="-0.000184016571028 0.998681239001 -0.0513395462216" />
+  </joint>
+  <joint name="right_middle_PIP_joint" type="continuous">
+    <origin xyz="0.0119999998808 0.00265256723762 0.051431640625" rpy="0 0 0" />
+    <parent link="right_middle_MCP_Link" />
+    <child link="right_middle_PIP_Link" />
+    <axis xyz="-0.000184001780052 0.99868123848 -0.0513395564071" />
+  </joint>
+  <joint name="right_middle_DIP_joint" type="continuous">
+    <origin xyz="0 0.00146792542934 0.0284621734619" rpy="0 0 0" />
+    <parent link="right_middle_PIP_Link" />
+    <child link="right_middle_DIP_Link" />
+    <axis xyz="-0.000184037858422 0.99868123905 -0.0513395451908" />
+  </joint>
+  <joint name="right_ring_MPR_joint" type="continuous">
+    <origin xyz="-0.00330000007153 -0.0105000002384 0.119891430463" rpy="0 0 0" />
+    <parent link="right_palm_link" />
+    <child link="right_ring_MPR_Link" />
+    <axis xyz="-1 -0 -0" />
+  </joint>
+  <joint name="right_ring_MCP_joint" type="continuous">
+    <origin xyz="0.00390000009537 -0.0138285424709 0.0131533810794" rpy="0 0 0" />
+    <parent link="right_ring_MPR_Link" />
+    <child link="right_ring_MCP_Link" />
+    <axis xyz="-0.000184018307363 0.989646340615 0.143527302782" />
+  </joint>
+  <joint name="right_ring_PIP_joint" type="continuous">
+    <origin xyz="0.0119999998808 -0.0060212097168 0.0415661520958" rpy="0 0 0" />
+    <parent link="right_ring_MCP_Link" />
+    <child link="right_ring_PIP_Link" />
+    <axis xyz="-0.000184024028665 0.989646352006 0.143527224233" />
+  </joint>
+  <joint name="right_ring_DIP_joint" type="continuous">
+    <origin xyz="0 -0.00372741699219 0.0257314281464" rpy="0 0 0" />
+    <parent link="right_ring_PIP_Link" />
+    <child link="right_ring_DIP_Link" />
+    <axis xyz="-0.000184028615217 0.98964634188 0.143527294046" />
+  </joint>
+  <joint name="right_little_MPR_joint" type="continuous">
+    <origin xyz="-0.00148010386527 -0.0329322748184 0.112883000072" rpy="0 0 0" />
+    <parent link="right_palm_link" />
+    <child link="right_little_MPR_Link" />
+    <axis xyz="-0.950990151681 -0.309221169078 -0" />
+  </joint>
+  <joint name="right_little_MCP_joint" type="continuous">
+    <origin xyz="0.00875782467425 -0.0143331480026 0.00986465299129" rpy="0 0 0" />
+    <parent link="right_little_MPR_Link" />
+    <child link="right_little_MCP_Link" />
+    <axis xyz="-0.289257678229 0.889629810499 0.353396089193" />
+  </joint>
+  <joint name="right_little_PIP_joint" type="continuous">
+    <origin xyz="0.0149057670832 -0.00704241943359 0.029936974287" rpy="0 0 0" />
+    <parent link="right_little_MCP_Link" />
+    <child link="right_little_PIP_Link" />
+    <axis xyz="-0.28925765676 0.88962979804 0.353396138129" />
+  </joint>
+  <joint name="right_little_DIP_joint" type="continuous">
+    <origin xyz="0.0021831817627 -0.00671913909912 0.018710609436" rpy="0 0 0" />
+    <parent link="right_little_PIP_Link" />
+    <child link="right_little_DIP_Link" />
+    <axis xyz="-0.289257751332 0.889629756124 0.35339616624" />
+  </joint>
+</robot>

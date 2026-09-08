@@ -1,0 +1,52 @@
+# Right glove four-finger calibration from user open/closed samples, 2026-09-07.
+# Only bending encoder zeros and four-finger ranges are calibrated here.
+# MPR, thumb and output-frame parameters retain the original baseline.
+# Natural open is used as a provisional FK zero; physical URDF zero still needs verification.
+# Single-frame endpoint calibration; refine with multiple frames if needed.
+# tip_offsets_m: DIP-local xyz in metres, initially zero.
+wrap_degrees: true
+four_finger:
+  weights: [1.0, 1.0, 1.0]
+  open_deg: [0.0, 0.0, 0.0]
+  closed_deg: [90.0, 90.0, 90.0]
+  output_range_rad: 1.4661
+sides:
+  left:
+    zero_deg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    sign: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    offset_deg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    palm_translation_m: [0.0, 0.0, 0.0]
+    palm_rpy_rad: [0.0, 0.0, 0.0]
+    tip_offsets_m:
+      thumb: [0.0, 0.0, 0.0]
+      index: [0.0, 0.0, 0.0]
+      middle: [0.0, 0.0, 0.0]
+      ring: [0.0, 0.0, 0.0]
+      little: [0.0, 0.0, 0.0]
+  right:
+    zero_deg: [208.19, 164.83, 192.0, 0, 176.94, 198.84, 178.7, 0, 195.53, 180.98,
+      172.4, 0, 199.41, 163.64, 190.06, 0, 0, 0, 0, 0, 0]
+    sign: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    offset_deg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    palm_translation_m: [0.0, 0.0, 0.0]
+    palm_rpy_rad: [0.0, 0.0, 0.0]
+    tip_offsets_m:
+      thumb: [0.0, 0.0, 0.0]
+      index: [0.0, 0.0, 0.0]
+      middle: [0.0, 0.0, 0.0]
+      ring: [0.0, 0.0, 0.0]
+      little: [0.0, 0.0, 0.0]
+    four_finger:
+      fingers:
+        index:
+          open_deg: [0.0, 0.0, 0.0]
+          closed_deg: [71.39, 77.95, 68.55]
+        middle:
+          open_deg: [0.0, 0.0, 0.0]
+          closed_deg: [83.26, 74.11, 80.63]
+        ring:
+          open_deg: [0.0, 0.0, 0.0]
+          closed_deg: [44.97, 113.05, 75.83]
+        little:
+          open_deg: [0.0, 0.0, 0.0]
+          closed_deg: [48.21, 79.15, 75.07]

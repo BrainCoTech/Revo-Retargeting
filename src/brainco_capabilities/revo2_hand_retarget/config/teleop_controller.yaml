@@ -1,0 +1,48 @@
+# Revo2 split teleoperation controller profile.
+# Target/feedback positions use radians. Velocity commands use rad/s.
+
+revo2_teleop_controller:
+  ros__parameters:
+    hand_mode: right
+    control_hz: 100.0
+    target_timeout: 0.3
+
+    left_target_joint_state_topic: /revo2_left/revo2_pid_controller/target_joint_states
+    right_target_joint_state_topic: /revo2_right/revo2_pid_controller/target_joint_states
+
+    revo2_driver:
+      left_velocity_command_topic: /revo2_left/joint_forward_vel_controller/commands
+      right_velocity_command_topic: /revo2_right/joint_forward_vel_controller/commands
+      left_joint_state_topic: /revo2_left/revo2_joint_state/joint_states
+      right_joint_state_topic: /revo2_right/revo2_joint_state/joint_states
+
+    target_filter:
+      alpha: 0.45
+      fast_alpha: 0.9
+      fast_threshold: 0.095993109
+
+    pd_velocity:
+      velocity_kp: 2.4
+      velocity_kd: 0.0
+      derivative_alpha: 0.25
+      velocity_deadband: 0.013962634
+      velocity_max: 2.094395102
+      velocity_slew_rate: 1.0
+      velocity_feedback_timeout: 0.3
+
+      thumb_velocity_deadband: 0.020943951
+      thumb_velocity_min: 0.0
+      thumb_velocity_kp_scale: 2.4
+      thumb_velocity_brake_zone: 0.209439510
+      thumb_velocity_brake_max: 0.628318531
+
+      ring_velocity_deadband: 0.020943951
+      ring_velocity_min: 0.0
+      ring_velocity_kp_scale: 1.5
+      four_finger_extension_velocity_scale: 1.5
+      four_finger_extension_joints: "2,3,4,5"
+
+    feedback:
+      position_scale: 1.0
+      position_scales: "1,1,1,1,1,1"
+      position_offsets: "0,0,0,0,0,0"

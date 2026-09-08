@@ -10,8 +10,10 @@ MANUS → manus_hand_adapter ───────┐
 HumanDex mux → humandex_hand_adapter ┘
 ```
 
-HumanDex 的采集和 FK 由 BrainCo-HumanDex 启动；此处只监听 `/joint_states` 和
-`/humandex_eef_pose`。
+HumanDex 默认监听外部 `/joint_states` 和 `/humandex_eef_pose`。合入的共享 adapter
+还支持 `input_mode:=dv1_joint_states`：监听 SDK 的单手 JointState，在 adapter 内
+用 DV1 URDF 计算 FK。Revo3 launch 默认仍使用原有双话题模式；已有 DV1 adapter
+发布 HandKinematics 时，选择 `input_source:=external` 并指定 `input_humandex.yaml`。
 
 ## Runtime Assumptions
 
@@ -32,7 +34,7 @@ HumanDex 的采集和 FK 由 BrainCo-HumanDex 启动；此处只监听 `/joint_s
 ```bash
 cd revoarm_hardware/Revoarm_ws
 source /opt/ros/humble/setup.bash
-colcon build --packages-select manus_ros2_msgs manus_ros2 hand_teleop_msgs hand_input_adapters manus_revo3_retarget
+colcon build --packages-up-to manus_ros2 manus_revo3_retarget
 source install/setup.bash
 ```
 

@@ -1,8 +1,13 @@
-# Revo3 Retargeting
+# Revo Retargeting
 
 ROS 2 Humble workspace for teleoperating BrainCo Revo3 hands through HandKinematics inputs.
 
-This branch is the runnable Revo3 workspace. The operator entrypoints are in `scripts/`.
+This workspace includes Revo3 and Revo2 pipelines sharing the hand input adapters.
+The Revo3 operator entrypoints are in `scripts/`. For Revo2 and DV1 input setup,
+see [Revo2 guide](README_REVO2.md), [中文说明](README_CN.md), and
+[DV1 adapter](src/brainco_capabilities/hand_input_adapters/README.md).
+Revo3 uses `requirements.txt`; the imported Revo2 dependency set is preserved in
+`requirements-revo2.txt`.
 
 ## What This Branch Starts
 
@@ -72,7 +77,7 @@ If all other dependencies are already installed, install only the MANUS SDK file
 MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
 ```
 
-The SDK installer copies the official `libManusSDK*.so` files into `src/manus_ros2/ManusSDK/lib/`. After installing the SDK, verify the workspace with:
+The SDK installer copies the official `libManusSDK*.so` files into `src/brainco_drivers/manus_ros2/ManusSDK/lib/`. After installing the SDK, verify the workspace with:
 
 ```bash
 ./scripts/check_system_deps.sh
@@ -97,6 +102,7 @@ source /opt/ros/humble/setup.bash
 python -m colcon build --symlink-install --packages-select \
   manus_ros2_msgs manus_ros2 \
   revo3_mit_controller_msgs revo3_description revo3_mit_controller revo3_driver \
+  revohuman_msgs revohuman_driver revohuman_kinematics \
   hand_teleop_msgs hand_input_adapters manus_revo3_retarget
 source install/setup.bash
 ```
@@ -171,16 +177,16 @@ Pass extra launch arguments through to `pipeline_launch.py`:
 ## Package Layout
 
 ```text
-src/manus_ros2_msgs             MANUS ROS 2 messages
-src/manus_ros2                  MANUS SDK bridge, without redistributing SDK .so files
-src/brainco_revo3_ros2          Revo3 upstream driver submodule
+src/brainco_capabilities/manus_ros2_msgs     MANUS ROS 2 messages
+src/brainco_drivers/manus_ros2               MANUS SDK bridge, without redistributing SDK .so files
+src/brainco_revo3_ros2                      Revo3 upstream driver submodule
 src/brainco_revo3_ros2/revo3_mit_controller_msgs
 src/brainco_revo3_ros2/revo3_mit_controller
 src/brainco_revo3_ros2/revo3_description
 src/brainco_revo3_ros2/revo3_driver
-src/hand_teleop_msgs            Device-neutral HandKinematics message
-src/hand_input_adapters         MANUS / HumanDex / Hex input adapters
-src/manus_revo3_retarget        HandKinematics to Revo3 retarget pipeline
+src/brainco_capabilities/hand_teleop_msgs     Device-neutral HandKinematics message
+src/brainco_capabilities/hand_input_adapters  MANUS / HumanDex / Hex input adapters
+src/manus_revo3_retarget                     HandKinematics to Revo3 retarget pipeline
 ```
 
 ## Troubleshooting

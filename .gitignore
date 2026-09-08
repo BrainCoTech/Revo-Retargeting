@@ -6,6 +6,7 @@ log/
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -17,16 +18,26 @@ dist/
 *.mcal
 *.bag
 *.db3
+*.mcap
 *.log
-.manus_revo2/
 /artifacts/
-/test/
+# Local-only test code
+test/
+tests/
 /MUJOCO_LOG.TXT
 /log.txt
-src/hand_input_adapters/test/
-src/manus_ros2/ManusSDK/lib/*.so
-src/manus_ros2/ManusSDK/lib/*.so.*
-!src/manus_ros2/ManusSDK/lib/.gitkeep
+
+# MANUS SDK runtime files are installed locally, not committed.
+src/brainco_drivers/manus_ros2/ManusSDK.zip
+src/brainco_drivers/manus_ros2/ManusSDK/lib/*.so*
+src/brainco_drivers/manus_ros2/calibrations/**/*.mcal
+
+# BrainCo Stark SDK runtime files are downloaded locally, not committed.
+src/brainco_drivers/revo2_driver/vendor/dist/
+src/brainco_drivers/revo2_driver/vendor/VERSION
+src/brainco_drivers/revo2_driver/vendor/**/*.so*
+src/brainco_drivers/revo2_driver/setup/bin/
+src/brainco_drivers/revo2_driver/setup/build/
 
 # Editor and local agent state
 .vscode/
@@ -34,3 +45,8 @@ src/manus_ros2/ManusSDK/lib/*.so.*
 .agents/
 .codex
 .codex/
+.DS_Store
+
+# Legacy runtime locations retained for local installations.
+.manus_revo2/
+src/manus_ros2/ManusSDK/lib/*.so*
