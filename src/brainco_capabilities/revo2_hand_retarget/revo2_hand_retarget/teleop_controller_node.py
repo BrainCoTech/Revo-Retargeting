@@ -2,7 +2,7 @@
 """Split Revo2 teleoperation controller.
 
 Consumes retargeted target JointState messages and Revo2 feedback JointState
-messages, then publishes rad/s velocity commands for revo2_driver.
+messages, then publishes velocity (rad/s) or position (rad) commands.
 """
 
 from __future__ import annotations
@@ -72,15 +72,22 @@ class SideState:
     target_time: float | None = None
     feedback_time: float | None = None
     last_pd_time: float | None = None
+    command_position: np.ndarray | None = None
+    position_time: float | None = None
+    position_holding: bool = False
+    position_needs_reset: bool = True
 
 
 class Revo2TeleopController(Node):
-    """PD velocity controller for split Revo2 teleoperation."""
+    """Velocity control or bounded position output to existing forward controllers."""
 
     def __init__(self) -> None:
         super().__init__("revo2_teleop_controller")
 
         self._declare_parameters()
+        self.output_mode = str(self.get_parameter("output_mode").value).lower()
+        if self.output_mode not in ("velocity", "position"):
+            raise ValueError("output_mode must be velocity or position")
         self.hand_mode = str(self.get_parameter("hand_mode").value).lower()
         if self.hand_mode not in VALID_HAND_MODES:
             raise ValueError(f"Invalid hand_mode: {self.hand_mode}")
@@ -94,6 +101,15 @@ class Revo2TeleopController(Node):
         self.feedback_timeout = float(
             self.get_parameter("pd_velocity.velocity_feedback_timeout").value
         )
+        self.position_rate_limit = float(self.get_parameter("position.rate_limit").value)
+        self.position_max_lead = float(self.get_parameter("position.max_lead").value)
+        if self.output_mode == "position":
+            for name, value in (("target_timeout", self.target_timeout),
+                                ("feedback_timeout", self.feedback_timeout),
+                                ("position.rate_limit", self.position_rate_limit),
+                                ("position.max_lead", self.position_max_lead)):
+                if not np.isfinite(value) or value <= 0:
+                    raise ValueError(f"{name} must be finite and positive in position mode")
 
         self.target_filter_alpha = float(
             np.clip(float(self.get_parameter("target_filter.alpha").value), 0.0, 1.0)
@@ -187,11 +203,15 @@ class Revo2TeleopController(Node):
         self.get_logger().info(
             "Revo2 teleop controller ready: "
             f"hand_mode={self.hand_mode}, order=[{command_order_label()}], "
-            "target/feedback=rad, command=rad/s"
+            f"target/feedback=rad, output_mode={self.output_mode}, "
+            f"command={'rad' if self.output_mode == 'position' else 'rad/s'}"
         )
         self.create_timer(1.0 / self.control_hz, self._control_callback)
 
     def _declare_parameters(self) -> None:
+        self.declare_parameter("output_mode", "velocity")
+        self.declare_parameter("position.rate_limit", 0.5)
+        self.declare_parameter("position.max_lead", 0.10)
         self.declare_parameter("hand_mode", "right")
         self.declare_parameter("control_hz", 100.0)
         self.declare_parameter("target_timeout", 0.3)
@@ -199,6 +219,8 @@ class Revo2TeleopController(Node):
         self.declare_parameter("right_target_joint_state_topic", "/revo2_right/revo2_pid_controller/target_joint_states")
         self.declare_parameter("revo2_driver.left_velocity_command_topic", "/revo2_left/joint_forward_vel_controller/commands")
         self.declare_parameter("revo2_driver.right_velocity_command_topic", "/revo2_right/joint_forward_vel_controller/commands")
+        self.declare_parameter("revo2_driver.left_position_command_topic", "/revo2_left/joint_forward_pos_controller/commands")
+        self.declare_parameter("revo2_driver.right_position_command_topic", "/revo2_right/joint_forward_pos_controller/commands")
         self.declare_parameter("revo2_driver.left_joint_state_topic", "/revo2_left/revo2_joint_state/joint_states")
         self.declare_parameter("revo2_driver.right_joint_state_topic", "/revo2_right/revo2_joint_state/joint_states")
         self.declare_parameter("target_filter.alpha", 0.45)
@@ -243,7 +265,7 @@ class Revo2TeleopController(Node):
             return
         target_topic = str(self.get_parameter(f"{side}_target_joint_state_topic").value)
         feedback_topic = str(self.get_parameter(f"revo2_driver.{side}_joint_state_topic").value)
-        command_topic = str(self.get_parameter(f"revo2_driver.{side}_velocity_command_topic").value)
+        command_topic = str(self.get_parameter(f"revo2_driver.{side}_{self.output_mode}_command_topic").value)
 
         self.create_subscription(
             JointState,
@@ -278,6 +300,11 @@ class Revo2TeleopController(Node):
         return self.left_publisher if side == "left" else self.right_publisher
 
     def _joint_state_positions(self, msg: JointState, side: str, *, feedback: bool) -> np.ndarray:
+        if self.output_mode == "position" and (
+            not msg.name or len(msg.name) != len(msg.position)
+            or len(set(msg.name)) != len(msg.name)
+        ):
+            raise ValueError("Position mode requires unique joint names and matching positions")
         if len(msg.name) == 0 and len(msg.position) >= 6:
             positions = np.asarray(msg.position[:6], dtype=float)
         else:
@@ -292,9 +319,15 @@ class Revo2TeleopController(Node):
                         f"{side} JointState missing joint {prefix}_{suffix}; names={list(msg.name)}"
                     )
                 positions[i] = float(msg.position[index])
-        positions = np.clip(positions, 0.0, np.asarray(REVO2_JOINT_UPPER_LIMITS_RAD, dtype=float))
+        if not np.all(np.isfinite(positions)):
+            raise ValueError("JointState contains non-finite positions")
+        # Preserve real feedback beyond model limits when initializing/holding.
+        if not feedback or self.output_mode != "position":
+            positions = np.clip(positions, 0.0, np.asarray(REVO2_JOINT_UPPER_LIMITS_RAD, dtype=float))
         if feedback:
             positions = positions * self.feedback_position_scales + self.feedback_position_offsets
+        if not np.all(np.isfinite(positions)):
+            raise ValueError("Calibrated JointState contains non-finite positions")
         return positions
 
     def _on_target(self, msg: JointState, side: str) -> None:
@@ -305,7 +338,7 @@ class Revo2TeleopController(Node):
             return
         state = self._side_state(side)
         state.target_position = target
-        state.target_time = time.time()
+        state.target_time = time.monotonic()
         if not state.target_ready:
             self.get_logger().info(f"Received first {side} target JointState.")
         state.target_ready = True
@@ -318,7 +351,7 @@ class Revo2TeleopController(Node):
             return
         state = self._side_state(side)
         state.actual_position = actual
-        state.feedback_time = time.time()
+        state.feedback_time = time.monotonic()
         if not state.feedback_ready:
             self.get_logger().info(f"Received first {side} Revo2 feedback JointState.")
         state.feedback_ready = True
@@ -412,6 +445,9 @@ class Revo2TeleopController(Node):
         publisher = self._publisher(side)
         if publisher is None:
             return
+        if self.output_mode == "position":
+            self._publish_position(side, state, now, publisher)
+            return
         if not state.target_ready:
             self._warn_throttled(f"Waiting for {side} target JointState.")
             return
@@ -444,8 +480,54 @@ class Revo2TeleopController(Node):
         msg.data = [float(v) for v in state.command_velocity]
         publisher.publish(msg)
 
+    def _publish_position(self, side, state, now, publisher) -> None:
+        feedback_stale = (not state.feedback_ready or state.feedback_time is None
+                          or now - state.feedback_time > self.feedback_timeout)
+        if feedback_stale:
+            state.position_needs_reset = True
+            self._warn_throttled(f"{side} position output paused: no fresh feedback.")
+            return
+        target_stale = (not state.target_ready or state.target_time is None
+                        or now - state.target_time > self.target_timeout)
+        reset = state.position_needs_reset or state.command_position is None
+        if reset or (target_stale and not state.position_holding):
+            state.command_position = state.actual_position.copy()
+            state.filtered_target = state.actual_position.copy()
+            state.filter_initialized = True
+            state.position_time = now
+            state.position_needs_reset = False
+        if target_stale:
+            # Latch once, rather than chasing drifting feedback every tick.
+            state.position_holding = True
+            state.position_time = now
+            self._warn_throttled(f"{side} target timeout: holding measured position.")
+        elif state.position_holding:
+            # Resume from current feedback, never an old buffered target.
+            state.position_holding = False
+            state.command_position = state.actual_position.copy()
+            state.filtered_target = state.actual_position.copy()
+            state.position_time = now
+        elif not reset:
+            dt = min(max(now - state.position_time, 0.0), 1.0 / self.control_hz)
+            target = self._filtered_target(state)
+            step = self.position_rate_limit * dt
+            # Keep the pending goal close to the measured hand even at a stall.
+            lo = np.maximum(state.command_position - step,
+                            state.actual_position - self.position_max_lead)
+            hi = np.minimum(state.command_position + step,
+                            state.actual_position + self.position_max_lead)
+            if np.any(lo > hi):
+                state.position_needs_reset = True
+                self._warn_throttled(f"{side} feedback jumped; resynchronizing position output.")
+                return
+            state.command_position = np.clip(target, lo, hi)
+            state.position_time = now
+        msg = Float64MultiArray()
+        msg.data = [float(v) for v in state.command_position]
+        publisher.publish(msg)
+
     def _control_callback(self) -> None:
-        now = time.time()
+        now = time.monotonic()
         if self.enable_left:
             self._publish_side("left", self.left_state, now)
         if self.enable_right:

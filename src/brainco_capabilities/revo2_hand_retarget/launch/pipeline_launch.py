@@ -20,6 +20,7 @@ def _create_nodes(context, *args, **kwargs):
     use_split_controller = _as_bool(LaunchConfiguration("use_split_controller").perform(context))
     controller_backend = LaunchConfiguration("controller_backend").perform(context).strip().lower()
     use_ros2_control_pid = controller_backend in ("ros2_control", "ros2_control_pid", "pid")
+    use_position = controller_backend == "position"
     control_config = LaunchConfiguration("control_config").perform(context)
     retarget_config = LaunchConfiguration("retarget_config").perform(context)
     teleop_controller_config = LaunchConfiguration("teleop_controller_config").perform(context)
@@ -32,7 +33,11 @@ def _create_nodes(context, *args, **kwargs):
 
     nodes = []
 
-    target_only = use_split_controller or use_ros2_control_pid
+    target_only = use_split_controller or use_ros2_control_pid or use_position
+    target_topics = {
+        side: f"/revo2_{side}/{'retarget' if use_position else 'revo2_pid_controller'}/target_joint_states"
+        for side in ("left", "right")
+    }
     split_retarget_processes = target_only and hand_mode == "both"
     retarget_sides = ("left", "right") if split_retarget_processes else (hand_mode,)
     for side in retarget_sides:
@@ -46,9 +51,9 @@ def _create_nodes(context, *args, **kwargs):
             retarget_args.extend([
                 "--target-only",
                 "--left-target-joint-state-topic",
-                "/revo2_left/revo2_pid_controller/target_joint_states",
+                target_topics["left"],
                 "--right-target-joint-state-topic",
-                "/revo2_right/revo2_pid_controller/target_joint_states",
+                target_topics["right"],
             ])
         if retarget_config:
             retarget_args.extend(["--config-file", retarget_config])
@@ -66,7 +71,7 @@ def _create_nodes(context, *args, **kwargs):
             )
         )
 
-    if use_split_controller and not use_ros2_control_pid:
+    if use_position or (use_split_controller and not use_ros2_control_pid):
         nodes.append(
             Node(
                 package="revo2_hand_retarget",
@@ -74,7 +79,10 @@ def _create_nodes(context, *args, **kwargs):
                 name="revo2_teleop_controller",
                 parameters=[
                     teleop_controller_config,
-                    {"hand_mode": hand_mode},
+                    {"hand_mode": hand_mode,
+                     "output_mode": "position" if use_position else "velocity",
+                     "left_target_joint_state_topic": target_topics["left"],
+                     "right_target_joint_state_topic": target_topics["right"]},
                 ],
                 output="screen",
             )
@@ -104,9 +112,10 @@ def generate_launch_description():
             default_value="python_topic",
             description=(
                 "Controller backend: python_topic uses revo2_teleop_controller + "
-                "joint_forward_vel_controller; ros2_control uses revo2_pid_controller."
+                "joint_forward_vel_controller; ros2_control uses revo2_pid_controller; "
+                "position uses bounded position output + joint_forward_pos_controller."
             ),
-            choices=["python_topic", "topic_velocity", "ros2_control", "ros2_control_pid", "pid"],
+            choices=["python_topic", "topic_velocity", "ros2_control", "ros2_control_pid", "pid", "position"],
         ),
         DeclareLaunchArgument(
             "control_config",

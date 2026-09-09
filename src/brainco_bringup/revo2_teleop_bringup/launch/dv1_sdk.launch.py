@@ -42,7 +42,8 @@ def create_actions(context):
         raise ValueError('launch_revo2_driver requires launch_retarget:=true')
     if retarget:
         retarget_share = Path(get_package_share_directory('revo2_hand_retarget'))
-        arguments = {'hand_mode': side, 'controller_backend': 'ros2_control',
+        arguments = {'hand_mode': side, 'controller_backend': value('controller_backend'),
+                     'teleop_controller_config': value('teleop_controller_config'),
                      'control_config': value('control_config')}
         name = 'pipeline_launch.py'
         if hardware:
@@ -72,6 +73,9 @@ def generate_launch_description():
         DeclareLaunchArgument('sdk_python', default_value='/usr/bin/python3'),
         DeclareLaunchArgument('adapter_config', default_value=''),
         DeclareLaunchArgument('control_config', default_value='retarget.yaml'),
+        DeclareLaunchArgument('controller_backend', default_value='ros2_control',
+                             choices=['ros2_control', 'position']),
+        DeclareLaunchArgument('teleop_controller_config', default_value='teleop_controller.yaml'),
         *(DeclareLaunchArgument(k, default_value=v, choices=['true', 'false']) for k, v in (
             ('launch_sdk', 'true'), ('launch_retarget', 'false'), ('launch_revo2_driver', 'false'))),
         OpaqueFunction(function=create_actions),

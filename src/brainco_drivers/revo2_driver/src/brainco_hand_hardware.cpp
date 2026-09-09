@@ -213,6 +213,7 @@ auto BraincoHandHardware::on_configure(const rclcpp_lifecycle::State & previous_
 {
   (void)previous_state;
   BRAINCO_HAND_LOG_INFO("on_configure invoked");
+  normalized_limits_.reset();
 
   std::fill(hw_positions_.begin(), hw_positions_.end(), 0.0);
   std::fill(hw_velocities_.begin(), hw_velocities_.end(), 0.0);
@@ -265,9 +266,31 @@ auto BraincoHandHardware::on_activate(const rclcpp_lifecycle::State & previous_s
 
   if (config_.transport.finger_unit_mode != FingerUnitModeSetting::kKeepCurrent)
   {
-    ensure_finger_unit_mode();
+    const bool confirmed = ensure_finger_unit_mode();
+    if (config_.normalized_position_control && !confirmed) {
+      return hardware_interface::CallbackReturn::ERROR;
+    }
   }
   apply_thumb_aux_settings();
+
+  if (config_.normalized_position_control) {
+    normalized_limits_ = api_.get_normalized_motor_limits(config_.transport.slave_id);
+    if (!normalized_limits_) {
+      BRAINCO_HAND_LOG_ERROR("Position activation refused: cannot read valid limits in normalized mode");
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+    // Do not initialize a position command from the zero-filled state buffers.
+    if (read(rclcpp::Time(0), rclcpp::Duration(0, 0)) != hardware_interface::return_type::OK) {
+      BRAINCO_HAND_LOG_ERROR("Position activation refused: no valid initial motor feedback");
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+    for (std::size_t motor = 0; motor < kFingerCount; ++motor) {
+      BRAINCO_HAND_LOG_INFO("Position motor %zu: %.1f..%.1f deg, SDK execution speed=%.0f/1000",
+        motor, normalized_limits_->min_deg[motor], normalized_limits_->max_deg[motor],
+        config_.position_speed_normalized);
+    }
+    control_mode_ = ControlMode::kPOSVelocityBased;
+  }
 
   for (std::size_t i = 0; i < hw_positions_.size(); ++i)
   {
@@ -394,6 +417,12 @@ auto BraincoHandHardware::read(const rclcpp::Time & time, const rclcpp::Duration
   }
 
   const auto & motor_status = *status;
+  if (normalized_limits_ && std::any_of(motor_status.positions.begin(), motor_status.positions.end(),
+      [](uint16_t p) {return p > 1000;}))
+  {
+    BRAINCO_HAND_LOG_ERROR("Invalid normalized position feedback; refusing state update");
+    return hardware_interface::return_type::ERROR;
+  }
 
   const auto joint_count = std::min<std::size_t>(hw_positions_.size(), kFingerCount);
   if (joint_count == 0)
@@ -408,8 +437,10 @@ auto BraincoHandHardware::read(const rclcpp::Time & time, const rclcpp::Duration
     const auto raw_position = static_cast<double>(motor_status.positions[sdk_index]);
     const auto raw_velocity = static_cast<double>(motor_status.speeds[sdk_index]);
     const auto raw_current = static_cast<double>(motor_status.currents[sdk_index]);
-    hw_positions_[i] = raw_position * config_.position_state_scale;
-    hw_velocities_[i] = raw_velocity * config_.velocity_state_scale;
+    hw_positions_[i] = normalized_limits_ ? normalized_limits_->position_rad(sdk_index, raw_position)
+                                         : raw_position * config_.position_state_scale;
+    hw_velocities_[i] = normalized_limits_ ? normalized_limits_->velocity_rad_s(sdk_index, raw_velocity)
+                                          : raw_velocity * config_.velocity_state_scale;
     // SDK currents/states are published to dynamic_joint_states for monitor usage.
     // 将 SDK 电流与状态发布到 dynamic_joint_states，供 Monitor 统一监测。
     hw_currents_[i] = raw_current;
@@ -602,6 +633,13 @@ auto BraincoHandHardware::write(const rclcpp::Time & time, const rclcpp::Duratio
   std::array<int16_t, kFingerCount> control_values_int16{};  
 
   const auto joint_count = std::min<std::size_t>(hw_commands_.size(), kFingerCount);
+  if (config_.normalized_position_control && (!normalized_limits_ ||
+      std::any_of(hw_commands_.begin(), hw_commands_.end(),
+        [](double q) {return !std::isfinite(q);})))
+  {
+    BRAINCO_HAND_LOG_ERROR("Refusing position write: invalid command or missing firmware limits");
+    return hardware_interface::return_type::ERROR;
+  }
   if (joint_count == 0)
   {
     BRAINCO_HAND_LOG_WARN("Skip write: no joints configured");
@@ -611,7 +649,9 @@ auto BraincoHandHardware::write(const rclcpp::Time & time, const rclcpp::Duratio
   {
     const auto sdk_index =
       i < joint_to_sdk_motor_index_.size() ? joint_to_sdk_motor_index_[i] : i;
-    const double desired_device = hw_commands_[i] * config_.position_command_scale;
+    const double desired_device = normalized_limits_
+      ? normalized_limits_->position_command(sdk_index, hw_commands_[i])
+      : hw_commands_[i] * config_.position_command_scale;
     const double clamped =
       std::clamp(desired_device, config_.position_device_min, config_.position_device_max);
     
@@ -628,6 +668,11 @@ auto BraincoHandHardware::write(const rclcpp::Time & time, const rclcpp::Duratio
         break;
       case ControlMode::kPOSVelocityBased:
       {
+        if (config_.normalized_position_control) {
+          control_values_uint16[sdk_index] = CommandConverter::to_uint16(
+            config_.position_speed_normalized, 1.0, 1000.0);
+          break;
+        }
         double velocity_percentage = std::abs(hw_velocities_command_[i]);
         if (!std::isfinite(velocity_percentage) || velocity_percentage <= 0.0)
         {
@@ -978,6 +1023,18 @@ auto BraincoHandHardware::init_parameters(const hardware_interface::HardwareInfo
       std::min<unsigned long>(duration_value, std::numeric_limits<uint16_t>::max()));
     config_.position_command_scale = std::stod(get_parameter("position_command_scale", "1.0"));
     config_.position_state_scale = std::stod(get_parameter("position_state_scale", "1.0"));
+    config_.normalized_position_control =
+      parse_bool(get_parameter("normalized_position_control", "false"), false);
+    config_.position_speed_normalized = std::stod(get_parameter("position_speed_normalized", "100.0"));
+    if (config_.normalized_position_control &&
+      (config_.transport.protocol != Protocol::kModbus ||
+       config_.transport.finger_unit_mode != FingerUnitModeSetting::kNormalized ||
+       !std::isfinite(config_.position_speed_normalized) ||
+       config_.position_speed_normalized < 1.0 || config_.position_speed_normalized > 1000.0))
+    {
+      throw std::invalid_argument(
+        "normalized_position_control requires Modbus, normalized units and position_speed_normalized in 1..1000");
+    }
     config_.velocity_state_scale = std::stod(get_parameter("velocity_state_scale", "1.0"));
     const auto velocity_command_scale_param = get_parameter("velocity_command_scale", "");
     if (!velocity_command_scale_param.empty())
@@ -1477,6 +1534,19 @@ auto BraincoHandHardware::prepare_command_mode_switch(
   const std::vector<std::string> & stop_interfaces)
   -> hardware_interface::return_type
 {
+  if (config_.normalized_position_control) {
+    for (const auto & iface : command_interfaces) {
+      if (!ends_with(iface, "/position")) {
+        BRAINCO_HAND_LOG_ERROR("Normalized position profile accepts only position command interfaces");
+        return hardware_interface::return_type::ERROR;
+      }
+    }
+    if (!command_interfaces.empty()) {
+      // State has been read by the controller manager before switching.
+      std::copy(hw_positions_.begin(), hw_positions_.end(), hw_commands_.begin());
+      std::fill(hw_velocities_command_.begin(), hw_velocities_command_.end(), 0.0);
+    }
+  }
   // 根据激活的接口类型来检测控制器类型，自动切换模式
   update_control_mode_from_interfaces(command_interfaces, stop_interfaces);
   

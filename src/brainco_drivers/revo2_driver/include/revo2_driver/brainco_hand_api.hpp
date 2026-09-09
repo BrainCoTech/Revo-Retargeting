@@ -20,6 +20,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include "revo2_driver/normalized_motor_limits.hpp"
 
 // Forward declarations from Stark SDK to decouple headers.
 struct CDeviceConfig;
@@ -151,6 +152,8 @@ public:
     virtual bool fetch_device_info(uint8_t slave_id, DeviceInfoData & info) const = 0;
     virtual bool ensure_finger_unit_mode(uint8_t slave_id, FingerUnitModeSetting mode) = 0;
     [[nodiscard]] virtual std::optional<MotorStatus> get_motor_status(uint8_t slave_id) const = 0;
+    [[nodiscard]] virtual std::optional<NormalizedMotorLimits> get_normalized_motor_limits(
+      uint8_t slave_id) const = 0;
     [[nodiscard]] virtual std::optional<TouchStatus> get_touch_status(uint8_t slave_id) const = 0;
     virtual bool set_finger_positions_and_durations(
       uint8_t slave_id, const uint16_t * positions, const uint16_t * durations,
@@ -190,6 +193,7 @@ public:
   auto ensure_finger_unit_mode(uint8_t slave_id, FingerUnitModeSetting mode) -> bool;
 
   auto get_motor_status(uint8_t slave_id) const -> std::optional<MotorStatus>;
+  auto get_normalized_motor_limits(uint8_t slave_id) const -> std::optional<NormalizedMotorLimits>;
 
   auto get_touch_status(uint8_t slave_id) const -> std::optional<TouchStatus>;
 

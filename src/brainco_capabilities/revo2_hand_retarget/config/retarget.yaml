@@ -20,8 +20,8 @@ pose_thumb:
     thumb_joint_offset_deg: 6.0
     # MuJoCo thumb IK tuning:
     # cmp controls thumb side swing; mcp controls thumb flexion.
-    thumb_cmp_scale: 1.20
-    thumb_mcp_scale: 0.75
+    thumb_cmp_scale: 0.90
+    thumb_mcp_scale: 0.55
     thumb_cmp_offset_deg: 0.0
     thumb_mcp_offset_deg: 0.0
     pip_constraint_weight: 0.10

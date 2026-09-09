@@ -32,6 +32,7 @@ public:
   bool ensure_finger_unit_mode(
     uint8_t slave_id, FingerUnitModeSetting mode) override;
   std::optional<BraincoHandApi::MotorStatus> get_motor_status(uint8_t slave_id) const override;
+  std::optional<NormalizedMotorLimits> get_normalized_motor_limits(uint8_t slave_id) const override;
   std::optional<BraincoHandApi::TouchStatus> get_touch_status(uint8_t slave_id) const override;
   bool set_finger_positions_and_durations(
     uint8_t slave_id, const uint16_t * positions, const uint16_t * durations,

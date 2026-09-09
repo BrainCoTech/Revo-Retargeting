@@ -6,6 +6,13 @@ revo2_teleop_controller:
     hand_mode: right
     control_hz: 100.0
     target_timeout: 0.3
+    # Position backend: radians, radians/second. Firmware execution speed is
+    # configured separately in the hardware YAML (position_speed_normalized).
+    position:
+      # 3 rad/s (~172 deg/s) exceeds the previously read 130..160 deg/s
+      # firmware caps. Allow enough lead for the 20 Hz hardware feedback.
+      rate_limit: 3.0
+      max_lead: 0.25
 
     left_target_joint_state_topic: /revo2_left/revo2_pid_controller/target_joint_states
     right_target_joint_state_topic: /revo2_right/revo2_pid_controller/target_joint_states

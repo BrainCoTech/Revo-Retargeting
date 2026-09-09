@@ -1,0 +1,28 @@
+# Opt-in Modbus position control for the left Revo2.
+# Firmware angle/speed limits are read on activation, never written.
+hardware:
+  protocol: modbus
+  slave_id: 126
+  log_level: info
+  finger_unit_mode: normalized
+  normalized_position_control: true
+  # SDK speed units 1..1000, NOT percent. Full configured firmware speed.
+  position_speed_normalized: 1000.0
+  ensure_physical_mode: false
+  ctrl_param_duration_ms: 10
+  # Required legacy xacro fields; position/velocity feedback conversion below
+  # is replaced by per-motor firmware limits in normalized_position_control.
+  position_command_scale: 1.0
+  position_state_scale: 1.0
+  velocity_state_scale: 1.0
+  position_device_min: 0.0
+  position_device_max: 1000.0
+  port: /dev/ttyUSB0
+  baudrate: 460800
+  auto_detect: false
+  auto_detect_quick: true
+  auto_detect_port: ''
+  connection_retry_attempts: 20
+  connection_retry_interval_ms: 500
+  debug_write_commands: true
+  debug_write_interval: 1.0

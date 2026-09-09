@@ -273,6 +273,9 @@ ament_export_dependencies(
 # 测试配置
 # -----------------------------------------------------------------------------
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_normalized_motor_limits checks/test_normalized_motor_limits.cpp)
+  target_link_libraries(test_normalized_motor_limits ${PROJECT_NAME})
   find_package(ament_lint_auto REQUIRED)
   # 自动查找和配置代码质量检查工具（如 cppcheck, cpplint 等）
   ament_lint_auto_find_test_dependencies()

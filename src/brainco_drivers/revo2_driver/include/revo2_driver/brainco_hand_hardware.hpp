@@ -70,6 +70,8 @@ private:
     uint16_t ctrl_param_duration_ms{kDefaultDurationMs};
     double position_command_scale{1.0};
     double position_state_scale{1.0};
+    bool normalized_position_control{false};
+    double position_speed_normalized{100.0};  // Explicit SDK units, 1..1000; not percent.
     double velocity_state_scale{1.0};
     double velocity_command_scale{1.0};
     double velocity_device_min{kDefaultVelocityMin};
@@ -108,6 +110,7 @@ private:
   DriverConfig config_{};
   std::optional<BraincoHandApi::ConnectionInfo> resolved_connection_;
   BraincoHandApi api_{};
+  std::optional<NormalizedMotorLimits> normalized_limits_;
   bool is_active_{false};
   double last_read_debug_stamp_{-1.0};
   double last_write_debug_stamp_{-1.0};

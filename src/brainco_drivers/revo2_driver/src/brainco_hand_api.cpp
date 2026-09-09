@@ -146,6 +146,15 @@ auto BraincoHandApi::get_motor_status(uint8_t slave_id) const -> std::optional<M
   return impl_->session->get_motor_status(slave_id);
 }
 
+auto BraincoHandApi::get_normalized_motor_limits(uint8_t slave_id) const
+  -> std::optional<NormalizedMotorLimits>
+{
+  if (!impl_ || !impl_->session) {
+    return std::nullopt;
+  }
+  return impl_->session->get_normalized_motor_limits(slave_id);
+}
+
 auto BraincoHandApi::get_touch_status(uint8_t slave_id) const -> std::optional<TouchStatus>
 {
   if (!impl_ || !impl_->session)

@@ -184,6 +184,33 @@ bool SessionBase::ensure_finger_unit_mode(uint8_t slave_id, FingerUnitModeSettin
   return false;
 }
 
+std::optional<NormalizedMotorLimits> SessionBase::get_normalized_motor_limits(uint8_t slave_id) const
+{
+  if (!handler_ || config_.protocol != Protocol::kModbus) {
+    return std::nullopt;
+  }
+  // Use register reads with explicit error returns: the SDK's convenience
+  // getters return normalized/zero on failure, which is ambiguous here.
+  uint16_t mode_before = 0xffff;
+  uint16_t mode_after = 0xffff;
+  std::array<uint16_t, 18> registers{};
+  if (::stark_read_holding_registers(handler_, slave_id, 937, 1, &mode_before) != 0 ||
+    mode_before != 0 ||
+    ::stark_read_holding_registers(handler_, slave_id, 946, registers.size(), registers.data()) != 0 ||
+    ::stark_read_holding_registers(handler_, slave_id, 937, 1, &mode_after) != 0 ||
+    mode_after != 0)
+  {
+    return std::nullopt;
+  }
+  NormalizedMotorLimits limits;
+  for (std::size_t i = 0; i < 6; ++i) {
+    limits.min_deg[i] = registers[i];
+    limits.max_deg[i] = registers[i + 6];
+    limits.max_speed_deg_s[i] = registers[i + 12];
+  }
+  return limits.valid() ? std::optional<NormalizedMotorLimits>(limits) : std::nullopt;
+}
+
 std::optional<BraincoHandApi::MotorStatus> SessionBase::get_motor_status(uint8_t slave_id) const
 {
   if (!handler_)

@@ -56,6 +56,8 @@
           <param name="touch_read_hz">${touch_read_hz}</param>
           <param name="position_command_scale">${hardware_config['position_command_scale']}</param>
           <param name="position_state_scale">${hardware_config['position_state_scale']}</param>
+          <xacro:revo2-optional-param config="${hardware_config}" key="normalized_position_control" />
+          <xacro:revo2-optional-param config="${hardware_config}" key="position_speed_normalized" />
           <param name="velocity_state_scale">${hardware_config['velocity_state_scale']}</param>
           <xacro:revo2-optional-param config="${hardware_config}" key="velocity_command_scale" />
           <xacro:revo2-optional-param config="${hardware_config}" key="velocity_device_min" />

@@ -1,4 +1,5 @@
 import os
+import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription, LaunchContext
@@ -42,51 +43,58 @@ target='{target_controller}'
 controller_active() {{
   local name="$1"
   timeout 5 ros2 control list_controllers -c "$cm" 2>/dev/null | \\
-    sed -E 's/\x1B\[[0-9;]*[mK]//g' | \\
+    sed -E 's/\\x1B\\[[0-9;]*[mK]//g' | \\
     awk -v name="$name" '$1 == name && $NF == "active" {{found=1}} END {{exit found ? 0 : 1}}'
 }}
 
 controller_exists() {{
   local name="$1"
   timeout 5 ros2 control list_controllers -c "$cm" 2>/dev/null | \\
-    sed -E 's/\x1B\[[0-9;]*[mK]//g' | \\
+    sed -E 's/\\x1B\\[[0-9;]*[mK]//g' | \\
     awk -v name="$name" '$1 == name {{found=1}} END {{exit found ? 0 : 1}}'
 }}
 
 for attempt in $(seq 1 30); do
-  if controller_active "$target"; then
-    echo "[real_hand_pipeline] $cm $target is already active."
-    exit 0
-  fi
-
   if ! controller_exists "$target"; then
     echo "[real_hand_pipeline] Loading $target on $cm..."
     timeout 8 ros2 control load_controller -c "$cm" --set-state inactive "$target" || true
     sleep 1
   fi
 
-  stop_args=()
+  stop_names=()
   if controller_active joint_forward_pos_controller && [ "$target" != "joint_forward_pos_controller" ]; then
-    stop_args+=(--deactivate joint_forward_pos_controller)
+    stop_names+=(joint_forward_pos_controller)
   fi
   if controller_active joint_forward_vel_controller && [ "$target" != "joint_forward_vel_controller" ]; then
-    stop_args+=(--deactivate joint_forward_vel_controller)
+    stop_names+=(joint_forward_vel_controller)
   fi
   if controller_active revo2_pid_controller && [ "$target" != "revo2_pid_controller" ]; then
-    stop_args+=(--deactivate revo2_pid_controller)
+    stop_names+=(revo2_pid_controller)
+  fi
+  stop_args=()
+  if [ ${{#stop_names[@]}} -gt 0 ]; then
+    stop_args=(--deactivate "${{stop_names[@]}}")
+  fi
+
+  activate_args=()
+  if controller_active "$target"; then
+    if [ ${{#stop_args[@]}} -eq 0 ]; then
+      echo "[real_hand_pipeline] $cm $target is active; competing controllers are inactive."
+      exit 0
+    fi
+  else
+    activate_args+=(--activate "$target")
   fi
 
   echo "[real_hand_pipeline] Switching $cm to $target (attempt $attempt)..."
   if timeout 8 ros2 control switch_controllers \\
       -c "$cm" \\
       "${{stop_args[@]}}" \\
-      --activate "$target" \\
+      "${{activate_args[@]}}" \\
       --activate-asap \\
       --strict; then
-    if controller_active "$target"; then
-      echo "[real_hand_pipeline] $cm $target is active."
-      exit 0
-    fi
+    # Recheck both the selected controller and competing controllers.
+    continue
   fi
   sleep 1
 done
@@ -122,6 +130,8 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
 
     if hand_mode == "both" and not use_namespace:
         raise RuntimeError("hand_mode:=both requires use_namespace:=true")
+    if controller_backend == "position" and not use_namespace:
+        raise RuntimeError("position backend requires use_namespace:=true for command/feedback topics")
 
     driver_share = get_package_share_directory("revo2_driver")
     retarget_share = get_package_share_directory("revo2_hand_retarget")
@@ -142,6 +152,14 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
     if launch_driver:
         for side in sides:
             protocol_config = LaunchConfiguration(f"{side}_protocol_config_file").perform(context)
+            if controller_backend == "position" and not _as_bool(LaunchConfiguration("if_sim").perform(context)):
+                if protocol != "modbus" or not protocol_config:
+                    raise ValueError("Position hardware requires Modbus and an explicit position protocol YAML")
+                with open(os.path.expanduser(protocol_config), encoding="utf-8") as stream:
+                    hardware = (yaml.safe_load(stream) or {}).get("hardware", {})
+                if (hardware.get("normalized_position_control") is not True or
+                        hardware.get("finger_unit_mode") != "normalized"):
+                    raise ValueError("Use a position YAML with normalized_position_control: true and finger_unit_mode: normalized")
             actions.append(
                 IncludeLaunchDescription(
                     PythonLaunchDescriptionSource(driver_launch),
@@ -163,7 +181,9 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
 
     if switch_controllers:
         switch_actions = []
-        target_controller = "revo2_pid_controller" if use_ros2_control_pid else "joint_forward_vel_controller"
+        target_controller = ("joint_forward_pos_controller" if controller_backend == "position" else
+                             "revo2_pid_controller" if use_ros2_control_pid else
+                             "joint_forward_vel_controller")
         for side in sides:
             controller_manager = _controller_manager_name(side, use_namespace)
             switch_actions.append(
@@ -262,7 +282,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "switch_delay",
             default_value="16.0",
-            description="Seconds to wait before switching to velocity controller.",
+            description="Seconds to wait before selecting the teleop controller.",
         ),
         DeclareLaunchArgument(
             "retarget_delay",
@@ -282,7 +302,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "switch_controllers",
             default_value="true",
-            description="Switch Revo2 from position controller to velocity controller.",
+            description="Activate the selected controller and deactivate competing controllers.",
         ),
         DeclareLaunchArgument(
             "launch_retarget",
@@ -307,9 +327,10 @@ def generate_launch_description():
             default_value="python_topic",
             description=(
                 "Controller backend: python_topic uses revo2_teleop_controller + "
-                "joint_forward_vel_controller; ros2_control uses revo2_pid_controller."
+                "joint_forward_vel_controller; ros2_control uses revo2_pid_controller; "
+                "position uses joint_forward_pos_controller."
             ),
-            choices=["python_topic", "topic_velocity", "ros2_control", "ros2_control_pid", "pid"],
+            choices=["python_topic", "topic_velocity", "ros2_control", "ros2_control_pid", "pid", "position"],
         ),
         DeclareLaunchArgument(
             "plot_window",

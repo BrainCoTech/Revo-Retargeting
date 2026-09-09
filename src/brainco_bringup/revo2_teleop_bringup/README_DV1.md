@@ -3,6 +3,112 @@
 适用 SDK：`brainco_revohuman_sdk` 的 `sdk-encoder-fk-viewer` 分支（核对版本 67531b1）。
 回退点：本仓库 `0579772` 是旧 HumanDex 上游四指方案。
 
+## 位置模式测试（feat/revo2-position-teleop）
+
+`dv1_sdk.launch.py controller_backend:=position` 复用现有
+`joint_forward_pos_controller`。默认的 `ros2_control` 选项仍是速度 PID。
+位置模式的数据流为：
+
+```text
+adapter → HandKinematics → retarget（target-only）
+  → /revo2_left/retarget/target_joint_states（JointState，rad）
+  → revo2_teleop_controller（output_mode=position）
+  → /revo2_left/joint_forward_pos_controller/commands（Float64MultiArray，rad）
+  → BraincoHandHardware → SDK positions_and_speeds
+```
+
+六个角度顺序为拇指弯曲、拇指侧摆、食指、中指、无名指、小指。
+手套 adapter、FK、四指标定和 retarget 的 IK 不因位置模式而改变。
+
+### 构建和启动
+
+以下构建复用已安装的消息包，输出到独立目录。adapter 和 FK 一起安装，
+避免其他 overlay 的旧 `revohuman_kinematics` 遮蔽 `joint_fk`：
+
+```bash
+cd /home/jiimmy/Brainco/Code/Revo-Retargeting
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+source install/dv1_sdk_test/local_setup.bash
+colcon --log-base log/position_test build \
+  --build-base build/position_test --install-base install/position_test \
+  --symlink-install \
+  --packages-select revo2_driver revo2_hand_retarget revo2_teleop_bringup \
+    revohuman_kinematics hand_input_adapters \
+  --allow-overriding revo2_driver revo2_hand_retarget revo2_teleop_bringup \
+    revohuman_kinematics hand_input_adapters \
+  --cmake-args -DBUILD_TESTING=ON -DENABLE_CANFD=OFF
+```
+
+先在原终端 Ctrl+C 停止上一套遥操作和占用手套串口的 viewer，然后启动左手：
+
+```bash
+cd /home/jiimmy/Brainco/Code/Revo-Retargeting
+source /home/jiimmy/miniforge3/etc/profile.d/conda.sh
+conda activate retarget_revo2
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+source install/dv1_sdk_test/local_setup.bash
+source install/position_test/local_setup.bash
+export ROS_DOMAIN_ID=25
+
+ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
+  hand_mode:=left controller_backend:=position \
+  port:=/dev/ttyACM0 \
+  sdk_path:=/home/jiimmy/Brainco/Code/RevoHuman/brainco_revohuman_sdk \
+  adapter_config:="$PWD/dv1_left_thumb_tip.yaml" \
+  revo2_protocol_config_file:="$PWD/revo2_left_position.yaml" \
+  launch_retarget:=true launch_revo2_driver:=true
+```
+
+`revo2_left_position.yaml` 指定机器人串口 `/dev/ttyUSB0`、从站 126。
+这份配置是 **position + normalized**，目前只支持 Modbus。启动时通过有明确
+错误返回的寄存器读取确认 normalized 模式，读取每个电机的最小/最大角度及最大速度，
+指令和反馈按同一份范围换算。范围无效或首次反馈失败就拒绝激活，不用 URDF 范围兜底。
+这些是固件配置范围，并非实测碰撞、接触或机械限位。代码不修改固件行程或电流保护。
+该配置会拒绝激活 velocity 命令接口；切回速度模式须停掉驱动并换回速度 YAML。
+
+### 调参和检查
+
+- `revo2_left_position.yaml` 的 `position_speed_normalized: 1000.0` 是直接传 SDK 的
+  **1～1000** 速度值，当前为固件配置的满速；不是旧的 `velocity_percentage: 100`。
+- `revo2_hand_retarget/config/teleop_controller.yaml` 的 `position.rate_limit: 3.0`
+  限制目标推进速度为 3.0 rad/s（约 172°/s），高于此前读取的固件 130～160°/s 上限。
+  `position.max_lead: 0.25` 允许目标领先实际位置最多 0.25 rad，以适配 20 Hz 硬件反馈。
+  可复制这份 YAML 后通过 `teleop_controller_config:=/绝对路径.yaml` 调整。
+- 第一次输出从新鲜反馈开始。目标中断超过 0.3 s 后锁定一次反馈位置；反馈也过期时
+  停止更新位置命令，恢复后从反馈重新开始。retarget 自身还有 0.3 s 输入超时。
+  ForwardCommandController 会保留最后一条命令，反馈丢失或输出节点退出不等于硬件急停；
+  它仍可能完成最后一小段目标运动，不能把“停止发布”理解为立即停止。
+
+在同样 source 了环境并设置 ROS_DOMAIN_ID 的另一终端检查：
+
+```bash
+ros2 control list_controllers -c /revo2_left/controller_manager
+ros2 topic echo /revo2_left/retarget/target_joint_states sensor_msgs/msg/JointState --once
+ros2 topic echo /revo2_left/joint_forward_pos_controller/commands std_msgs/msg/Float64MultiArray --once
+ros2 topic echo /revo2_left/revo2_joint_state/joint_states sensor_msgs/msg/JointState --once
+```
+
+应看到 pos controller 为 active，速度 PID 和 forward velocity 为 inactive。
+驱动调试日志 `mode=position_velocity` 表示发送位置目标及执行速度；`mode=speed`
+才是仅发送速度。位置配置不会使 firmware 限位之外的姿态变得可达。
+
+### 验证
+
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+source install/dv1_sdk_test/local_setup.bash
+source install/position_test/local_setup.bash
+python3 -m pytest -q src/brainco_capabilities/revo2_hand_retarget/checks/test_position_*.py
+ctest --test-dir build/position_test/revo2_driver -R '^test_normalized_motor_limits$' --output-on-failure
+python3 src/brainco_capabilities/revo2_hand_retarget/checks/position_mock_integration.py
+```
+
+模拟验证只启动 GenericSystem，在 localhost ROS domain 87 检查目标转换、实际
+forward controller、反馈跟随和超时保持，不打开真机串口。真机执行效果需另行测试。
+
 ## 数据和坐标定义
 
 ```text
