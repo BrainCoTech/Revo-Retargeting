@@ -19,19 +19,19 @@ manus_revo3_retarget:
     physical_left_index_DIP_joint_offset_deg: 0.0
     physical_left_index_PIP_joint_scale: 1.0
     physical_left_index_PIP_joint_offset_deg: 0.0
-    physical_left_index_MCP_joint_scale: 1.0
-    physical_left_index_MCP_joint_offset_deg: 0.0
+    physical_left_index_MCP_joint_scale: 1.2
+    physical_left_index_MCP_joint_offset_deg: 10.0
     physical_left_middle_DIP_joint_scale: 1.0
     physical_left_middle_DIP_joint_offset_deg: 0.0
-    physical_left_middle_PIP_joint_scale: 1.0
+    physical_left_middle_PIP_joint_scale: 0.8
     physical_left_middle_PIP_joint_offset_deg: 0.0
     physical_left_middle_MCP_joint_scale: 1.0
-    physical_left_middle_MCP_joint_offset_deg: 0.0
+    physical_left_middle_MCP_joint_offset_deg: 10.0
     physical_left_ring_DIP_joint_scale: 1.0
-    physical_left_ring_DIP_joint_offset_deg: 0.0
+    physical_left_ring_DIP_joint_offset_deg: -10.0
     physical_left_ring_PIP_joint_scale: 1.0
     physical_left_ring_PIP_joint_offset_deg: 0.0
-    physical_left_ring_MCP_joint_scale: 1.2
+    physical_left_ring_MCP_joint_scale: 1.4
     physical_left_ring_MCP_joint_offset_deg: 15.0
     physical_left_little_DIP_joint_scale: 1.0
     physical_left_little_DIP_joint_offset_deg: 0.0

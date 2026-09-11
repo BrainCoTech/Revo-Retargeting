@@ -27,7 +27,7 @@ manus_revo3_retarget:
     legacy_left_physical_thumb_mcp_offset_deg: 0.0
     legacy_left_physical_thumb_mcp_scale: 1.0
     legacy_left_physical_thumb_pip_ik_scale: 1.0
-    legacy_left_physical_thumb_pip_scale: 1.2000000000000002
+    legacy_left_physical_thumb_pip_scale: 1.1000000000000002
     legacy_left_physical_thumb_reach_scale: 1.0
     mit_default_kd: 0.02
     mit_default_kp: 0.2
