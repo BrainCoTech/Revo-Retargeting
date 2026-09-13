@@ -1,0 +1,69 @@
+{
+  "model_id": "right_official_pd_v2",
+  "source_palm_x_sign": -1,
+  "common": {
+    "kind": "vector",
+    "close_enter_m": 0.015,
+    "close_exit_m": 0.028,
+    "close_weight_multiplier": 2.0,
+    "max_nfev": 60,
+    "filter_tau_s": 0.035,
+    "max_command_speed_rad_s": 4.0,
+    "posture_weight": 0.02,
+    "temporal_weight": 0.08,
+    "pair_weight": 0.5
+  },
+  "candidates": [
+    {
+      "name": "legacy",
+      "close_enter_m": 0.02
+    },
+    {
+      "name": "collision300",
+      "observation_mode": "observable",
+      "side_posture_weight": 10.0,
+      "posture_weight": 0.15,
+      "collision_weight": 300.0,
+      "pad_pair_weight": 1.0,
+      "pad_tangent_scale_m": 0.004,
+      "pad_normal_scale_m": 0.002,
+      "pad_opposed_normal_scale": 0.2,
+      "source_surface_clearance_m": 0.004,
+      "pad_preload_m": 0.00035,
+      "near_tip_weight": 0.15,
+      "distal_direction_weight": 0.3
+    },
+    {
+      "name": "pad025",
+      "observation_mode": "observable",
+      "side_posture_weight": 10.0,
+      "posture_weight": 0.15,
+      "collision_weight": 300.0,
+      "pad_pair_weight": 0.25,
+      "pad_tangent_scale_m": 0.004,
+      "pad_normal_scale_m": 0.002,
+      "pad_opposed_normal_scale": 0.2,
+      "source_surface_clearance_m": 0.004,
+      "pad_preload_m": 0.00035,
+      "near_tip_weight": 0.15,
+      "distal_direction_weight": 0.3,
+      "pad_orientation_weight": 0.25
+    },
+    {
+      "name": "collision1000",
+      "observation_mode": "observable",
+      "side_posture_weight": 10.0,
+      "posture_weight": 0.15,
+      "collision_weight": 1000.0,
+      "pad_pair_weight": 1.0,
+      "pad_tangent_scale_m": 0.004,
+      "pad_normal_scale_m": 0.002,
+      "pad_opposed_normal_scale": 0.2,
+      "source_surface_clearance_m": 0.004,
+      "pad_preload_m": 0.00035,
+      "near_tip_weight": 0.15,
+      "distal_direction_weight": 0.3
+    }
+  ],
+  "scope": "Same public Solver and candidate config across all cases; no task-specific targets or partner commands"
+}

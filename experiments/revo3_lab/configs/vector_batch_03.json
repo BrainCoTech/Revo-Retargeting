@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "source_palm_x_sign": -1,
+  "source_frame_policy": "Explicit reflection of source anatomical x into the right Revo3 palmar direction. Fixed from tuning sample median curled tip x=-47.21 mm; source side remains unspecified. Units and key times come from FBX metadata.",
+  "batch_wall_limit_s": 3600,
+  "common": {
+    "close_enter_m": 0.02,
+    "close_exit_m": 0.028,
+    "close_weight_multiplier": 2.0,
+    "max_nfev": 35,
+    "filter_tau_s": 0.035,
+    "max_command_speed_rad_s": 4.0,
+    "posture_weight": 0.02,
+    "temporal_weight": 0.015,
+    "pair_weight": 0.0
+  },
+  "candidates": [
+    {
+      "name": "hybrid_reference",
+      "kind": "hybrid"
+    },
+    {
+      "name": "vector_balanced",
+      "kind": "vector",
+      "pair_weight": 0.5,
+      "temporal_weight": 0.08
+    },
+    {
+      "name": "vector_collision_1",
+      "kind": "vector",
+      "pair_weight": 0.5,
+      "temporal_weight": 0.08,
+      "collision_weight": 1.0
+    },
+    {
+      "name": "vector_collision_4",
+      "kind": "vector",
+      "pair_weight": 0.5,
+      "temporal_weight": 0.08,
+      "collision_weight": 4.0
+    }
+  ],
+  "model_id": "right_official_pd_v2",
+  "batch_reason": "Comparison rerun after fixed-base direct parent collision filtering correction; no hardware capability test. All candidates rerun under the same corrected model."
+}

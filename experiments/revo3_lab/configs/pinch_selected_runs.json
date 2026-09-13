@@ -1,0 +1,14 @@
+{
+  "date": "2026-09-13",
+  "scope": "thumb-index pad opposition; other fingers neutral; no hardware capability test; no rubbing acceptance",
+  "hold_run": "20260913T090155Z_pinch_hold_f567ad65",
+  "finger_agility_clip_run": "20260913T091327Z_pinch_clip_88551225",
+  "hand_mobility_clip_run": "20260913T091341Z_pinch_clip_8597714c",
+  "numerical_checks_run": "20260913T090921Z_check_pinch_28a2d803",
+  "dynamics_perturbation_run": "20260913T091208Z_pinch_dynamics_check_0aaaf8bf",
+  "base_geometry_config": "pinch_task_v1.json",
+  "selected_clip_arguments": {"lead_s": 0.06666666666666667, "velocity_feedforward_s": 0.0},
+  "selection_rule": "shared setting across both inspected clips; original contact/penetration gates retained; failed candidates archived",
+  "independent_final_test": false,
+  "teacher_export": false
+}

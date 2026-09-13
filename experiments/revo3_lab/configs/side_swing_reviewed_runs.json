@@ -1,0 +1,20 @@
+{
+  "date": "2026-09-13",
+  "scope": "Four-finger lateral mapping, synthetic known-angle fixtures and recorded MANUS stress windows",
+  "baseline_and_angle_ablations": "20260913T105037Z_side_swing_bc108bb9",
+  "rejected_flexion_optimization": "20260913T105343Z_side_swing_9b0aedfc",
+  "conservative_retreat": "20260913T105508Z_side_swing_8437bb56",
+  "comparison_video": "20260913T131630Z_render_side_swing_059660e3",
+  "comparison_video_without_input": "20260913T105659Z_render_side_swing_cb237367",
+  "regression_checks": "20260913T105936Z_check_side_swing_56daf313",
+  "verified_mapping_component": "pi-branch correction with projection observability hysteresis and stale-observation handling",
+  "synthetic_lateral_oracle_actual_rmse_deg": 0.5318375578817935,
+  "synthetic_lateral_oracle_actual_abs_p95_deg": 0.782549027490981,
+  "production_mapping_selected": false,
+  "real_lateral_ground_truth_available": false,
+  "real_motion_fidelity_qualified": false,
+  "retreat_status": "Physics-gate-passing fallback only; recorded clips can lose up to 85 degrees flexion and 12.75 degrees lateral motion",
+  "independent_final_test": false,
+  "teacher_export": false,
+  "all_candidates_retained": true
+}

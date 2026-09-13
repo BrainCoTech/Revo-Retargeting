@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-13",
+  "selected_run": "20260913T140416Z_rubbing_9297ddf5",
+  "render_run": "20260913T141235Z_render_rubbing_af1770a6",
+  "regression_run": "20260913T141159Z_check_rubbing_d74bf084",
+  "same_articulation_zero_slide_run": "20260913T141221Z_rubbing_299ed058",
+  "previous_frozen_pose_run": "20260913T133311Z_rubbing_66bf8e61",
+  "robustness_runs": {
+    "half_timestep": "20260913T140753Z_rubbing_a199f5a6",
+    "friction_0_8": "20260913T140823Z_rubbing_5a68b34a",
+    "friction_1_2": "20260913T140835Z_rubbing_e62dc238"
+  },
+  "slower_period_runs": [
+    "20260913T140225Z_rubbing_367d0aee",
+    "20260913T140442Z_rubbing_be0cd8bc"
+  ],
+  "rejected_candidates": [
+    "20260913T135506Z_rubbing_bd1c814b",
+    "20260913T135554Z_rubbing_860c9e5f",
+    "20260913T135704Z_rubbing_b97d505d",
+    "20260913T135828Z_rubbing_640bdc7e",
+    "20260913T135947Z_rubbing_19169a82"
+  ],
+  "interrupted_runs": ["20260913T140500Z_rubbing_7cadf668"],
+  "interruption_reason": "BrokenPipeError after controller-session interruption; not a completed dynamics comparison",
+  "selected_parameters": {
+    "amplitude_mm": 4,
+    "period_s": 2,
+    "curl_deg": 15,
+    "curl_pattern": "counter",
+    "neutral_deg": [15, 30, 40, 12],
+    "preload_mm": 3.5,
+    "posture_weight": 100,
+    "dip_weight_multiplier": 4,
+    "pad_scale_mm": 1,
+    "normal_scale": 0.08
+  },
+  "source_kind": "bone_preserving_synthetic_MANUS_topology_plus_explicit_task_space_slide",
+  "status": "withdrawn_as_retargeting_result_independent_robot_slide_and_posture_targets",
+  "recommendation_withdrawn": true,
+  "withdrawal_reason": "Robot slide was prescribed independently of skeletal input; input TIP gap varied 12-45 mm. This is a robot excitation experiment, not evidence of input-driven tangential retargeting or a shared algorithm improvement. Historical run IDs are retained only for audit.",
+  "rubbing_task_accepted": false,
+  "limitations": "No recorded human rubbing input, anatomical/surface validation or calibrated force envelope. Absolute posture RMSE remains 10-22 degrees; inactive robot fingers remain neutral."
+}

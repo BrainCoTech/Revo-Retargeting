@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "model_id": "right_official_pd_v2",
+  "sequence": "finger_agility",
+  "source_window_s": [
+    10.0,
+    11.0
+  ],
+  "source_pose_s": 10.5,
+  "source_palm_x_sign": -1,
+  "source_annotation": "Recorded thumb-middle tip-proximity candidate; human contact force is unobserved.",
+  "other_fingers": "Neutral command for inactive fingers in isolated pair tests; joint identity is checked explicitly.",
+  "pads": {
+    "thumb": {
+      "normal_axis": 2,
+      "long_axis": 1,
+      "width_axis": 0,
+      "long_center_m": 0.02,
+      "width_center_m": 0.0,
+      "long_range_m": [
+        0.011,
+        0.029
+      ],
+      "width_range_m": [
+        -0.007,
+        0.007
+      ]
+    },
+    "middle": {
+      "normal_axis": 0,
+      "long_axis": 2,
+      "width_axis": 1,
+      "long_center_m": 0.018,
+      "width_center_m": 0.0,
+      "long_range_m": [
+        0.01,
+        0.026
+      ],
+      "width_range_m": [
+        -0.007,
+        0.007
+      ]
+    }
+  },
+  "solver": {
+    "pad_position_scale_m": 0.002,
+    "opposed_normal_scale": 0.2,
+    "center_scale_m": 0.035,
+    "source_direction_scale": 1.0,
+    "collision_weight": 300.0,
+    "temporal_weight": 0.01,
+    "preload_m": 0.0006,
+    "max_nfev": 100,
+    "open_gap_scale": 0.2
+  },
+  "protocol": {
+    "fps": 30,
+    "approach_s": 1.5,
+    "settle_s": 1.0,
+    "hold_s": 2.0,
+    "max_command_speed_rad_s": 4.0,
+    "max_command_acceleration_rad_s2": 20.0
+  },
+  "acceptance": {
+    "required_hold_s": 2.0,
+    "contact_fraction_min": 0.95,
+    "longest_break_s_max": 0.1,
+    "normal_angle_deg_max": 35,
+    "contact_normal_cone_deg": 45,
+    "normal_force_n_min": 0.01,
+    "force_floor_reason": "Numerical positivity floor for simulation contact, not a hardware force operating envelope",
+    "gap_m_max": 0.0001,
+    "penetration_m_max": 0.001,
+    "non_target_penetration_m_max": 0.001,
+    "joint_limit_violation_rad_max": 0.02
+  },
+  "scope": "Thumb-middle opposition mapping; no hardware capability search; no rubbing acceptance",
+  "target_finger": "middle",
+  "explicit_contact_command": false,
+  "evaluation_label": "Recorded thumb-middle close pose frozen for 2 s; not a recorded 2 s hold and not a hardware capability test.",
+  "iteration_reason": "Reduce approach displacement and add a small contact preload for the fast middle-finger clip. All acceptance gates remain unchanged.",
+  "command_brake_at_target": true
+}

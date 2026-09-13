@@ -1,0 +1,30 @@
+{
+  "algorithm": "experiments/revo3_lab/scripts/vector_solver.py:Solver",
+  "accepted_default": null,
+  "status": "experimental_improvement_not_stable_contact_or_rubbing",
+  "diagnostic_candidate": {
+    "run_id": "20260913T144909Z_shared_evaluation_e1377abb",
+    "name": "shared",
+    "same_configuration_for_all_cases": true
+  },
+  "evaluation_runs": [
+    "20260913T144909Z_shared_evaluation_e1377abb",
+    "20260913T145246Z_shared_evaluation_69b22ee7"
+  ],
+  "check_run": "20260913T144842Z_check_shared_solver_13c2520c",
+  "tests_passed": 14,
+  "complete_rollouts": 48,
+  "cross_batch_input_and_baseline_verified": true,
+  "not_promoted": [
+    "shared",
+    "collision300",
+    "pad025",
+    "collision1000"
+  ],
+  "reasons": [
+    "Residual contact breaks and penetration",
+    "Tangential tracking not reliable in recorded near-contact segment",
+    "Some frames reach max_nfev; 30 Hz real-time not established"
+  ],
+  "prohibited_workaround": "No task-specific mapping, independent slide or commanded joint trajectory"
+}

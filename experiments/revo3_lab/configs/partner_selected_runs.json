@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-13",
+  "scope": "Isolated thumb-middle/ring/little opposition mapping; hardware capability tests skipped",
+  "middle": {
+    "source_kind": "recorded_manus",
+    "hold": "20260913T095510Z_pinch_hold_70f0baed",
+    "clips": ["20260913T095245Z_pinch_clip_af7c6a28", "20260913T095254Z_pinch_clip_3250c490"],
+    "config": "pinch_middle_v6.json",
+    "closing_lead_s": 0.13333333333333333,
+    "video": "20260913T095903Z_render_pinch_0d7ab4d1"
+  },
+  "ring": {
+    "source_kind": "synthetic_ik",
+    "input": "20260913T094036Z_synthetic_partner_input_370cf897",
+    "clips": ["20260913T094258Z_pinch_clip_277adcf4"],
+    "config": "pinch_ring_synthetic_v1.json",
+    "closing_lead_s": 0.06666666666666667,
+    "video": "20260913T095924Z_render_pinch_2da084a9"
+  },
+  "little": {
+    "source_kind": "synthetic_ik",
+    "input": "20260913T095230Z_synthetic_partner_input_ad0d55a6",
+    "clips": ["20260913T095459Z_pinch_clip_5f4a14aa"],
+    "config": "runs/20260913T095230Z_synthetic_partner_input_ad0d55a6/config.json",
+    "closing_lead_s": 0.06666666666666667,
+    "anchor_selection": "20260913T094920Z_partner_anchor_tuning_0300b252",
+    "video": "20260913T100005Z_render_pinch_2984e2cd"
+  },
+  "regression_checks": "20260913T094229Z_check_partners_2eef5926",
+  "synthetic_checks": "20260913T095445Z_check_synthetic_inputs_c8aed7fb",
+  "dynamics_checks": "20260913T095819Z_partner_dynamics_check_6d3aef83",
+  "summary_render": "20260913T095852Z_render_partners_5bdde307",
+  "selection_rule": "All original pad/contact/penetration gates retained; all candidates including failures retained",
+  "independent_final_test": false,
+  "teacher_export": false
+}

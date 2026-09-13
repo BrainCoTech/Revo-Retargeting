@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-13",
+  "target_pair": [
+    "thumb",
+    "index"
+  ],
+  "selected_run": "20260913T133311Z_rubbing_66bf8e61",
+  "matched_preload_zero_slide_run": "20260913T133349Z_rubbing_81457114",
+  "initial_zero_slide_run": "20260913T133039Z_rubbing_f376df49",
+  "regression_run": "20260913T132946Z_check_rubbing_f45a06a7",
+  "robustness_runs": {
+    "half_timestep": "20260913T133413Z_rubbing_5090a1a7",
+    "friction_0_8": "20260913T133428Z_rubbing_b32ff19e",
+    "friction_1_2": "20260913T133440Z_rubbing_c3ca6ed3"
+  },
+  "rejected_runs": [
+    "20260913T133051Z_rubbing_d606b259",
+    "20260913T133114Z_rubbing_94b32749",
+    "20260913T133235Z_rubbing_656702d5",
+    "20260913T133300Z_rubbing_7d03ecae"
+  ],
+  "selected_parameters": {
+    "amplitude_mm": 2.0,
+    "period_s": 2.0,
+    "cycles": 3,
+    "preload_mm": 1.8
+  },
+  "source_kind": "frozen_recorded_MANUS_pose_plus_synthetic_task_space_sine",
+  "status": "synthetic_rubbing_observed_and_contact_motion_constraints_passed",
+  "rubbing_task_accepted": false,
+  "limitations": "No recorded human rubbing input, independent final test, validated force operating envelope or secondary-finger tracking in this iteration.",
+  "render_run": "20260913T133529Z_render_rubbing_be7e1025"
+}

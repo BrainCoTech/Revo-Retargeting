@@ -1,0 +1,10 @@
+{
+  "filename": "imageio_ffmpeg-0.6.0-py3-none-manylinux2014_x86_64.whl",
+  "url": "https://files.pythonhosted.org/packages/a0/2d/43c8522a2038e9d0e7dbdf3a61195ecc31ca576fb1527a528c877e87d973/imageio_ffmpeg-0.6.0-py3-none-manylinux2014_x86_64.whl",
+  "digests": {
+    "blake2b_256": "a02d43c8522a2038e9d0e7dbdf3a61195ecc31ca576fb1527a528c877e87d973",
+    "md5": "eae7521ec21afc38a16f8d445278e40d",
+    "sha256": "c7e46fcec401dd990405049d2e2f475e2b397779df2519b544b8aab515195282"
+  },
+  "size": 29498237
+}

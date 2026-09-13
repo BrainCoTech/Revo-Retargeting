@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "model_id": "right_official_pd_v2",
+  "sequence": "hand_mobility",
+  "source_window_s": [
+    7.1,
+    8.1
+  ],
+  "source_pose_s": 7.616666666666666,
+  "source_palm_x_sign": -1,
+  "source_annotation": "Nearest recorded pose with explicit task-conditioned contact request; source does not pass the unchanged 15 mm proximity label.",
+  "other_fingers": "Neutral command for inactive fingers in isolated pair tests; joint identity is checked explicitly.",
+  "pads": {
+    "thumb": {
+      "normal_axis": 2,
+      "long_axis": 1,
+      "width_axis": 0,
+      "long_center_m": 0.02,
+      "width_center_m": 0.0,
+      "long_range_m": [
+        0.011,
+        0.029
+      ],
+      "width_range_m": [
+        -0.007,
+        0.007
+      ]
+    },
+    "little": {
+      "normal_axis": 0,
+      "long_axis": 2,
+      "width_axis": 1,
+      "long_center_m": 0.018,
+      "width_center_m": 0.0,
+      "long_range_m": [
+        0.01,
+        0.026
+      ],
+      "width_range_m": [
+        -0.007,
+        0.007
+      ]
+    }
+  },
+  "solver": {
+    "pad_position_scale_m": 0.002,
+    "opposed_normal_scale": 0.2,
+    "center_scale_m": 0.035,
+    "source_direction_scale": 1.0,
+    "collision_weight": 300.0,
+    "temporal_weight": 0.01,
+    "preload_m": 0.00035,
+    "max_nfev": 100
+  },
+  "protocol": {
+    "fps": 30,
+    "approach_s": 1.5,
+    "settle_s": 1.0,
+    "hold_s": 2.0,
+    "max_command_speed_rad_s": 4.0,
+    "max_command_acceleration_rad_s2": 20.0
+  },
+  "acceptance": {
+    "required_hold_s": 2.0,
+    "contact_fraction_min": 0.95,
+    "longest_break_s_max": 0.1,
+    "normal_angle_deg_max": 35,
+    "contact_normal_cone_deg": 45,
+    "normal_force_n_min": 0.01,
+    "force_floor_reason": "Numerical positivity floor for simulation contact, not a hardware force operating envelope",
+    "gap_m_max": 0.0001,
+    "penetration_m_max": 0.001,
+    "non_target_penetration_m_max": 0.001,
+    "joint_limit_violation_rad_max": 0.02
+  },
+  "scope": "Thumb-little opposition mapping; no hardware capability search; no rubbing acceptance",
+  "target_finger": "little",
+  "explicit_contact_command": true,
+  "evaluation_label": "Recorded nearest pose plus explicit thumb-little contact command, frozen for 2 s; not a natural MANUS contact validation and not a hardware capability test.",
+  "iteration_reason": "Observed non-target contacts at finger bases displace the dynamic pose. Increase optimization penalty while retaining all collision pairs and original acceptance thresholds."
+}

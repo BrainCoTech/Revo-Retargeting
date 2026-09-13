@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "source_palm_x_sign": -1,
+  "source_frame_policy": "Explicit reflection of source anatomical x into the right Revo3 palmar direction. Fixed from tuning sample median curled tip x=-47.21 mm; source side remains unspecified. Units and key times come from FBX metadata.",
+  "batch_wall_limit_s": 3600,
+  "common": {
+    "close_enter_m": 0.02,
+    "close_exit_m": 0.028,
+    "close_weight_multiplier": 2.0,
+    "max_nfev": 35,
+    "filter_tau_s": 0.035,
+    "max_command_speed_rad_s": 4.0,
+    "posture_weight": 0.02,
+    "temporal_weight": 0.015,
+    "pair_weight": 0.0
+  },
+  "candidates": [
+    {
+      "name": "hybrid_reference",
+      "kind": "hybrid"
+    },
+    {
+      "name": "vector_tip",
+      "kind": "vector"
+    },
+    {
+      "name": "vector_pair",
+      "kind": "vector",
+      "pair_weight": 2.0
+    },
+    {
+      "name": "vector_pair_temporal",
+      "kind": "vector",
+      "pair_weight": 2.0,
+      "temporal_weight": 0.08
+    }
+  ]
+}

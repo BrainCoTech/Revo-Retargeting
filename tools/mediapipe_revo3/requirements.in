@@ -1,0 +1,6 @@
+# Local camera runtime; install only via setup.sh into repository .venv.
+mediapipe==0.10.21
+numpy==1.26.4
+scipy==1.15.3
+mujoco==3.3.5
+opencv-contrib-python==4.11.0.86
