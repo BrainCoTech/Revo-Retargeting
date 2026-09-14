@@ -53,7 +53,7 @@ python -m colcon --log-base log/dv1_sdk_test build --base-paths src \
 `install/setup.bash` 提供已安装的 Revo2 驱动等依赖。SDK ROS 脚本用系统
 `/usr/bin/python3` 运行，需能 `import serial, yaml`；FK/retarget 使用当前环境。
 
-## 1. 启动左手 SDK + adapter，先检查数据
+## 1. 分别启动左手 SDK 和 adapter，先检查数据
 
 停止旧手套串口读取程序、旧 adapter 和旧真机控制程序。若串口不是 ttyACM0，修改 port。
 新终端的公共环境如下（后续终端也需要）：
@@ -68,14 +68,28 @@ source install/dv1_sdk_test/local_setup.bash
 export ROS_DOMAIN_ID=25
 ```
 
+先在独立终端加载 ROS 环境，再启动上游 SDK（此终端保持运行）：
+
 ```bash
-ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
-  hand_mode:=left port:=/dev/ttyACM0 \
-  sdk_path:=/home/jiimmy/Brainco/Code/RevoHuman/brainco_revohuman_sdk
+source /opt/ros/humble/setup.bash
+export ROS_DOMAIN_ID=25
+PYTHONNOUSERSITE=1 /usr/bin/python3 \
+  "$HOME/code/tele-retarget/brainco_revohuman_sdk/tools/ros2_joint_state_pub.py" \
+  --hand left --port /dev/ttyACM0
 ```
 
-默认只启动 SDK 和 adapter，不启动 retarget 或真机驱动。如果新 SDK 发布程序已经
-单独在运行，添加 `launch_sdk:=false`，保持它的域和手别一致。
+在已加载 workspace 环境的另一个终端启动监听和 FK：
+
+```bash
+ros2 launch hand_input_adapters dv1_input.launch.py \
+  hand_mode:=left \
+  urdf_path:=$HOME/code/tele-retarget/brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf
+```
+
+SDK 路径和串口按本机位置修改，各终端必须使用相同 ROS_DOMAIN_ID。
+输入入口不启动 SDK 或机器人。旧 `dv1_sdk.launch.py` 保留为 Revo2 组合入口，
+同样只监听外部数据；已移除 `sdk_path`、`port`、`sdk_python`、`launch_sdk` 参数，
+改为显式传入 `urdf_path`。
 
 ```bash
 ros2 topic echo /humandex_left/eef_pose geometry_msgs/msg/PoseArray --once
@@ -105,8 +119,8 @@ ros2 run revo2_hand_retarget calibrate_dv1_fingers --side left \
 
 ```bash
 ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
-  hand_mode:=left port:=/dev/ttyACM0 \
-  sdk_path:=/home/jiimmy/Brainco/Code/RevoHuman/brainco_revohuman_sdk \
+  hand_mode:=left \
+  urdf_path:=$HOME/code/tele-retarget/brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf \
   finger_flexion_config:="$PWD/flexion_dv1_left_measured.yaml" \
   launch_retarget:=true
 ```
@@ -131,21 +145,21 @@ IK 求解器内部残差**；IK/指令按不超过 50ms 的时间差近似配对
 
 ```bash
 ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
-  hand_mode:=left port:=/dev/ttyACM0 \
-  sdk_path:=/home/jiimmy/Brainco/Code/RevoHuman/brainco_revohuman_sdk \
+  hand_mode:=left \
+  urdf_path:=$HOME/code/tele-retarget/brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf \
   finger_flexion_config:="$PWD/flexion_dv1_left_measured.yaml" \
   launch_retarget:=true launch_revo2_driver:=true
 ```
 
 这将启动整个左手的控制，包含拇指。启动后约 16 秒切换控制器，18 秒启动 retarget。
 
-`port` 是手套端口，不是 Revo2 端口。Revo2 默认使用驱动里的
+SDK 的 `--port` 是手套端口。Revo2 默认使用驱动里的
 `/dev/revo2_hand_left` 别名；若尚未建立别名，可复制驱动的
 `config/protocol_modbus_left.yaml` 为本地文件，将 `hardware.port` 改成已确认的
 Revo2 串口，并在上面的启动命令添加
 `revo2_protocol_config_file:=/绝对路径/revo2_left_local.yaml`。
 该参数只传给当前选中侧的机器人驱动，不修改手套端口或默认驱动配置。
-重启整条链路前务必停止之前的 SDK + adapter launch，避免串口独占冲突或重复发布。
+重启适配或控制链路前停止旧 adapter launch，SDK 采集可保持运行。不要同时启动两个适配器。
 
 ## 离线验证
 

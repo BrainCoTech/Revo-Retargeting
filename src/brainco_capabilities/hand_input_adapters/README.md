@@ -39,7 +39,10 @@ then applies `<side>_palm_rpy_rad` and `<side>_palm_translation_m` to canonical
 landmarks. `tip_offsets_m` is five DIP-local XYZ vectors in finger order;
 `fk_ema_alpha` defaults to 0.2, with a reset after a gap longer than `max_age_sec`.
 
-Use `dv1_left.yaml` or `dv1_right.yaml` with the bringup `dv1_sdk.launch.py`.
+Use `ros2 launch hand_input_adapters dv1_input.launch.py hand_mode:=right urdf_path:=/absolute/path/to/Revo_Human_DV1_URDF_Bimanual.urdf`.
+It selects `dv1_left.yaml` or `dv1_right.yaml`; `adapter_config` and `joint_topic`
+can override the defaults. Acquisition runs independently in the upstream SDK.
+This launch only starts the adapter and FK, with no robot or serial driver.
 Revo2 left ranges are explicitly provisional; `ros2 run revo2_hand_retarget calibrate_dv1_fingers` records actual
 open/fist ranges to a local YAML without changing firmware or FK zero.
 The Revo2 DV1 mapping uses `four_finger_wrap_angles: true` for circular endpoint differences.
@@ -55,3 +58,51 @@ now uses the mirrored glove-tip offsets recorded in
 The direct `dv1_joint_states` profiles use a different SDK URDF (including different
 DIP axes); their existing zero/trial offsets are intentionally not overwritten.
 Tip means glove fingertip; a finger-pad contact reference is a separate point.
+
+## 右手 DV1 → Revo3
+
+三个终端使用相同的 ROS_DOMAIN_ID。以下路径适用于当前本机目录，串口按实际设备修改。
+
+终端 1：独立 SDK 采集。
+
+```bash
+source /opt/ros/humble/setup.bash
+PYTHONNOUSERSITE=1 /usr/bin/python3 \
+  "$HOME/code/tele-retarget/brainco_revohuman_sdk/tools/ros2_joint_state_pub.py" \
+  --hand right --port /dev/ttyACM0
+```
+
+终端 2：监听 `/humandex_right/joint_states`，计算 FK，发布 `/hand_kinematics/right`。
+
+```bash
+cd ~/code/tele-retarget/Revo-Retargeting
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate retarget_revo3
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+export PYTHONNOUSERSITE=1
+ros2 launch hand_input_adapters dv1_input.launch.py \
+  hand_mode:=right \
+  urdf_path:=$HOME/code/tele-retarget/brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf
+```
+
+终端 3：启动 Revo3 右手驱动和重定向，读取已有 HandKinematics。
+
+```bash
+cd ~/code/tele-retarget/Revo-Retargeting
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate retarget_revo3
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+export PYTHONNOUSERSITE=1
+bash scripts/teleop.sh right input_source:=external \
+  input_config:="$PWD/src/manus_revo3_retarget/config/input_humandex.yaml"
+```
+
+首次使用新入口前，在已加载上述构建环境的终端执行：
+
+```bash
+python -m colcon build --base-paths src --symlink-install \
+  --packages-select hand_input_adapters revo2_teleop_bringup
+source install/setup.bash
+```

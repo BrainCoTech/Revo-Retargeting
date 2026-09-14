@@ -44,7 +44,8 @@ MANUS/HumanDex adapter 只发送独立关节与空间点。Revo2 通过 `finger_
 文件位于 `src/brainco_capabilities/revo2_hand_retarget/config/`。Revo2 bringup 的 MANUS/HumanDex profiles 已指定相应配置，DV1 launch 默认使用对应侧 DV1 配置。使用根目录 measured adapter 文件时，还要显式选择相应 flexion 文件：
 
 ```bash
-ros2 launch revo2_teleop_bringup dv1_sdk.launch.py ... \
+ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
+  hand_mode:=left urdf_path:=/path/to/Revo_Human_DV1_URDF_Bimanual.urdf \
   adapter_config:=/path/to/dv1_left_measured.yaml \
   finger_flexion_config:=flexion_dv1_left_measured.yaml
 ```
@@ -88,3 +89,13 @@ C++ 节点和求解库通过独立 CMake 构建；CTest 的求解器检查和 Py
 本次指尖变更的 12 项检查全部通过：配置记录与上游默认值一致、左右严格镜像，以及双手十指在 DIP 从 0 转到 0.6 rad 时，DIP 原点不变而指尖移动，输出满足 `p_DIP + R_DIP * offset`。测试直接调用上游实际 FK 发布函数，不启动 ROS 图或硬件。联合运行 Revo3 Python 测试和 HumanDex adapter 测试共 27 项通过；两个仓库 `git diff --check` 通过。
 
 测试 `test/test_fingertip_geometry.py` 可用 `HUMANDEX_ROOT` 指定上游仓库；缺少上游或 ROS 时跳过跨仓库检查。更新安装目录中的 HumanDex 参数文件后重启 FK 才会生效，本次未重启进程或操作硬件。新参考 YAML 随 manus_revo3_retarget 的 config 目录安装，但不会自动作为 ROS 参数加载。
+
+## DV1 启动职责
+
+SDK 串口采集由上游独立启动。本仓库的 `hand_input_adapters/dv1_input.launch.py`
+只监听 JointState、计算 FK 并发布 HandKinematics；Revo3 使用
+`input_source:=external` 接收数据，并通过 `input_config` 显式加载
+`src/manus_revo3_retarget/config/input_humandex.yaml` 的字段映射。
+完整命令见 [输入适配器说明](../src/brainco_capabilities/hand_input_adapters/README.md#右手-dv1--revo3)。
+旧 Revo2 `dv1_sdk.launch.py` 保留适配器与 Revo2 的组合启动，移除 SDK 采集参数，
+必须显式传入 `urdf_path`。切勿同时启动新输入入口和旧入口，以免重复发布。

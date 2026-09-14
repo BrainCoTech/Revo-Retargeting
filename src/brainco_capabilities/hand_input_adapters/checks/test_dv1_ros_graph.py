@@ -77,8 +77,8 @@ def test_installed_launch_produces_left_retarget_commands(tmp_path):
     with logfile.open('w') as output:
         process = subprocess.Popen([
             'ros2', 'launch', 'revo2_teleop_bringup', 'dv1_sdk.launch.py',
-            'hand_mode:=left', f'sdk_path:={os.environ["DV1_SDK_PATH"]}',
-            'launch_sdk:=false', 'launch_retarget:=true', 'launch_revo2_driver:=false'],
+            'hand_mode:=left', f'urdf_path:={os.environ["DV1_SDK_PATH"]}/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf',
+            'launch_retarget:=true', 'launch_revo2_driver:=false'],
             stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             deadline = time.monotonic() + 20
