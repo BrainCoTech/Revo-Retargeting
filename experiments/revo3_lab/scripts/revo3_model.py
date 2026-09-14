@@ -3,7 +3,6 @@ import difflib
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from lab_common import checked, configure, digest, write_json
-configure()
 import mujoco
 import numpy as np
 from itertools import combinations
@@ -12,13 +11,8 @@ FINGERS = ['thumb', 'index', 'middle', 'ring', 'little']
 MODEL_ID = 'right_official_pd_v1'
 
 
-def prepare_model(model_id=MODEL_ID):
-    source = checked('repos/brainco-description/revo3_system/mjcf/revo3_right.xml')
-    if model_id not in [MODEL_ID, 'right_official_pd_v2']:
-        raise ValueError('Unknown model version')
-    folder = checked('models/revo3') / model_id
-    folder.mkdir(parents=True, exist_ok=True)
-    dest = folder / 'scene.xml'
+def transform_official_model(source, model_id, resolve_mesh):
+    """Pure shared model transformation; preserve the registered DSW XML settings."""
     tree = ET.parse(source)
     root = tree.getroot()
     option = root.find('option')
@@ -27,7 +21,7 @@ def prepare_model(model_id=MODEL_ID):
     option.set('gravity', '0 0 0')
     # These are software evaluation settings; no claim of hardware controller identification.
     for mesh in root.findall('.//asset/mesh'):
-        mesh.set('file', str(checked(source.parent / mesh.attrib['file']).resolve()))
+        mesh.set('file', str(resolve_mesh(source.parent / mesh.attrib['file'])))
     defaults = root.find('default')
     ET.SubElement(defaults, 'joint', damping='0.03', armature='0.00005')
     coll = defaults.find("default[@class='collision']/geom")
@@ -53,6 +47,18 @@ def prepare_model(model_id=MODEL_ID):
                 pair = ['right_hand_base_link', child.attrib['name']]
                 exclusions.append(pair)
                 ET.SubElement(contact, 'exclude', body1=pair[0], body2=pair[1])
+    return root, exclusions
+
+
+def prepare_model(model_id=MODEL_ID):
+    configure()
+    source = checked('repos/brainco-description/revo3_system/mjcf/revo3_right.xml')
+    if model_id not in [MODEL_ID, 'right_official_pd_v2']:
+        raise ValueError('Unknown model version')
+    folder = checked('models/revo3') / model_id
+    folder.mkdir(parents=True, exist_ok=True)
+    dest = folder / 'scene.xml'
+    root, exclusions = transform_official_model(source, model_id, lambda p: checked(p).resolve())
     xml = ET.tostring(root, encoding='unicode')
     if dest.exists() and dest.read_text() != xml:
         raise RuntimeError('Model ID already exists with different settings')
@@ -113,6 +119,19 @@ class Hand:
         for i, sid in enumerate(self.tip_ids):
             mujoco.mj_jacSite(self.model,self.data,jp[i],jr,int(sid))
         return tips, bases, jp
+
+    def distal_directions(self):
+        """World-space distal axes and their joint Jacobians after fk()."""
+        axes = np.zeros((5, 3))
+        jac = np.zeros((5, 3, self.model.nv))
+        jp, jr = np.zeros((3, self.model.nv)), np.zeros((3, self.model.nv))
+        for i, finger in enumerate(FINGERS):
+            bid = self.model.body(f'right_{finger}_DIP_Link').id
+            local_axis = np.array([0., 1., 0.] if finger == 'thumb' else [0., 0., 1.])
+            axes[i] = self.data.xmat[bid].reshape(3, 3) @ local_axis
+            mujoco.mj_jacBody(self.model, self.data, jp, jr, bid)
+            jac[i] = np.cross(jr.T, axes[i]).T
+        return axes, jac
 
     def collision_penalty(self, allowed_target_penetration_m=0.0005, target_fingers=(0,1), allowed_pairs=None):
         """One deepest-contact residual per body pair, with a separation Jacobian.

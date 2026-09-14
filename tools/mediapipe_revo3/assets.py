@@ -50,5 +50,39 @@ def prepare():
     return folder
 
 
+def prepare_visual():
+    """Build a visual-only model from the same pinned official description."""
+    folder = ROOT / 'assets'
+    root = ET.parse(folder / 'revo3_right.xml').getroot()
+    for parent in list(root.iter()):
+        for child in list(parent):
+            if child.tag in {'actuator', 'sensor', 'contact', 'keyframe'} or (
+                    child.tag == 'geom' and parent.tag != 'default' and child.get('class') != 'visual'):
+                parent.remove(child)
+    used = {g.get('mesh') for g in root.iter('geom') if g.get('mesh')}
+    assets = root.find('asset')
+    for mesh in list(assets):
+        if mesh.tag != 'mesh' or mesh.get('name') not in used:
+            assets.remove(mesh)
+            continue
+        source = mesh.get('file').removeprefix('../')
+        dest = folder / source
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if not dest.exists():
+            url = f'https://raw.githubusercontent.com/BrainCoTech/brainco-description/{COMMIT}/revo3_system/{source}'
+            tmp = dest.with_suffix('.download')
+            try:
+                with urllib.request.urlopen(url, timeout=60) as response:
+                    tmp.write_bytes(response.read())
+                tmp.replace(dest)
+            finally:
+                tmp.unlink(missing_ok=True)
+        mesh.set('file', source)
+    ET.SubElement(root, 'visual')
+    ET.ElementTree(root).write(folder / 'visual.xml', encoding='unicode')
+    return folder / 'visual.xml'
+
+
 if __name__ == '__main__':
     prepare()
+    prepare_visual()

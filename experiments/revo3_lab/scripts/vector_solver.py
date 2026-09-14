@@ -1,9 +1,8 @@
 """Geometry-derived 21-axis reference and bounded vector least-squares solvers."""
-from lab_common import configure
-configure()
 import numpy as np
 from scipy.optimize import least_squares
-from ingest_manus import NAMES, FINGERS
+from hand_topology import NAMES, FINGERS
+from endpoint_input import EndpointTargets
 
 
 def unit(v):
@@ -86,15 +85,72 @@ class Solver:
             from side_swing import SideMapper,SIDE_DOFS
             self.side_observer=SideMapper(hand.lo[SIDE_DOFS],hand.hi[SIDE_DOFS],dt=dt)
         self.pads=None;self.source_scale=None
+        self.endpoint_time = None
+        self.endpoint_last_valid = None
         if config.get('pad_pair_weight',0)>0:
             from pinch_geometry import AllPadGeometry
             self.pads=AllPadGeometry(hand)
 
+    def solve_endpoints(self, frame):
+        """Retarget robot-frame endpoints without human intermediate joints.
+
+        This uses the same optimizer, limits and filter as ``solve``. Skeleton
+        posture priors are replaced by robot neutral posture regularization.
+        Source-specific pad calibration remains in the legacy evaluation path.
+        """
+        if not isinstance(frame, EndpointTargets):
+            raise TypeError('Expected EndpointTargets')
+        cfg = self.config
+        if cfg.get('kind') != 'vector':
+            raise ValueError('Endpoint input requires the 21-axis vector solver')
+        if self.pads is not None or cfg.get('observation_mode') == 'observable':
+            raise ValueError('Endpoint input does not accept skeleton pad or side-observation configuration')
+        for key in ('filter_tau_s', 'max_command_speed_rad_s', 'position_scale_m', 'max_dt_s'):
+            value = cfg.get(key, {'position_scale_m':.05, 'max_dt_s':.1}.get(key))
+            if value is None or not np.isfinite(value) or value <= 0:
+                raise ValueError(f'{key} must be positive and finite')
+        for key in ('hold_s', 'posture_weight', 'temporal_weight', 'pair_weight',
+                    'distal_direction_weight', 'collision_weight', 'close_weight_multiplier'):
+            value = cfg.get(key, .3 if key == 'hold_s' else 0.)
+            if not np.isfinite(value) or value < 0:
+                raise ValueError(f'{key} must be nonnegative and finite')
+        stamp = frame.timestamp_s
+        if self.endpoint_time is not None and stamp <= self.endpoint_time:
+            raise ValueError('Endpoint timestamps must be strictly increasing')
+        dt = self.dt if self.endpoint_time is None else stamp-self.endpoint_time
+        dt = min(dt, cfg.get('max_dt_s', .1))
+        if not np.isfinite(dt) or dt <= 0:
+            raise ValueError('Endpoint dt must be positive and finite')
+        self.endpoint_time = stamp
+        self.dt = dt
+        if not frame.valid.any():
+            age = np.inf if self.endpoint_last_valid is None else stamp-self.endpoint_last_valid
+            status = 'hold' if age <= cfg.get('hold_s', .3) else 'return_neutral'
+            if status == 'return_neutral':
+                alpha = 1-np.exp(-self.dt/cfg['filter_tau_s'])
+                step = np.clip(alpha*(self.hand.q0-self.previous),
+                               -cfg['max_command_speed_rad_s']*self.dt,
+                               cfg['max_command_speed_rad_s']*self.dt)
+                self.previous = np.clip(self.previous+step,self.hand.lo,self.hand.hi)
+            self.close = False
+            return self.previous.copy(), {'status':status,'nfev':0,'converged':False,
+                'ik_solution':self.previous.tolist(),'valid':frame.valid.tolist(),
+                'limiter_dt_s':self.dt,'pair_activation':[0.]*4}
+        self.endpoint_last_valid = stamp
+        q, detail = self._solve(None, frame.positions_m, frame)
+        detail.update(status='tracking' if frame.valid.all() else 'partial_tracking',
+                      valid=frame.valid.tolist(), limiter_dt_s=self.dt)
+        return q, detail
+
     def solve(self, points, target):
+        """Compatibility entry point for frozen MANUS skeleton regressions."""
+        return self._solve(points, target)
+
+    def _solve(self, points, target, endpoint=None):
         hand,cfg = self.hand,self.config
-        prior = finger_angles(points,hand)
+        prior = finger_angles(points,hand) if endpoint is None else hand.q0.copy()
         side_diag=None
-        if self.side_observer is not None:
+        if self.side_observer is not None and endpoint is None:
             from side_swing import SIDE_DOFS
             prior[SIDE_DOFS],side_diag=self.side_observer.update(points)
             # Remove observed abduction before measuring MCP flexion. This also
@@ -104,7 +160,9 @@ class Solver:
                 den=np.cos(side)*v[2]-np.sin(side)*v[1]
                 flex=np.arctan2(v[0],den)-np.arctan2(meta[0],meta[2])
                 prior[6+4*k]=np.clip(flex,hand.lo[6+4*k],hand.hi[6+4*k])
-        gap = np.linalg.norm(points[NAMES.index('Thumb_TIP')]-points[NAMES.index('Index_TIP')])
+        gap = (np.linalg.norm(points[NAMES.index('Thumb_TIP')]-points[NAMES.index('Index_TIP')])
+               if endpoint is None else
+               np.linalg.norm(target[0]-target[1]) if endpoint.valid[:2].all() else np.inf)
         if self.close and gap > cfg['close_exit_m']:
             self.close = False
         elif not self.close and gap < cfg['close_enter_m']:
@@ -134,6 +192,9 @@ class Solver:
             coordinates=coordinates.copy()
             coordinates[:,2]=np.maximum(0.,coordinates[:,2]-cfg.get('source_surface_clearance_m',.004)*self.source_scale)-cfg.get('pad_preload_m',.00035)*activation
         tip_weights=np.ones(5)
+        if endpoint is not None:
+            tip_weights = endpoint.valid.astype(float)
+            posture_weights = np.full(21, posture)
         if self.pads is not None:
             involvement=np.r_[activation.max(),activation]
             tip_weights=1-involvement*(1-cfg.get('near_tip_weight',.15))
@@ -152,11 +213,19 @@ class Solver:
             else:
                 pair_delta = ((tips[1:]-tips[0])-(target[1:]-target[0]))/scale
                 pair_weights=(cfg['pair_weight']*(1+activation*(cfg['close_weight_multiplier']-1)) if self.pads is not None else pair_weight)*(1-activation)
+                if endpoint is not None:
+                    pair_weights = pair_weights*(endpoint.valid[0] & endpoint.valid[1:])
+                posture_slice = slice(5,None) if endpoint is None else slice(None)
                 residual = [delta.ravel(), (np.sqrt(pair_weights)[:,None]*pair_delta).ravel(),
-                            np.sqrt(temporal)*(x-previous), np.sqrt(posture_weights)*(x[5:]-prior[5:])]
+                            np.sqrt(temporal)*(x-previous), np.sqrt(posture_weights)*(x[posture_slice]-prior[posture_slice])]
                 jacobian = [(np.sqrt(tip_weights)[:,None,None]*jac).reshape(15,21)/scale,
                             (np.sqrt(pair_weights)[:,None,None]*(jac[1:]-jac[0])).reshape(12,21)/scale,
-                            np.sqrt(temporal)*np.eye(21),np.sqrt(posture_weights)[:,None]*np.eye(21)[5:]]
+                            np.sqrt(temporal)*np.eye(21),np.sqrt(posture_weights)[:,None]*np.eye(21)[posture_slice]]
+                if endpoint is not None and cfg.get('distal_direction_weight',0.) and endpoint.directions is not None:
+                    axes, axis_jacobian = hand.distal_directions()
+                    weights = np.sqrt(cfg.get('distal_direction_weight',0.))*endpoint.direction_valid
+                    residual.append((weights[:,None]*(axes-endpoint.directions)).ravel())
+                    jacobian.append((weights[:,None,None]*axis_jacobian).reshape(15,21))
                 if self.pads is not None:
                     state=self.pads.evaluate()
                     pr,pj=pad_pair_terms(state,coordinates,activation,cfg)

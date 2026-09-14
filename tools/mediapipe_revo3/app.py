@@ -4,8 +4,10 @@ from collections import Counter
 from datetime import datetime, timezone
 import importlib.metadata
 import json
+import math
 from pathlib import Path
 import platform
+import select
 import shutil
 import sys
 import time
@@ -20,6 +22,10 @@ def arguments():
     source.add_argument('--camera', type=int, default=0)
     source.add_argument('--video', type=Path)
     source.add_argument('--replay', type=Path, help='Replay a previous frames.jsonl')
+    p.add_argument('--solver', choices=['shared', 'baseline'], default='shared')
+    p.add_argument('--scale', type=float, default=1., help='Fixed source-to-robot scale (shared solver)')
+    p.add_argument('--palm-x-sign', type=int, choices=[-1, 1], default=1)
+    p.add_argument('--solver-config', type=Path, help='Endpoint profile JSON; solver section and max_gap_s are used')
     p.add_argument('--hand', choices=['Right', 'Left'], default='Right')
     p.add_argument('--input-mirrored', action='store_true', help='Unmirror mirrored source BEFORE inference')
     p.add_argument('--no-display', action='store_true')
@@ -30,13 +36,28 @@ def arguments():
     p.add_argument('--dropout', type=float, default=0, help='Replay-only probability of dropping an observation')
     p.add_argument('--seed', type=int, default=0)
     p.add_argument('--check', action='store_true', help='Check assets, environment and empty-frame inference, no camera')
+    p.add_argument('--guide', action='store_true', help='Timed camera recording with action labels and timeline.json')
+    p.add_argument('--guide-plan', action='store_true', help='Print the guided protocol without opening the camera')
+    p.add_argument('--guide-voice', action='store_true', help='Speak Chinese prompts using macOS say')
     args = p.parse_args()
+    if not math.isfinite(args.scale) or args.scale <= 0:
+        p.error('--scale must be positive and finite')
+    if args.solver == 'baseline' and (args.solver_config or args.scale != 1 or args.palm_x_sign != 1):
+        p.error('Scale, palm reflection and solver config overrides require --solver shared')
     if args.noise_mm < 0 or not 0 <= args.dropout <= 1 or args.max_frames < 0:
         p.error('Invalid noise/dropout/max-frames value')
     if (args.noise_mm or args.dropout) and not args.replay:
         p.error('Perturbations require --replay; camera recordings stay original')
     if args.replay and args.record_video:
         p.error('Raw landmark replay has no source video to record')
+    if args.guide and (args.video or args.replay or args.check):
+        p.error('--guide requires live camera input')
+    if args.guide_voice and not (args.guide or args.guide_plan):
+        p.error('--guide-voice requires --guide')
+    if args.guide:
+        args.record_video = True
+        if args.no_display and not sys.stdin.isatty() and not args.guide_plan:
+            p.error('Guided recording needs a preview window or interactive terminal for Enter')
     return args
 
 
@@ -44,9 +65,10 @@ def json_write(path, value):
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False) + '\n')
 
 
-def draw(frame, observation, output, cv2, np):
+def draw(frame, observation, output, cv2, np, visual):
     from mapper import CHAINS
-    canvas = np.zeros((720, 1280, 3), dtype=np.uint8)
+    guide = observation.get('guide')
+    canvas = np.zeros((880 if guide else 720, 1280, 3), dtype=np.uint8)
     colors = [(90, 190, 255), (80, 220, 90), (255, 170, 80), (230, 100, 200), (110, 230, 230)]
     if frame is not None:
         view = frame.copy()
@@ -63,50 +85,100 @@ def draw(frame, observation, output, cv2, np):
     else:
         cv2.putText(canvas, 'LANDMARK REPLAY (no camera image)', (15, 70), 0, .65, (255, 255, 255), 1)
     local = output['palm_landmarks_m']
-    robot = np.asarray(output['robot_landmarks_m'])
-    for axes, x0, label in [([1, 2], 660, 'front'), ([0, 2], 975, 'side')]:
-        cv2.putText(canvas, f'Revo3 {label}: q_command FK', (x0, 30), 0, .46, (255, 255, 255), 1)
-        for f in range(5):
-            p = np.vstack([np.zeros(3), robot[f]])[:, axes] * [-1250, -1250] + [x0 + 155, 355]
-            for a, b in zip(p, p[1:]):
-                cv2.line(canvas, tuple(a.astype(int)), tuple(b.astype(int)), colors[f], 3)
-            for v in p:
-                cv2.circle(canvas, tuple(v.astype(int)), 4, colors[f], -1)
+    actual = 'q_actual_rad' in output
+    views = visual.render(output['q_actual_rad'] if actual else output['q_command_rad'])
+    for index, (axes, screen_scale, x0, label) in enumerate([
+            ([1, 2], [1200, -1200], 660, 'palm'),
+            ([0, 2], [-1200, -1200], 975, 'thumb side')]):
+        cv2.putText(canvas, f'Revo3 {label}: {"actual simulation" if actual else "command pose"}', (x0, 30), 0, .46, (255, 255, 255), 1)
+        x = min(x0, 970)
+        canvas[45:405, x:x + 310] = views[index]
         if local is not None:
             for f, chain in enumerate(CHAINS):
-                p = np.asarray(local)[chain][:, axes] * [-1200, -1200] + [x0 + 155, 665]
+                p = np.asarray(local, dtype=float)[chain][:, axes] * screen_scale + [x0 + 155, 665]
                 for a, b in zip(p, p[1:]):
+                    if not np.isfinite([a, b]).all():
+                        continue
                     cv2.line(canvas, tuple(a.astype(int)), tuple(b.astype(int)), colors[f], 2)
         cv2.putText(canvas, 'MediaPipe input (palm frame)', (x0, 430), 0, .46, (190, 190, 190), 1)
     lines = ['Source input (unmirrored for inference)', output['status'],
              f"processing: {output['processing_ms']:.1f} ms | t={observation['timestamp_s']:.3f}s",
              'q / Esc: exit | no hardware output',
-             'Kinematic preview; no contact/dynamics validation']
+             'MuJoCo dynamics; contact not validated' if actual else 'Kinematic preview; no contact/dynamics validation']
     for i, line in enumerate(lines):
         cv2.putText(canvas, line, (15, 550 + i * 30), 0, .58, (230, 230, 230), 1)
+    if guide:
+        color = (90, 230, 90) if guide['phase'] == 'record' else (80, 200, 255)
+        if guide['phase'] == 'done':
+            prompt_lines = ['GUIDED RECORDING COMPLETE']
+        elif guide['phase'] == 'review':
+            prompt_lines = ['LAST ACTION COMPLETE | ENTER: finish and save | R: retry last action']
+        else:
+            timing = ('Press ENTER when ready' if guide['phase'] == 'prepare' and guide['remaining_s'] is None
+                      else f"{math.ceil(guide['remaining_s'])} seconds left")
+            prompt_lines = [f"{guide['phase'].upper()} {guide['action_index']}/{guide['action_count']}"
+                            f"  {guide['action_id']}  |  {timing}",
+                            *guide['display_lines'],
+                            ('ENTER: next action | R: retry previous action | q / Esc: save and exit'
+                             if guide['phase'] == 'prepare' else
+                             f"Attempt {guide.get('attempt', 1)} | R: restart current action | q / Esc: save and exit")]
+        for i, line in enumerate(prompt_lines):
+            cv2.putText(canvas, line, (15, 745 + 32 * i), 0, .65, color, 1)
     cv2.imshow('MediaPipe -> Revo3', canvas)
-    return (cv2.waitKey(1) & 0xff) not in [27, ord('q')]
+    return cv2.waitKey(1) & 0xff
+
+
+def terminal_command():
+    """Drain terminal lines without blocking capture or queuing future starts."""
+    command = None
+    if sys.stdin.isatty():
+        while select.select([sys.stdin], [], [], 0)[0]:
+            line = sys.stdin.readline()
+            if not line:
+                break
+            value = line.strip().lower()
+            if value == 'r':
+                command = 'restart'
+            elif value == '' and command != 'restart':
+                command = 'start'
+    return command
 
 
 def main():
     args = arguments()
+    if args.guide_plan:
+        from guide import print_plan
+        print_plan()
+        return
     if Path(sys.prefix).resolve() != (REPO / '.venv').resolve():
         raise SystemExit('Use bash tools/mediapipe_revo3/run.sh (repository .venv only)')
     import cv2
-    import mediapipe as mp
     import numpy as np
-    from mapper import Mapper
     folder = ROOT / 'assets'
-    for name in ['hand_landmarker.task', 'kinematics.xml']:
-        if not (folder / name).exists():
+    if args.solver == 'shared':
+        from local_model import prepare_local_model
+        from shared_mapper import SharedMapper
+        model_path = prepare_local_model()
+        mapper = SharedMapper(model_path, scale=args.scale, palm_x_sign=args.palm_x_sign,
+                              solver_config=args.solver_config)
+    else:
+        from mapper import Mapper
+        model_path = folder / 'kinematics.xml'
+        if not model_path.exists():
             raise SystemExit('Missing assets. Run bash tools/mediapipe_revo3/setup.sh')
-    mapper = Mapper(folder / 'kinematics.xml')
-    options = mp.tasks.vision.HandLandmarkerOptions(
-        base_options=mp.tasks.BaseOptions(model_asset_path=str(folder / 'hand_landmarker.task'),
-                                         delegate=mp.tasks.BaseOptions.Delegate.CPU),
-        running_mode=mp.tasks.vision.RunningMode.VIDEO, num_hands=2,
-        min_hand_detection_confidence=.6, min_hand_presence_confidence=.6,
-        min_tracking_confidence=.6)
+        mapper = Mapper(model_path)
+    from guide import Guide
+    guide = Guide(voice=args.guide_voice) if args.guide else None
+    if not args.replay or args.check:
+        import mediapipe as mp
+        if not (folder / 'hand_landmarker.task').exists():
+            raise SystemExit('Missing detector. Run bash tools/mediapipe_revo3/setup.sh')
+        options = mp.tasks.vision.HandLandmarkerOptions(
+            base_options=mp.tasks.BaseOptions(model_asset_path=str(folder / 'hand_landmarker.task'),
+                                             delegate=mp.tasks.BaseOptions.Delegate.CPU),
+            running_mode=mp.tasks.vision.RunningMode.VIDEO, num_hands=2,
+            min_hand_detection_confidence=.6, min_hand_presence_confidence=.6,
+            min_tracking_confidence=.6)
     if args.check:
         with mp.tasks.vision.HandLandmarker.create_from_options(options) as detector:
             result = detector.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB,
@@ -124,7 +196,11 @@ def main():
                       else ('recorded_video_mediapipe' if args.video else 'live_camera_mediapipe'),
         'input_topology': 'MediaPipe 21 landmarks, original order; no MANUS CMC synthesis',
         'world_units': 'estimated metres; not measured ground truth', 'robot_side': 'Right',
-        'output': 'q_command_rad, official FK only; no q_actual or contact simulation',
+        'output': ('q_command_rad and q_actual_rad; official PD MuJoCo dynamics; contact not validated'
+                   if args.solver == 'shared' else 'q_command_rad, official FK only; no q_actual or contact simulation'),
+        'model': {'path': str(model_path), 'sha256': sha(model_path)},
+        'time_convention': ('q_actual sampled before applying current q_command; origin first source timestamp; no final extrapolation'
+                            if args.solver == 'shared' else 'kinematic command pose'),
         'environment': sys.prefix, 'python': platform.python_version(),
         'packages': {d.metadata['Name']: d.version for d in importlib.metadata.distributions()},
         'joint_names': mapper.names, 'joint_limits_rad': np.stack([mapper.lo, mapper.hi], axis=1).tolist(),
@@ -134,20 +210,49 @@ def main():
         'timestamp_policy': 'camera monotonic time after read; video presentation time with fps fallback; source timestamps retained on replay',
         'raw_video_policy': 'decoded frames in source order; per-frame timestamp_s in frames.jsonl is authoritative'}
     snapshot = out / 'code'
+    if guide:
+        manifest['guided_recording'] = {'protocol': 'hand_baseline_manual_retry_v6', 'timeline': 'timeline.json',
+            'action_duration_s': guide.duration_s, 'start_policy': 'enter_each_action',
+            'labels': 'prompted actions, not verified execution/contact'}
     snapshot.mkdir()
     for path in Path(__file__).parent.iterdir():
         if path.is_file():
             shutil.copyfile(path, snapshot / path.name)
+    if args.solver == 'shared':
+        from shared_mapper import CORE
+        core_snapshot = snapshot / 'shared_core'
+        core_snapshot.mkdir()
+        for path in CORE.glob('*.py'):
+            shutil.copyfile(path, core_snapshot / path.name)
+            manifest['code_sha256']['shared_core/' + path.name] = sha(path)
+        receipt = model_path.parent / 'model.json'
+        shutil.copyfile(receipt, out / 'model.json')
+        shutil.copyfile(model_path, out / 'model.xml')
+        shutil.copyfile(mapper.profile_path, out / 'solver_profile.json')
+        manifest['model']['receipt'] = 'model.json'
+        manifest['model']['receipt_sha256'] = sha(receipt)
+        manifest['model']['xml_snapshot'] = 'model.xml'
+        manifest['solver_profile'] = {'path': str(mapper.profile_path), 'sha256': sha(mapper.profile_path),
+                                      'snapshot': 'solver_profile.json'}
+        manifest['solver_config'] = mapper.config
+        manifest['input_transform'] = {'scale': args.scale, 'palm_x_sign': args.palm_x_sign, 'hand_side': args.hand}
+        manifest['max_gap_s'] = mapper.max_gap_s
     manifest['code_snapshot'] = 'code/'
     json_write(out / 'manifest.json', manifest)
     print(f'Run: {out}', flush=True)
     cap = detector = video_writer = replay_file = None
     log = None
+    visual = None
     statuses, latencies, frame_count = Counter(), [], 0
     rng = np.random.default_rng(args.seed)
     last_stamp, last_ms = -1., -1
+    playback_origin = None
     start = time.monotonic()
     try:
+        if not args.no_display:
+            from assets import prepare_visual
+            from visual import RobotVisual
+            visual = RobotVisual(model_path if args.solver == 'shared' else prepare_visual(), mapper.names)
         log = (out / 'frames.jsonl').open('x')
         if args.replay:
             replay_file = args.replay.open()
@@ -167,6 +272,8 @@ def main():
                 source = json.loads(line)
                 observation = {k: source[k] for k in ['timestamp_s', 'detections']}
                 observation['source_frame_index'] = source['frame_index']
+                if 'guide' in source:
+                    observation['guide'] = source['guide']
             else:
                 ok, frame = cap.read()
                 if not ok:
@@ -182,6 +289,9 @@ def main():
             stamp = float(observation['timestamp_s'])
             if not np.isfinite(stamp) or stamp <= last_stamp:
                 raise ValueError('Replay/source timestamps must be finite and strictly increasing')
+            if guide:
+                observation['guide'] = guide.label(stamp)
+                guide.prompt(observation['guide'])
             begin = time.perf_counter()
             if frame is not None:
                 if args.record_video:
@@ -219,19 +329,36 @@ def main():
                        injected_dropout=drop, output=output)
             log.write(json.dumps(row, allow_nan=False) + '\n')
             log.flush()
+            if guide:
+                guide.record(observation['guide'], frame_count, stamp, output['status'])
             statuses[output['status']] += 1
             latencies.append(output['processing_ms'])
             frame_count += 1
             last_stamp = stamp
+            if guide and observation['guide']['phase'] == 'done':
+                break
+            key = None
             if not args.no_display:
-                if not draw(frame, observation, output, cv2, np):
-                    break
                 if replay_file or args.video:
-                    # Playback pacing does not affect source dt or mapped values.
-                    time.sleep(max(0, min(.05, stamp - (time.monotonic() - start))))
+                    if playback_origin is None:
+                        playback_origin = (stamp, time.monotonic())
+                    # Display follows source-relative time; inference startup is excluded.
+                    delay = (stamp-playback_origin[0])-(time.monotonic()-playback_origin[1])
+                    if delay > 0:
+                        time.sleep(delay)
+                key = draw(frame, observation, output, cv2, np, visual)
+                if key in [27, ord('q')]:
+                    break
+            if guide:
+                command = terminal_command()
+                if key in [ord('r'), ord('R')] or command == 'restart':
+                    guide.request_restart()
+                elif key in [10, 13] or command == 'start':
+                    guide.request_start()
         if frame_count == 0:
             raise RuntimeError('Source contained no decodable frames')
-        manifest['status'] = 'complete'
+        manifest['status'] = ('partial' if guide and not guide.timeline(last_stamp, '')['completed']
+                              else 'complete')
     except KeyboardInterrupt:
         manifest['status'] = 'interrupted'
     except Exception as error:
@@ -239,12 +366,17 @@ def main():
         manifest['error'] = str(error)
         raise
     finally:
+        if guide:
+            guide.stop_speech()
+            json_write(out / 'timeline.json', guide.timeline(last_stamp, manifest['status']))
         for resource in [cap, video_writer]:
             if resource is not None:
                 resource.release()
         for resource in [detector, replay_file, log]:
             if resource is not None:
                 resource.close()
+        if visual is not None:
+            visual.close()
         if not args.no_display:
             cv2.destroyAllWindows()
         manifest['frames'] = frame_count
