@@ -1,6 +1,5 @@
-# Left endpoints are provisional, not measured. Use calibrate_dv1_fingers.
 # XYZ/RPY use identity as the initial model-frame comparison; not a fitted workspace mapping.
-# Order: index, middle, ring, little; DIP/PIP/MCP within each finger.
+# Acquisition/FK only. Revo2 flexion moved to src/brainco_capabilities/revo2_hand_retarget/config/flexion_dv1_left.yaml.
 /humandex_hand_adapter:
   ros__parameters:
     input_mode: dv1_joint_states
@@ -33,38 +32,3 @@
     - 0.0
     - 0.0
     - 0.0
-    four_finger_mapping: calibrated
-    four_finger_wrap_angles: true
-    four_finger_weights:
-    - 1.0
-    - 1.0
-    - 1.0
-    four_finger_flexion_range_rad: 1.4661
-    four_finger_calibration_label: PROVISIONAL left 0..90deg; record open/fist before
-      hardware
-    left_four_finger_open_rad:
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    left_four_finger_closed_rad:
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966
-    - 1.5707963267948966

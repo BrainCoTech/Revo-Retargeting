@@ -46,6 +46,8 @@ public:
     set_config_ = load_symbol<SetConfigFn>("manus_revo3_thumb_set_config");
     apply_ = load_symbol<ApplyFn>("manus_revo3_thumb_apply");
     last_iteration_count_ = load_symbol<LastIterationCountFn>("manus_revo3_thumb_last_iteration_count");
+    diagnostics_ = load_symbol<DiagnosticsFn>("manus_revo3_thumb_diagnostics");
+    limits_ = load_symbol<LimitsFn>("manus_revo3_thumb_joint_limits");
     handle_ = create_();
     if (handle_ == nullptr) {
       throw std::runtime_error("thumb plugin create returned null");
@@ -80,12 +82,22 @@ public:
     apply_(handle_, &joints, &landmarks, &q);
   }
 
+  void joint_limits(const std::string & side, JointArray & lower, JointArray & upper) const
+  { limits_(handle_, side.c_str(), &lower, &upper); }
+
+  ThumbDiagnostics diagnostics() const
+  { ThumbDiagnostics out; diagnostics_(handle_, &out); return out; }
+
   int last_iteration_count() const
   {
     return last_iteration_count_(handle_);
   }
 
 private:
+  using DiagnosticsFn = void (*)(void *, ThumbDiagnostics *);
+  DiagnosticsFn diagnostics_{nullptr};
+  using LimitsFn = void (*)(void *, const char *, JointArray *, JointArray *);
+  LimitsFn limits_{nullptr};
   using CreateFn = void * (*)();
   using DestroyFn = void (*)(void *);
   using InitializeFn = bool (*)(void *, const char *, const char *, std::string *);
@@ -137,6 +149,8 @@ struct SideState
   rclcpp::Time last_target_time;
   bool has_segment{false};
   bool has_last_target{false};
+  JointArray lower;
+  JointArray upper;
   FourFingerRetarget four_finger;
   SpreadRetarget spread;
   std::unique_ptr<ThumbPlugin> thumb;
@@ -148,6 +162,23 @@ public:
   explicit RetargetNodeCpp(const rclcpp::NodeOptions & options)
   : Node("manus_revo3_retarget", options)
   {
+    for (const auto & name : list_parameters({}, 100).names) {
+      const bool obsolete = name == "thumb_ik_max_frame_delta_deg" || name == "thumb_ik_tolerance" ||
+        name.find("_thumb_cmp_scale_physical") != std::string::npos ||
+        name.find("_thumb_cmp_offset_deg_physical") != std::string::npos ||
+        (name.rfind("legacy_", 0) == 0 && (
+          name.find("_thumb_joint_offset_deg") != std::string::npos ||
+          name.find("_thumb_cmr_offset_deg") != std::string::npos ||
+          name.find("_thumb_mcp_offset_deg") != std::string::npos ||
+          name.find("_thumb_mcp_scale") != std::string::npos ||
+          name.find("_thumb_pip_scale") != std::string::npos ||
+          name.find("_thumb_dip_scale") != std::string::npos ||
+          name.find("_thumb_pip_ik_scale") != std::string::npos ||
+          name.find("_thumb_dip_ik_scale") != std::string::npos ||
+          name.find("_thumb_reach_scale") != std::string::npos ||
+          name.find("_thumb_ema_") != std::string::npos));
+      if (obsolete) { throw std::runtime_error("Removed parameter: " + name + "; migrate the old YAML layers first"); }
+    }
     hand_mode_ = string_param("hand_mode", "both");
     use_revo3_namespace_ = bool_param("use_revo3_namespace", true);
     command_topic_suffix_ = string_param("command_topic_suffix", "joint_forward_mit_controller/commands");
@@ -207,6 +238,7 @@ private:
     if (!state->thumb->initialize(model_base, side, &thumb_error)) {
       throw std::runtime_error("failed to initialize thumb Pinocchio IK for " + side + ": " + thumb_error);
     }
+    state->thumb->joint_limits(side, state->lower, state->upper);
     RCLCPP_INFO(get_logger(), "C++ %s thumb Pinocchio IK initialized", side.c_str());
 
     RCLCPP_INFO(get_logger(), "C++ %s retarget -> %s", side.c_str(), command_topic(side).c_str());
@@ -252,30 +284,26 @@ private:
   {
     const std::string p = "legacy_" + side + "_physical_";
     ThumbConfig cfg;
-    cfg.joint_offset_deg = double_param(p + "thumb_joint_offset_deg", 0.0);
-    cfg.cmp_offset_deg = double_param(side + "_thumb_cmp_offset_deg_physical", 0.0);
-    cfg.cmp_scale = double_param(side + "_thumb_cmp_scale_physical", 1.0);
-    cfg.cmr_offset_deg = double_param(p + "thumb_cmr_offset_deg", 0.0);
-    cfg.mcp_offset_deg = double_param(p + "thumb_mcp_offset_deg", 0.0);
-    cfg.mcp_scale = double_param(p + "thumb_mcp_scale", 1.0);
-    cfg.pip_scale = double_param(p + "thumb_pip_scale", 1.0);
-    cfg.dip_scale = double_param(p + "thumb_dip_scale", 1.0);
     cfg.cmr_joint_name = string_param("thumb_cmr_joint_name", "thumb_mcp_spread");
     cfg.spread_sign = double_param(side + "_thumb_cmr_input_sign", side == "left" ? 1.0 : -1.0);
-    cfg.reach_scale = double_param(p + "thumb_reach_scale", 1.0);
     cfg.ik_position_scale = double_param(p + "thumb_ik_position_scale", 1.0);
-    cfg.pip_ik_scale = double_param(p + "thumb_pip_ik_scale", 1.0);
-    cfg.dip_ik_scale = double_param(p + "thumb_dip_ik_scale", 1.0);
-    cfg.ema_prev = double_param(p + "thumb_ema_prev", side == "left" ? 0.9 : 0.4);
-    cfg.ema_cur = double_param(p + "thumb_ema_cur", side == "left" ? 0.1 : 0.6);
-    cfg.ik_posture_weight = double_param("thumb_ik_posture_weight", 0.1);
-    cfg.ik_smooth_weight = double_param("thumb_ik_smooth_weight", 0.1);
+    cfg.position_sigma_m = double_param("thumb_ik_position_sigma_m", 0.01);
+    cfg.posture_sigma_rad = deg_to_rad(double_param("thumb_ik_posture_sigma_deg", 10.0));
+    cfg.smooth_sigma_rad = deg_to_rad(double_param("thumb_ik_smooth_sigma_deg", 10.0));
+    cfg.tip_weight = double_param("thumb_ik_tip_weight", 0.0004);
+    cfg.pip_weight = double_param(side + "_thumb_ik_pip_weight", 0.000001);
+    cfg.dip_weight = double_param(side + "_thumb_ik_dip_weight", 0.000001);
+    const std::array<std::string, 5> posture_names = {"cmp", "cmr", "mcp", "pip", "dip"};
+    for (std::size_t i = 0; i < posture_names.size(); ++i) {
+      cfg.posture_joint_weights[i] = double_param("thumb_ik_posture_" + posture_names[i] + "_weight", cfg.posture_joint_weights[i]);
+    }
+    cfg.ik_posture_weight = double_param("thumb_ik_posture_weight", 0.00030461741978670857);
+    cfg.ik_smooth_weight = double_param("thumb_ik_smooth_weight", 0.00030461741978670857);
     cfg.ik_max_iterations = int_param("thumb_ik_max_iterations", 15);
     cfg.ik_max_step_rad = deg_to_rad(double_param("thumb_ik_max_step_deg", 3.0));
-    cfg.ik_max_frame_delta_rad = deg_to_rad(double_param("thumb_ik_max_frame_delta_deg", 6.0));
     cfg.ik_damping = double_param("thumb_ik_damping", 0.02);
     cfg.ik_step_size = double_param("thumb_ik_step_size", 0.30);
-    cfg.ik_tolerance = double_param("thumb_ik_tolerance", 5e-4);
+    cfg.ik_tolerance = double_param("thumb_ik_normalized_tolerance", 5e-4);
     return cfg;
   }
 
@@ -304,12 +332,17 @@ private:
     state->four_finger.apply(joints, q);
     state->spread.apply(joints, q);
     state->thumb->apply(joints, landmarks, q);
+    const auto diagnostics = state->thumb->diagnostics();
+    RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 2000,
+      "%s thumb IK: tip_error_m=%.6f posture_rms_rad=%.6f normalized_residual=%.6f iterations=%d",
+      state->side.c_str(), diagnostics.tip_error_m, diagnostics.posture_error_rad,
+      diagnostics.normalized_residual, state->thumb->last_iteration_count());
 
     Revo3MITCommand out;
     out.header.stamp = now();
     out.joint_names = state->names;
     out.position.assign(q.begin(), q.end());
-    apply_output_calibration(state->side, state->names, out.position);
+    apply_output_calibration(*state, out.position);
     out.velocity.assign(state->names.size(), 0.0);
     out.effort.assign(state->names.size(), 0.0);
     mit_velocity_feedforward_enabled_ = bool_param(
@@ -457,10 +490,10 @@ private:
   }
 
   void apply_output_calibration(
-    const std::string & side,
-    const std::vector<std::string> & names,
-    std::vector<double> & positions)
+    const SideState & state, std::vector<double> & positions)
   {
+    const auto & side = state.side;
+    const auto & names = state.names;
     const std::string prefix = side + "_";
     for (std::size_t i = 0; i < names.size() && i < positions.size(); ++i) {
       std::string suffix = names[i];
@@ -469,7 +502,9 @@ private:
       }
       const double scale = double_param("physical_" + side + "_" + suffix + "_scale", 1.0);
       const double offset = deg_to_rad(double_param("physical_" + side + "_" + suffix + "_offset_deg", 0.0));
-      positions[i] = positions[i] * scale + offset;
+      const double calibrated = positions[i] * scale + offset;
+      if (!std::isfinite(calibrated)) { throw std::runtime_error("Non-finite output calibration: " + names[i]); }
+      positions[i] = std::clamp(calibrated, state.lower[i], state.upper[i]);
     }
   }
 

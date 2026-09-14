@@ -42,6 +42,9 @@ def _create_nodes(context, *args, **kwargs):
             "--control-config",
             control_config,
         ]
+        flexion_config = LaunchConfiguration("finger_flexion_config").perform(context)
+        if flexion_config:
+            retarget_args.extend(["--finger-flexion-config", flexion_config])
         if target_only:
             retarget_args.extend([
                 "--target-only",
@@ -86,6 +89,7 @@ def generate_launch_description():
     package_share = get_package_share_directory("revo2_hand_retarget")
 
     return LaunchDescription([
+        DeclareLaunchArgument("finger_flexion_config", default_value=""),
         DeclareLaunchArgument(
             "hand_mode",
             default_value="right",

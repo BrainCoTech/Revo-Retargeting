@@ -17,11 +17,14 @@ assumptions, not evidence that its origin or axes match MANUS or the robot.
 Coordinate calibration and the anatomical meaning of each landmark must be
 verified for each device/model pair. Apply each coordinate conversion once.
 
-Adapters may also publish the derived aggregate DOFs `index_flexion`,
-`middle_flexion`, `ring_flexion`, and `little_flexion`. The current HumanDex
-implementation still scales these compatibility fields to the Revo2 range;
-they must not be interpreted as measured anatomical angles. Revo3 consumes the
-independent joint fields instead.
+MANUS/HumanDex adapters publish observed independent angles, not Revo2 aggregate
+flexion. Robot-specific aggregate mapping is owned by `revo2_hand_retarget`.
+Other legacy adapters may still publish aggregate fields during migration.
+A tip means the glove/model fingertip. The upstream FK applies the model-specific
+DIP-local offset once; the adapter preserves this point. Finger-pad contact
+references are separate and must not replace tips. HumanDex_bimanual geometric
+offsets and their model scope are documented in
+[the fingertip record](../../manus_revo3_retarget/config/humandex_fingertips.yaml).
 
 `source` is diagnostic metadata.  Retargeting behavior must be selected by an
 explicit profile, never by branching on `source`.

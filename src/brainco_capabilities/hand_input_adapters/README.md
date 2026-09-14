@@ -17,33 +17,12 @@ All adapters publish landmarks in `hand_retarget_left` or
 `hand_retarget_right`. These normalized frame names prevent downstream code
 from applying a second device-specific axis transform.
 
-## HumanDex four-finger calibration
+## Revo2 four-finger calibration
 
-HumanDex receives all 21 joints and five end-effector positions. The legacy
-`four_finger_mapping:=pip` mode only uses PIP for aggregate flexion. To use all
-three bending encoders on the tested right glove:
-
-```bash
-ros2 run hand_input_adapters humandex_hand_adapter --ros-args \
-  --params-file "$(ros2 pkg prefix hand_input_adapters)/share/hand_input_adapters/config/humandex_right_calibrated.yaml"
-```
-
-The `calibrated` mode normalizes each DIP/PIP/MCP angle between its measured
-open and closed endpoints, clips each to [0, 1], then takes a weighted average
-and multiplies by `four_finger_flexion_range_rad`. The supplied equal weights
-reuse the previously tested RevoHuman mapping; they are not the historical
-MANUS MCP/PIP/DIP weights of 0.50/0.35/0.15. MPR is excluded from flexion.
-All original joints and tip coordinates are still forwarded.
-
-Endpoint arrays contain 12 **upstream JointState radians**, ordered index,
-middle, ring, little, with DIP/PIP/MCP within each finger. The right-hand
-profile converts the recorded raw encoder endpoints through the upstream
-180-degree offset and joint signs (including negative ring/little DIP).
-Use it with the bringup `humandex_upstream_right.yaml` configuration. If the
-upstream offset/signs or glove fit change, remeasure the endpoints. Each
-enabled side requires its own endpoint arrays; right-hand calibration is
-never implicitly applied to the left hand. Missing bending joints reject
-the frame instead of falling back to another mapping.
+MANUS/HumanDex adapters publish independent observed joints only. Aggregate
+flexion now belongs to `revo2_hand_retarget`, selected explicitly with
+`finger_flexion_config`. Calibration files and `calibrate_dv1_fingers` have moved
+there. See [migration](../../../docs/revo3_architecture_migration.md).
 
 ## DV1 SDK direct input
 
@@ -61,7 +40,18 @@ landmarks. `tip_offsets_m` is five DIP-local XYZ vectors in finger order;
 `fk_ema_alpha` defaults to 0.2, with a reset after a gap longer than `max_age_sec`.
 
 Use `dv1_left.yaml` or `dv1_right.yaml` with the bringup `dv1_sdk.launch.py`.
-Left ranges are explicitly provisional; `calibrate_dv1_fingers` records actual
+Revo2 left ranges are explicitly provisional; `ros2 run revo2_hand_retarget calibrate_dv1_fingers` records actual
 open/fist ranges to a local YAML without changing firmware or FK zero.
-DV1 uses `four_finger_wrap_angles:=true` for circular endpoint differences.
+The Revo2 DV1 mapping uses `four_finger_wrap_angles: true` for circular endpoint differences.
 See the bringup [left-hand instructions](../../brainco_bringup/revo2_teleop_bringup/README_DV1.md).
+
+
+### HumanDex fingertip geometry
+
+For paired `/humandex_eef_pose` input, fingertip offsets are applied in
+BrainCo-HumanDex, not in this adapter. Its `HumanDex_bimanual.urdf` default config
+now uses the mirrored glove-tip offsets recorded in
+[humandex_fingertips.yaml](../../manus_revo3_retarget/config/humandex_fingertips.yaml).
+The direct `dv1_joint_states` profiles use a different SDK URDF (including different
+DIP axes); their existing zero/trial offsets are intentionally not overwritten.
+Tip means glove fingertip; a finger-pad contact reference is a separate point.

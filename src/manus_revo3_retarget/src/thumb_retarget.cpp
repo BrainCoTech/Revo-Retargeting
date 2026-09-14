@@ -1,4 +1,5 @@
 #include "manus_revo3_retarget/thumb_retarget.hpp"
+#include "manus_revo3_retarget/ik_residual.hpp"
 
 #include <algorithm>
 #include <array>
@@ -16,15 +17,12 @@ namespace manus_revo3_retarget
 
 namespace
 {
-constexpr std::array<const char *, 4> kFourFingerTips = {
-  "index_tip", "middle_tip", "ring_tip", "little_tip"};
 
 std::optional<Eigen::Vector3d> landmark(const HandLandmarks & landmarks, const std::string & name)
 {
   const auto it = landmarks.find(name);
   return it == landmarks.end() ? std::nullopt : std::optional<Eigen::Vector3d>(it->second);
 }
-constexpr std::array<double, 5> kPostureWeights = {0.0, 0.25, 0.9, 1.2, 1.0};
 
 double clamp(double value, double low, double high)
 {
@@ -126,6 +124,12 @@ bool ThumbRetarget::initialize(const std::string & model_base, const std::string
 
 void ThumbRetarget::set_config(const ThumbConfig & config)
 {
+  residual_row_scale(config.tip_weight, config.position_sigma_m);
+  residual_row_scale(config.pip_weight, config.position_sigma_m);
+  residual_row_scale(config.dip_weight, config.position_sigma_m);
+  residual_row_scale(config.ik_posture_weight, config.posture_sigma_rad);
+  residual_row_scale(config.ik_smooth_weight, config.smooth_sigma_rad);
+  for (double weight : config.posture_joint_weights) { residual_row_scale(weight, 1.0); }
   config_ = config;
 }
 
@@ -141,57 +145,18 @@ void ThumbRetarget::apply(const JointPositions & joints, const HandLandmarks & l
   }
   const auto thumb_raw = landmark(landmarks, "thumb_tip");
   if (!thumb_raw) {
-    apply_output_calibration(q);
+    copy_solution(q);
     return;
   }
 
-  std::vector<Eigen::Vector3d> four_targets;
-  four_targets.reserve(kFourFingerTips.size());
-  for (const auto * name : kFourFingerTips) {
-    const auto raw = landmark(landmarks, name);
-    if (!raw) {
-      continue;
-    }
-    four_targets.push_back(*raw);
-  }
-  if (four_targets.size() != kFourFingerTips.size()) {
-    apply_output_calibration(q);
-    return;
-  }
-
-  Eigen::Vector3d center = Eigen::Vector3d::Zero();
-  for (const auto & target : four_targets) {
-    center += target;
-  }
-  center /= static_cast<double>(four_targets.size());
-
-  Eigen::Vector3d thumb_target = apply_reach_scale(*thumb_raw, center);
-  if (filtered_thumb_target_) {
-    filtered_thumb_target_ = config_.ema_prev * (*filtered_thumb_target_) + config_.ema_cur * thumb_target;
-  } else {
-    filtered_thumb_target_ = thumb_target;
-  }
-
-  auto dip_target = landmark(landmarks, "thumb_dip");
-  if (dip_target) {
-    dip_target = apply_reach_scale(*dip_target, center);
-  }
-  auto pip_target = landmark(landmarks, "thumb_pip");
-  if (pip_target) {
-    pip_target = apply_reach_scale(*pip_target, center);
-  }
-
+  const auto dip_target = landmark(landmarks, "thumb_dip");
+  const auto pip_target = landmark(landmarks, "thumb_pip");
   solve_ik(
-    (*filtered_thumb_target_) * config_.ik_position_scale,
-    dip_target ? std::optional<Eigen::Vector3d>((*dip_target) * config_.ik_position_scale) : std::nullopt,
-    pip_target ? std::optional<Eigen::Vector3d>((*pip_target) * config_.ik_position_scale) : std::nullopt,
+    *thumb_raw * config_.ik_position_scale,
+    dip_target ? std::optional<Eigen::Vector3d>(*dip_target * config_.ik_position_scale) : std::nullopt,
+    pip_target ? std::optional<Eigen::Vector3d>(*pip_target * config_.ik_position_scale) : std::nullopt,
     joints);
-  apply_output_calibration(q);
-}
-
-Eigen::Vector3d ThumbRetarget::apply_reach_scale(const Eigen::Vector3d & thumb, const Eigen::Vector3d & center) const
-{
-  return center + (thumb - center) * config_.reach_scale;
+  copy_solution(q);
 }
 
 void ThumbRetarget::posture_target(
@@ -223,7 +188,7 @@ void ThumbRetarget::posture_target(
     }
     const int adr = thumb_qpos_adrs_[static_cast<std::size_t>(index)];
     target[index] = clamp(value_rad, joint_low(adr), joint_high(adr));
-    weights[index] = kPostureWeights[static_cast<std::size_t>(index)];
+    weights[index] = config_.posture_joint_weights[static_cast<std::size_t>(index)];
   }
 }
 
@@ -255,6 +220,7 @@ void ThumbRetarget::solve_ik(
     std::vector<Eigen::MatrixXd> jac_blocks;
 
     auto add_position_task = [&](pinocchio::FrameIndex frame, const Eigen::Vector3d & target, double weight) {
+      weight = residual_row_scale(weight, config_.position_sigma_m);
       const Eigen::Vector3d current = impl_->data->oMf[frame].translation();
       residual_blocks.push_back(weight * (target - current));
       Eigen::Matrix<double, 6, Eigen::Dynamic> full_jac(6, impl_->model.nv);
@@ -270,12 +236,12 @@ void ThumbRetarget::solve_ik(
       jac_blocks.push_back(j);
     };
 
-    add_position_task(impl_->thumb_tip_frame, tip_target, 2.0);
+    add_position_task(impl_->thumb_tip_frame, tip_target, config_.tip_weight);
     if (dip_target) {
-      add_position_task(impl_->thumb_dip_frame, *dip_target, 0.1 * config_.dip_ik_scale);
+      add_position_task(impl_->thumb_dip_frame, *dip_target, config_.dip_weight);
     }
     if (pip_target) {
-      add_position_task(impl_->thumb_pip_frame, *pip_target, 0.1 * config_.pip_ik_scale);
+      add_position_task(impl_->thumb_pip_frame, *pip_target, config_.pip_weight);
     }
 
     if (config_.ik_posture_weight > 0.0) {
@@ -283,7 +249,7 @@ void ThumbRetarget::solve_ik(
         if (!std::isfinite(posture[i]) || posture_weights[i] <= 0.0) {
           continue;
         }
-        const double row_weight = config_.ik_posture_weight * posture_weights[i];
+        const double row_weight = residual_row_scale(config_.ik_posture_weight * posture_weights[i], config_.posture_sigma_rad);
         Eigen::VectorXd residual(1);
         residual[0] = row_weight * (posture[i] - q[thumb_qpos_adrs_[static_cast<std::size_t>(i)]]);
         Eigen::MatrixXd jac = Eigen::MatrixXd::Zero(1, n);
@@ -294,11 +260,12 @@ void ThumbRetarget::solve_ik(
     }
 
     if (config_.ik_smooth_weight > 0.0) {
+      const double smooth_scale = residual_row_scale(config_.ik_smooth_weight, config_.smooth_sigma_rad);
       Eigen::VectorXd residual(n);
-      Eigen::MatrixXd jac = Eigen::MatrixXd::Identity(n, n) * config_.ik_smooth_weight;
+      Eigen::MatrixXd jac = Eigen::MatrixXd::Identity(n, n) * smooth_scale;
       for (int i = 0; i < n; ++i) {
         const int adr = thumb_qpos_adrs_[static_cast<std::size_t>(i)];
-        residual[i] = config_.ik_smooth_weight * (q_prev[adr] - q[adr]);
+        residual[i] = smooth_scale * (q_prev[adr] - q[adr]);
       }
       residual_blocks.push_back(residual);
       jac_blocks.push_back(jac);
@@ -343,31 +310,49 @@ void ThumbRetarget::solve_ik(
     }
   }
 
-  if (config_.ik_max_frame_delta_rad > 0.0) {
-    for (int i = 0; i < n; ++i) {
-      const int adr = thumb_qpos_adrs_[static_cast<std::size_t>(i)];
-      const double delta = clamp(q[adr] - q_prev[adr], -config_.ik_max_frame_delta_rad, config_.ik_max_frame_delta_rad);
-      q[adr] = clamp(q_prev[adr] + delta, joint_low(adr), joint_high(adr));
-    }
-  }
   current_q_ = q;
+  pinocchio::forwardKinematics(impl_->model, *impl_->data, q);
+  pinocchio::updateFramePlacements(impl_->model, *impl_->data);
+  diagnostics_.tip_error_m = (impl_->data->oMf[impl_->thumb_tip_frame].translation() - tip_target).norm();
+  double energy = config_.tip_weight * std::pow(diagnostics_.tip_error_m / config_.position_sigma_m, 2);
+  if (dip_target) { energy += config_.dip_weight * (impl_->data->oMf[impl_->thumb_dip_frame].translation() - *dip_target).squaredNorm() / std::pow(config_.position_sigma_m, 2); }
+  if (pip_target) { energy += config_.pip_weight * (impl_->data->oMf[impl_->thumb_pip_frame].translation() - *pip_target).squaredNorm() / std::pow(config_.position_sigma_m, 2); }
+  double posture_squared = 0.0;
+  int posture_count = 0;
+  for (int i = 0; i < n; ++i) {
+    const int adr = thumb_qpos_adrs_[static_cast<std::size_t>(i)];
+    if (std::isfinite(posture[i]) && posture_weights[i] > 0.0) {
+      const double delta = posture[i] - q[adr];
+      posture_squared += delta * delta;
+      ++posture_count;
+      energy += config_.ik_posture_weight * posture_weights[i] * std::pow(delta / config_.posture_sigma_rad, 2);
+    }
+    energy += config_.ik_smooth_weight * std::pow((q_prev[adr] - q[adr]) / config_.smooth_sigma_rad, 2);
+  }
+  diagnostics_.posture_error_rad = posture_count ? std::sqrt(posture_squared / posture_count) : 0.0;
+  diagnostics_.normalized_residual = std::sqrt(energy);
 }
 
-void ThumbRetarget::apply_output_calibration(JointArray & q) const
+void ThumbRetarget::copy_solution(JointArray & q) const
 {
   if (thumb_qpos_adrs_.size() < 5 || current_q_.size() == 0) {
     return;
   }
-  const double joint_offset = deg_to_rad(config_.joint_offset_deg);
-  auto calibrated = [&](std::size_t thumb_index, double scale, double extra_deg) {
-    const int adr = thumb_qpos_adrs_[thumb_index];
-    return clamp(current_q_[adr] * scale + joint_offset + deg_to_rad(extra_deg), joint_low(adr), joint_high(adr));
-  };
-  q[ThumbCMP] = calibrated(0, config_.cmp_scale, config_.cmp_offset_deg);
-  q[ThumbCMR] = calibrated(1, 1.0, config_.cmr_offset_deg);
-  q[ThumbMCP] = calibrated(2, config_.mcp_scale, config_.mcp_offset_deg);
-  q[ThumbPIP] = calibrated(3, config_.pip_scale, 0.0);
-  q[ThumbDIP] = calibrated(4, config_.dip_scale, 0.0);
+  const std::array<JointIndex, 5> indices = {ThumbCMP, ThumbCMR, ThumbMCP, ThumbPIP, ThumbDIP};
+  for (std::size_t i = 0; i < indices.size(); ++i) {
+    q[indices[i]] = current_q_[thumb_qpos_adrs_[i]];
+  }
+}
+
+void ThumbRetarget::joint_limits(const std::string & side, JointArray & lower, JointArray & upper) const
+{
+  const auto names = joint_names(side);
+  for (std::size_t i = 0; i < names.size(); ++i) {
+    const int adr = joint_qpos_adr(names[i]);
+    if (adr < 0) { throw std::runtime_error("Missing robot joint limit: " + names[i]); }
+    lower[i] = joint_low(adr);
+    upper[i] = joint_high(adr);
+  }
 }
 
 int ThumbRetarget::joint_qpos_adr(const std::string & joint_name) const
@@ -441,6 +426,16 @@ extern "C" void manus_revo3_thumb_apply(
     return;
   }
   static_cast<ThumbRetarget *>(handle)->apply(*joints, *landmarks, *q);
+}
+
+extern "C" void manus_revo3_thumb_diagnostics(void * handle, ThumbDiagnostics * out)
+{
+  *out = static_cast<ThumbRetarget *>(handle)->diagnostics();
+}
+
+extern "C" void manus_revo3_thumb_joint_limits(void * handle, const char * side, JointArray * lower, JointArray * upper)
+{
+  static_cast<ThumbRetarget *>(handle)->joint_limits(side, *lower, *upper);
 }
 
 extern "C" int manus_revo3_thumb_last_iteration_count(void * handle)

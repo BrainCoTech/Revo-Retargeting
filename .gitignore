@@ -50,3 +50,10 @@ src/brainco_drivers/revo2_driver/setup/build/
 # Legacy runtime locations retained for local installations.
 .manus_revo2/
 src/manus_ros2/ManusSDK/lib/*.so*
+
+# Package regression tests are source; only root recordings stay ignored.
+!src/manus_revo3_retarget/test/
+!src/manus_revo3_retarget/test/*.py
+!src/manus_revo3_retarget/test/*.cpp
+!src/brainco_capabilities/revo2_hand_retarget/test/
+!src/brainco_capabilities/revo2_hand_retarget/test/*.py

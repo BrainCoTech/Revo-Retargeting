@@ -12,29 +12,29 @@ namespace manus_revo3_retarget
 
 using HandLandmarks = std::unordered_map<std::string, Eigen::Vector3d>;
 
+struct ThumbDiagnostics
+{
+  double tip_error_m{0.0};
+  double posture_error_rad{0.0};
+  double normalized_residual{0.0};
+};
+
 struct ThumbConfig
 {
-  double joint_offset_deg{0.0};
-  double cmp_offset_deg{0.0};
-  double cmp_scale{1.0};
-  double cmr_offset_deg{0.0};
-  double mcp_offset_deg{0.0};
-  double mcp_scale{1.0};
-  double pip_scale{1.0};
-  double dip_scale{1.0};
   double spread_sign{1.0};
   std::string cmr_joint_name{"thumb_mcp_spread"};
-  double reach_scale{1.0};
   double ik_position_scale{1.0};
-  double pip_ik_scale{1.0};
-  double dip_ik_scale{1.0};
-  double ema_prev{0.9};
-  double ema_cur{0.1};
-  double ik_posture_weight{0.1};
-  double ik_smooth_weight{0.1};
+  double position_sigma_m{0.01};
+  double posture_sigma_rad{deg_to_rad(10.0)};
+  double smooth_sigma_rad{deg_to_rad(10.0)};
+  double tip_weight{0.0004};
+  double pip_weight{0.000001};
+  double dip_weight{0.000001};
+  std::array<double, 5> posture_joint_weights{0.0, 0.0625, 0.81, 1.44, 1.0};
+  double ik_posture_weight{0.00030461741978670857};
+  double ik_smooth_weight{0.00030461741978670857};
   int ik_max_iterations{10};
   double ik_max_step_rad{deg_to_rad(3.0)};
-  double ik_max_frame_delta_rad{deg_to_rad(6.0)};
   double ik_damping{0.02};
   double ik_step_size{0.30};
   double ik_tolerance{5e-4};
@@ -48,18 +48,19 @@ public:
   void set_config(const ThumbConfig & config);
   void apply(const JointPositions & joints, const HandLandmarks & landmarks, JointArray & q);
   int last_iteration_count() const;
+  ThumbDiagnostics diagnostics() const { return diagnostics_; }
+  void joint_limits(const std::string & side, JointArray & lower, JointArray & upper) const;
 
 private:
   struct Impl;
 
-  Eigen::Vector3d apply_reach_scale(const Eigen::Vector3d & thumb, const Eigen::Vector3d & center) const;
   void posture_target(const JointPositions & joints, Eigen::VectorXd & target, Eigen::VectorXd & weights) const;
   void solve_ik(
     const Eigen::Vector3d & tip_target,
     const std::optional<Eigen::Vector3d> & dip_target,
     const std::optional<Eigen::Vector3d> & pip_target,
     const JointPositions & joints);
-  void apply_output_calibration(JointArray & q) const;
+  void copy_solution(JointArray & q) const;
   int joint_qpos_adr(const std::string & joint_name) const;
   int joint_dof_adr(const std::string & joint_name) const;
   double joint_low(int adr) const;
@@ -71,12 +72,9 @@ private:
   std::vector<int> thumb_dof_adrs_;
   std::vector<double> jlow_;
   std::vector<double> jhigh_;
-  int thumb_site_id_{-1};
-  int thumb_dip_body_id_{-1};
-  int thumb_pip_body_id_{-1};
   Eigen::VectorXd current_q_;
-  std::optional<Eigen::Vector3d> filtered_thumb_target_;
   int last_iteration_count_{0};
+  ThumbDiagnostics diagnostics_;
 };
 
 extern "C" {
@@ -90,6 +88,8 @@ void manus_revo3_thumb_apply(
   const HandLandmarks * landmarks,
   JointArray * q);
 int manus_revo3_thumb_last_iteration_count(void * handle);
+void manus_revo3_thumb_diagnostics(void * handle, ThumbDiagnostics * out);
+void manus_revo3_thumb_joint_limits(void * handle, const char * side, JointArray * lower, JointArray * upper);
 }
 
 }  // namespace manus_revo3_retarget

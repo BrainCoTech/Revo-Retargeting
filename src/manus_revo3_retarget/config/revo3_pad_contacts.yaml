@@ -1,0 +1,72 @@
+# Reference record only: additive offsets in existing tip_Link coordinates.
+# Not loaded by launch or IK; do not add these to HumanDex fingertip offsets.
+schema_version: 1
+model: Revo3 revo3_<side>_may3.urdf
+units: m
+point_definition: finger_pad_contact_reference
+enabled_in_ik: false
+source: User-selected mesh points; left four fingers mirror right; thumbs supplied
+  separately
+hands:
+  left:
+    index:
+      parent_link: left_index_tip_Link
+      offset_m:
+      - 8.8174e-05
+      - 0.0
+      - 0.01
+    middle:
+      parent_link: left_middle_tip_Link
+      offset_m:
+      - 5.4976e-05
+      - 0.0
+      - 0.01
+    ring:
+      parent_link: left_ring_tip_Link
+      offset_m:
+      - 5.8524e-05
+      - 0.0
+      - 0.01
+    little:
+      parent_link: left_little_tip_Link
+      offset_m:
+      - 0.000113207
+      - 0.0
+      - 0.01
+    thumb:
+      parent_link: left_thumb_tip_Link
+      offset_m:
+      - 0.0
+      - -0.015
+      - -0.00046554
+  right:
+    index:
+      parent_link: right_index_tip_Link
+      offset_m:
+      - 8.8174e-05
+      - 0.0
+      - 0.01
+    middle:
+      parent_link: right_middle_tip_Link
+      offset_m:
+      - 5.4976e-05
+      - 0.0
+      - 0.01
+    ring:
+      parent_link: right_ring_tip_Link
+      offset_m:
+      - 5.8524e-05
+      - 0.0
+      - 0.01
+    little:
+      parent_link: right_little_tip_Link
+      offset_m:
+      - 0.000113207
+      - 0.0
+      - 0.01
+    thumb:
+      parent_link: right_thumb_tip_Link
+      offset_m:
+      - 0.0
+      - 0.015
+      - -0.00082585

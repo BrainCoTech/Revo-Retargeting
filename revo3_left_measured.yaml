@@ -1,13 +1,6 @@
-# DV1 left Revo3 overrides.
-# Four-finger MCP uses a shared 1.3 multiplier; PIP/DIP keep the original mapping.
-# Per-joint output scales are 1.0 and output offsets are 0.0.
-# MPR neutral offsets use the confirmed fingers-together pose; direction/range unverified.
-# Left MPR spread scales reverse the default direction.
-# Thumb DIP output multiplier set to 1 after the seven-pose recording at 11:30.
-# This removes early DIP saturation; it does not calibrate the thumb workspace.
+# Single output calibration; normalized IK compatibility weights.
 manus_revo3_retarget:
   ros__parameters:
-    legacy_left_physical_thumb_dip_scale: 1.0
     legacy_left_physical_index_angle_scale: 1.0
     legacy_left_physical_four_finger_mcp_scale: 1.0
     legacy_left_physical_middle_ring_dip_scale: 1.0
@@ -47,3 +40,23 @@ manus_revo3_retarget:
     legacy_left_physical_ring_spread_offset_deg: 5.62999999999998
     legacy_left_physical_pinky_spread_scale: 0.8
     legacy_left_physical_pinky_spread_offset_deg: 10.979999999999979
+    physical_left_thumb_MCP_joint_scale: 1.0
+    physical_left_thumb_MCP_joint_offset_deg: 0.0
+    physical_left_thumb_PIP_joint_scale: 1.3
+    physical_left_thumb_PIP_joint_offset_deg: 0.0
+    physical_left_thumb_DIP_joint_scale: 1.0
+    physical_left_thumb_DIP_joint_offset_deg: 20.0
+    physical_left_thumb_CMP_joint_scale: 1.0
+    physical_left_thumb_CMP_joint_offset_deg: 0.0
+    physical_left_thumb_CMR_joint_scale: 1.0
+    physical_left_thumb_CMR_joint_offset_deg: 0.0
+    physical_right_thumb_MCP_joint_scale: 1.0
+    physical_right_thumb_MCP_joint_offset_deg: -4.0
+    physical_right_thumb_PIP_joint_scale: 1.44
+    physical_right_thumb_PIP_joint_offset_deg: 15.0
+    physical_right_thumb_DIP_joint_scale: 1.2
+    physical_right_thumb_DIP_joint_offset_deg: 10.0
+    physical_right_thumb_CMP_joint_scale: 1.04
+    physical_right_thumb_CMP_joint_offset_deg: 0.0
+    physical_right_thumb_CMR_joint_scale: 1.0
+    physical_right_thumb_CMR_joint_offset_deg: 0.0

@@ -6,7 +6,7 @@ import unittest
 
 import yaml
 
-from hand_input_adapters.finger_flexion import CalibratedFingerFlexion, JOINTS
+from revo2_hand_retarget.finger_flexion import CalibratedFingerFlexion, JOINTS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,8 +22,8 @@ def upstream(raw):
 
 
 def load_calibration():
-    params = yaml.safe_load((ROOT / 'config/humandex_right_calibrated.yaml').read_text())
-    p = params['/humandex_hand_adapter']['ros__parameters']
+    params = yaml.safe_load((ROOT / 'config/flexion_humandex_right_calibrated.yaml').read_text())
+    p = params
     return CalibratedFingerFlexion(
         p['right_four_finger_open_rad'], p['right_four_finger_closed_rad'],
         p['four_finger_weights'], p['four_finger_flexion_range_rad'])
@@ -77,3 +77,21 @@ class FingerFlexionTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def test_robot_side_profiles_match_previous_adapter_formulas():
+    from revo2_hand_retarget.finger_flexion import Revo2FingerMapping
+    mapping = Revo2FingerMapping.from_file(ROOT / "config/flexion_humandex_right_calibrated.yaml")
+    for fraction in (0., .25, .5, .75, 1.):
+        joints = upstream([o+fraction*(c-o) for o,c in zip(OPEN,CLOSED)])
+        out = mapping.apply(joints, "right")
+        for finger in ("index", "middle", "ring", "little"):
+            assert abs(out[f"{finger}_flexion"] - fraction*1.4661) < 1e-9
+        assert all(out[k] == v for k,v in joints.items())
+    manus = Revo2FingerMapping({"four_finger_mapping": "manus"})
+    pip = Revo2FingerMapping({"four_finger_mapping": "pip"})
+    for angle in (-.4, 0., .1, .4, 1.2):
+        joints = {f"{f}_{j}": angle for f in ("index", "middle", "ring", "little") for j in ("mcp", "pip", "dip")}
+        assert abs(manus.apply(joints,"right")["index_flexion"]-max(0.,angle)) < 1e-12
+        expected = min(1., max(0., (angle-math.radians(12))/math.radians(-24)))*1.4661
+        assert abs(pip.apply(joints,"right")["index_flexion"]-expected) < 1e-12

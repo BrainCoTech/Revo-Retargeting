@@ -1,4 +1,5 @@
 # DV1 open/fist ranges; firmware zero and FK angles are unchanged.
+# Acquisition/FK only. Revo2 flexion moved to src/brainco_capabilities/revo2_hand_retarget/config/flexion_dv1_left_measured.yaml.
 /humandex_hand_adapter:
   ros__parameters:
     input_mode: dv1_joint_states
@@ -31,37 +32,3 @@
     - 0.0
     - 0.0
     - 0.0
-    four_finger_mapping: calibrated
-    four_finger_wrap_angles: true
-    four_finger_weights:
-    - 1.0
-    - 1.0
-    - 1.0
-    four_finger_flexion_range_rad: 1.4661
-    four_finger_calibration_label: measured left 2026-09-08T03:09:40.051312+00:00
-    left_four_finger_open_rad:
-    - -0.2012364627549461
-    - -0.2380629099720264
-    - 0.15812683023068663
-    - 0.07784168463894758
-    - -0.6276203990171609
-    - 0.3293436298513299
-    - 0.37088246604879505
-    - -0.7391469382195983
-    - 0.1411971364863409
-    - 0.17558012275062929
-    - -0.7778932476138727
-    - 0.516442925665122
-    left_four_finger_closed_rad:
-    - 0.6544984694978737
-    - 1.5905185473424321
-    - 0.6305874587455516
-    - 1.3149310584525278
-    - 1.7926276747233754
-    - 0.8525933395992298
-    - 1.270250629601473
-    - 1.5015067554907215
-    - 0.3853686988403484
-    - 1.1501719770642636
-    - 0.7063347482821052
-    - 0.8606218541584036

@@ -9,7 +9,7 @@
 SDK tools/ros2_joint_state_pub.py
   /humandex_left/joint_states (21 个 URDF 关节，弧度)
     → humandex_hand_adapter，input_mode=dv1_joint_states
-      → 校验 / 可选 EMA → DV1 FK → 坐标转换 + 四指弯曲量
+      → 校验 / 可选 EMA → DV1 FK → 坐标转换（Revo2 消费端另算四指弯曲量）
         → /hand_kinematics/left
           → Revo2 retarget → 控制器
 ```
@@ -92,8 +92,8 @@ ros2 topic echo /hand_kinematics/left hand_teleop_msgs/msg/HandKinematics --once
 保持 SDK + adapter 运行，在另一个已加载公共环境的终端：
 
 ```bash
-ros2 run hand_input_adapters calibrate_dv1_fingers --side left \
-  --output "$PWD/dv1_left_measured.yaml"
+ros2 run revo2_hand_retarget calibrate_dv1_fingers --side left \
+  --output "$PWD/flexion_dv1_left_measured.yaml"
 ```
 
 按提示分别张开四指、握拳，每个姿态按 Enter 后保持两秒。
@@ -107,7 +107,7 @@ ros2 run hand_input_adapters calibrate_dv1_fingers --side left \
 ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
   hand_mode:=left port:=/dev/ttyACM0 \
   sdk_path:=/home/jiimmy/Brainco/Code/RevoHuman/brainco_revohuman_sdk \
-  adapter_config:="$PWD/dv1_left_measured.yaml" \
+  finger_flexion_config:="$PWD/flexion_dv1_left_measured.yaml" \
   launch_retarget:=true
 ```
 
@@ -133,7 +133,7 @@ IK 求解器内部残差**；IK/指令按不超过 50ms 的时间差近似配对
 ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
   hand_mode:=left port:=/dev/ttyACM0 \
   sdk_path:=/home/jiimmy/Brainco/Code/RevoHuman/brainco_revohuman_sdk \
-  adapter_config:="$PWD/dv1_left_measured.yaml" \
+  finger_flexion_config:="$PWD/flexion_dv1_left_measured.yaml" \
   launch_retarget:=true launch_revo2_driver:=true
 ```
 
@@ -167,3 +167,5 @@ MuJoCo 对照覆盖左右手各 21 组关节角，位置/旋转矩阵容差 1e-9
 安装后的 launch 已用合成左手数据验证到 Revo2 六关节目标输出，未连接真机。
 另用三组合成拇指姿态回放现有 IK，输出可变化，但内部位置残差约 65～83mm。
 因此数据接入和 FK 算法已验证，左手实际零姿态、四指范围和拇指工作空间仍需实测。
+
+标定工具现输出 Revo2 flexion 配置；使用 `finger_flexion_config:=...` 加载。adapter 配置只管理采集/FK 与坐标。详见 [迁移说明](../../../docs/revo3_architecture_migration.md)。

@@ -195,6 +195,7 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
                             "use_split_controller": LaunchConfiguration("use_split_controller"),
                             "controller_backend": LaunchConfiguration("controller_backend"),
                             "control_config": LaunchConfiguration("control_config"),
+                            "finger_flexion_config": LaunchConfiguration("finger_flexion_config"),
                             "teleop_controller_config": LaunchConfiguration("teleop_controller_config"),
                             "retarget_config": LaunchConfiguration("retarget_config"),
                         }.items(),
@@ -237,6 +238,7 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument("finger_flexion_config", default_value=""),
         DeclareLaunchArgument(
             "hand_mode",
             default_value="right",

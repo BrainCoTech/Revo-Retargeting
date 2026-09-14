@@ -11,6 +11,7 @@ import numpy as np
 import rclpy
 from geometry_msgs.msg import PointStamped
 from hand_teleop_msgs.msg import HandKinematics
+from revo2_hand_retarget.finger_flexion import Revo2FingerMapping
 from revo2_hand_retarget.revo2_joints import (
     REVO2_JOINT_LIMITS_RAD,
     REVO2_JOINT_SUFFIXES,
@@ -401,6 +402,8 @@ def _apply_control_config(args, argv, parser):
     if not isinstance(config, dict):
         raise ValueError(f"Control config must be a YAML mapping: {config_path}")
 
+    if not args.finger_flexion_config:
+        args.finger_flexion_config = config.get("input", {}).get("finger_flexion_config")
     supplied = _cli_destinations_supplied(argv, parser)
     for dest, paths in _CONTROL_CONFIG_FIELDS.items():
         if dest in supplied:
@@ -475,6 +478,7 @@ class Revo2HandRetargetNode(Node):
         velocity_slew_rate=0.2,
         velocity_feedback_timeout=0.3,
         input_data_timeout=0.3,
+        finger_flexion_config=None,
         feedback_position_scale=1.0,
         feedback_position_scales=None,
         feedback_position_offsets=None,
@@ -504,6 +508,7 @@ class Revo2HandRetargetNode(Node):
         )
         node_name = "revo2_hand_retarget_legacy" if _is_dex_retargeter_algorithm(algorithm) else "revo2_hand_retarget"
         super().__init__(node_name)
+        self.finger_mapping = Revo2FingerMapping.from_file(_resolve_control_config_path(finger_flexion_config)) if finger_flexion_config else Revo2FingerMapping({})
         self.hand_mode = hand_mode.lower()
         if self.hand_mode not in VALID_HAND_MODES:
             raise ValueError(
@@ -1111,6 +1116,12 @@ class Revo2HandRetargetNode(Node):
             if not name or not np.isfinite(value):
                 continue
             joint_positions[str(name)] = value
+
+        try:
+            joint_positions = self.finger_mapping.apply(joint_positions, expected_side)
+        except (ValueError, KeyError) as exc:
+            logger.warning("Dropping invalid Revo2 flexion input: %s", exc)
+            return
 
         landmarks = {}
         for name, point in zip(msg.landmark_names, msg.landmarks_m):
@@ -2328,6 +2339,7 @@ class Revo2HandRetargeter:
         velocity_slew_rate=0.2,
         velocity_feedback_timeout=0.3,
         input_data_timeout=0.3,
+        finger_flexion_config=None,
         feedback_position_scale=1.0,
         feedback_position_scales=None,
         feedback_position_offsets=None,
@@ -2393,6 +2405,7 @@ class Revo2HandRetargeter:
             velocity_slew_rate=velocity_slew_rate,
             velocity_feedback_timeout=velocity_feedback_timeout,
             input_data_timeout=input_data_timeout,
+            finger_flexion_config=finger_flexion_config,
             feedback_position_scale=feedback_position_scale,
             feedback_position_scales=feedback_position_scales,
             feedback_position_offsets=feedback_position_offsets,
@@ -2741,6 +2754,7 @@ def parse_cli_args(argv=None):
         default=0.3,
         help="Seconds before stale JointState feedback forces pd_velocity target speed to zero.",
     )
+    parser.add_argument("--finger-flexion-config", default=None, help="Explicit Revo2 aggregate mapping YAML")
     parser.add_argument(
         "--input-data-timeout",
         "--glove-data-timeout",
@@ -2909,6 +2923,7 @@ def main(argv=None):
             velocity_slew_rate=cli_args.velocity_slew_rate,
             velocity_feedback_timeout=cli_args.velocity_feedback_timeout,
             input_data_timeout=cli_args.input_data_timeout,
+            finger_flexion_config=cli_args.finger_flexion_config,
             feedback_position_scale=cli_args.feedback_position_scale,
             feedback_position_scales=cli_args.feedback_position_scales,
             feedback_position_offsets=cli_args.feedback_position_offsets,

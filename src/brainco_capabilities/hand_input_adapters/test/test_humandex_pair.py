@@ -8,7 +8,6 @@ from sensor_msgs.msg import JointState
 
 from hand_input_adapters.humandex_adapter_node import HumanDexHandAdapter
 from hand_input_adapters.palm_transform import PalmTransform
-from test_finger_flexion import OPEN, CLOSED, upstream, load_calibration
 
 
 class HumanDexPairTest(unittest.TestCase):
@@ -17,7 +16,6 @@ class HumanDexPairTest(unittest.TestCase):
         warnings = []
         harness = SimpleNamespace(
             sides=('right',), frames={'right': 'hand_retarget_right'},
-            finger_calibrations={'right': load_calibration()},
             input_frames={'right': ''},
             palm_transforms={'right': PalmTransform([0.] * 3, [0.] * 3)},
             output_publishers={'right': SimpleNamespace(publish=sent.append)},
@@ -32,8 +30,8 @@ class HumanDexPairTest(unittest.TestCase):
         poses.poses = [Pose() for _ in range(5)]
         poses.poses[4].position.x = 0.13061
         poses.poses[4].position.z = -0.08358
-        for raw, expected in ((OPEN, 0), (CLOSED, 1.4661)):
-            measured = upstream(raw)
+        for angle in (0.0, 0.8):
+            measured = {f"{finger}_{joint}": angle for finger in ("index", "middle", "ring", "little") for joint in ("mcp", "pip", "dip")}
             measured.update({f'{f}_mpr': 0.42 for f in ('index', 'middle', 'ring', 'little')})
             measured.update({f'thumb_{j}': 0.21 for j in ('dip', 'pip', 'mcp', 'cmr', 'cmp')})
             joint = JointState()
@@ -44,19 +42,20 @@ class HumanDexPairTest(unittest.TestCase):
             HumanDexHandAdapter._publish_pair(harness, joint, poses)
             result = sent[-1]
             values = dict(zip(result.joint_names, result.joint_positions_rad))
-            self.assertEqual(len(values), 25)
+            self.assertEqual(len(values), 21)
             for name, value in measured.items():
                 self.assertEqual(values[name], value)
             for finger in ('index', 'middle', 'ring', 'little'):
-                self.assertAlmostEqual(values[f'{finger}_flexion'], expected, places=9)
+                self.assertNotIn(f'{finger}_flexion', values)
             self.assertEqual(result.landmarks_m[4], poses.poses[4].position)
             self.assertEqual(result.header.stamp, poses.header.stamp)
         self.assertEqual(len(sent), 2)
         joint.name.pop(0)
         joint.position.pop(0)
         HumanDexHandAdapter._publish_pair(harness, joint, poses)
-        self.assertEqual(len(sent), 2)
-        self.assertEqual(len(warnings), 1)
+        self.assertEqual(len(sent), 3)
+        self.assertNotIn("index_mcp", sent[-1].joint_names)
+        self.assertEqual(len(warnings), 0)
 
 
 if __name__ == '__main__':

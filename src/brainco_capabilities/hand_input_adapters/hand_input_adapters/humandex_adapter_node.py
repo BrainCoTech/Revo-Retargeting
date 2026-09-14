@@ -10,10 +10,8 @@ from hand_teleop_msgs.msg import HandKinematics
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from rclpy.parameter import Parameter
 from sensor_msgs.msg import JointState
 
-from .finger_flexion import CalibratedFingerFlexion
 from .palm_transform import PalmTransform
 
 from .common import (
@@ -45,14 +43,6 @@ class HumanDexHandAdapter(Node):
         self.declare_parameter("left_frame_id", "hand_retarget_left")
         self.declare_parameter("right_frame_id", "hand_retarget_right")
         self.declare_parameter("sync_queue_size", 50)
-        self.declare_parameter("four_finger_open_rad", 0.20943951023931956)
-        self.declare_parameter("four_finger_closed_rad", -0.20943951023931956)
-        self.declare_parameter("four_finger_flexion_range_rad", 1.4661)
-        self.declare_parameter("four_finger_mapping", "pip")
-        self.declare_parameter("four_finger_weights", [1.0, 1.0, 1.0])
-        self.declare_parameter("four_finger_wrap_angles", False)
-        self.declare_parameter("four_finger_calibration_label", "unspecified")
-
         self.sides = selected_sides(self.get_parameter("hand_mode").value)
         self.frames = {
             side: str(self.get_parameter(f"{side}_frame_id").value)
@@ -77,28 +67,6 @@ class HumanDexHandAdapter(Node):
             for side in self.sides
         }
         self.queue_size = max(2, int(self.get_parameter("sync_queue_size").value))
-        self.four_open = float(self.get_parameter("four_finger_open_rad").value)
-        self.four_closed = float(self.get_parameter("four_finger_closed_rad").value)
-        self.four_range = float(self.get_parameter("four_finger_flexion_range_rad").value)
-        if abs(self.four_closed - self.four_open) < 1e-9 or self.four_range <= 0.0:
-            raise ValueError("invalid HumanDex four-finger calibration range")
-        mapping = self.get_parameter("four_finger_mapping").value
-        if mapping not in ("pip", "calibrated"):
-            raise ValueError("four_finger_mapping must be pip or calibrated")
-        self.finger_calibrations = {}
-        if mapping == "calibrated":
-            for side in self.sides:
-                opened = f"{side}_four_finger_open_rad"
-                closed = f"{side}_four_finger_closed_rad"
-                self.declare_parameter(opened, Parameter.Type.DOUBLE_ARRAY)
-                self.declare_parameter(closed, Parameter.Type.DOUBLE_ARRAY)
-                self.finger_calibrations[side] = CalibratedFingerFlexion(
-                    self.get_parameter(opened).value,
-                    self.get_parameter(closed).value,
-                    self.get_parameter("four_finger_weights").value,
-                    self.four_range,
-                    self.get_parameter("four_finger_wrap_angles").value,
-                )
         self.joint_cache: OrderedDict[int, JointState] = OrderedDict()
         self.pose_cache: OrderedDict[int, PoseArray] = OrderedDict()
         self.published = {side: 0 for side in self.sides}
@@ -142,8 +110,7 @@ class HumanDexHandAdapter(Node):
             )
         self.get_logger().info(
             f"HumanDex adapter input_mode={input_mode}, "
-            f"hand_mode={','.join(self.sides)}, four_finger_mapping={mapping}, "
-            f"calibration={self.get_parameter('four_finger_calibration_label').value}"
+            f"hand_mode={','.join(self.sides)}"
         )
         if self.joint_fk is not None:
             self.get_logger().info(
@@ -259,29 +226,6 @@ class HumanDexHandAdapter(Node):
                 canonical = humandex_joint_name(name, side)
                 if canonical is not None and math.isfinite(value):
                     append_joint(output, canonical, value)
-
-            measured = dict(zip(output.joint_names, output.joint_positions_rad))
-            if side in self.finger_calibrations:
-                try:
-                    flexion = self.finger_calibrations[side].compute(measured)
-                except (KeyError, ValueError) as exc:
-                    self.get_logger().warning(
-                        f"Dropping HumanDex {side} frame: invalid bending joints ({exc}).",
-                        throttle_duration_sec=2.0,
-                    )
-                    continue
-                for name, value in flexion.items():
-                    append_joint(output, name, value)
-            else:
-                for finger in ("index", "middle", "ring", "little"):
-                    pip = measured.get(f"{finger}_pip")
-                    if pip is None:
-                        continue
-                    normalized = min(
-                        1.0,
-                        max(0.0, (pip - self.four_open) / (self.four_closed - self.four_open)),
-                    )
-                    append_joint(output, f"{finger}_flexion", normalized * self.four_range)
 
             for name, pose in zip(FINGERTIP_ORDER, poses_by_side[side]):
                 append_landmark(

@@ -115,4 +115,17 @@ install(FILES package.xml README.md
   DESTINATION share/${PROJECT_NAME}
 )
 
+if(BUILD_TESTING)
+  enable_testing()
+  find_package(revo3_description REQUIRED)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_executable(test_thumb_core test/test_thumb_core.cpp)
+  target_link_libraries(test_thumb_core ${PROJECT_NAME}_thumb_pinocchio)
+  ament_target_dependencies(test_thumb_core hand_teleop_msgs)
+  add_test(NAME thumb_core COMMAND test_thumb_core "${revo3_description_DIR}/..")
+  set_tests_properties(thumb_core PROPERTIES ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:${PROJECT_NAME}_thumb_pinocchio>:$ENV{LD_LIBRARY_PATH}")
+  add_test(NAME python_architecture COMMAND ${Python3_EXECUTABLE} -m pytest -p no:cacheprovider -q "${CMAKE_CURRENT_SOURCE_DIR}/test")
+  set_tests_properties(python_architecture PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}:$ENV{PYTHONPATH};PYTHONNOUSERSITE=1;PYTHONDONTWRITEBYTECODE=1")
+endif()
+
 ament_package()

@@ -57,7 +57,7 @@ ros2 launch manus_revo3_retarget pipeline_launch.py input_source:=humandex hand_
 `/hand_kinematics/right`。
 
 输入必须包含正的源时间戳、正确的 side 和 `hand_retarget_<side>` frame；数组长度、
-名称唯一性和有限数值均会检查。四指的 MCP/PIP/DIP、所选侧摆字段和五个 tip 必须完整；
+名称唯一性和有限数值均会检查。四指的 MCP/PIP/DIP、所选侧摆字段和 thumb_tip 必须完整；
 缺失帧不更新目标。`thumb_pip`、`thumb_dip` 位置及拇指角度参考可省略。
 `source` 仅作消息元数据，算法不根据设备名选择行为。
 
@@ -73,9 +73,11 @@ ros2 launch manus_revo3_retarget pipeline_launch.py input_source:=humandex hand_
 retarget 配置之后、用户 calibration override 之前加载。字段选择和输入正负号可通过
 这些配置修改；retargeter 不再转换 MANUS 角度单位或使用 MANUS node ID。
 
-HumanDex 配置只完成接口接入，尚未验证实机零位、方向和行程。当前 HumanDex adapter
-仍把上游 DIP link 原点称为 tip，并保留原有四指 aggregate flexion；Revo3 不使用
-这些 aggregate 值，独立读取 MCP/PIP/DIP。准确 tip/PIP/DIP 点位和手型标定仍需后续完成。
+tip 定义为手套／模型指尖；HumanDex_bimanual 的 DIP 到指尖偏移已写入 BrainCo-HumanDex 默认 FK 配置。
+机器人 IK 仍使用现有 `thumb_tip_Link`。`config/revo3_pad_contacts.yaml` 单独保存指腹参考点，当前不加载到 IK。
+`config/humandex_fingertips.yaml` 记录模型、偏移和使用范围；不同 DV1 SDK 模型不能直接套用。
+MANUS/HumanDex adapter 不再生成 aggregate flexion，Revo2 独立执行此映射。
+补偿合并、归一化 IK 和配置迁移见 [架构迁移说明](../../docs/revo3_architecture_migration.md)。
 本次保留既有 MIT 定时发布行为：输入停止时继续发布最后目标，不能将输入校验当作失联停机策略。
 
 `hand_mode:=both` starts two independent retarget processes:

@@ -1,5 +1,6 @@
 from setuptools import find_packages, setup
 import os
+from glob import glob
 
 package_name = 'revo2_hand_retarget'
 
@@ -26,6 +27,7 @@ setup(
         ('share/' + package_name + '/config', [
             'config/retarget.yaml',
             'config/teleop_controller.yaml',
+            *glob('config/flexion_*.yaml'),
         ]),
         ('share/' + package_name + '/launch', [
             'launch/pipeline_launch.py',
@@ -49,6 +51,7 @@ setup(
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
+            'calibrate_dv1_fingers = revo2_hand_retarget.calibrate_dv1_fingers:main',
             'revo2_hand_retarget_node = revo2_hand_retarget.retarget_node:main',
             'revo2_teleop_controller = revo2_hand_retarget.teleop_controller_node:main',
             'mujoco_joint_state_viewer = revo2_hand_retarget.mujoco_joint_state_viewer:main',

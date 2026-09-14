@@ -68,7 +68,7 @@ inline std::optional<HandObservation> parse_hand_kinematics(
       }
     }
   }
-  for (const auto * name : {"thumb_tip", "index_tip", "middle_tip", "ring_tip", "little_tip"}) {
+  for (const auto * name : {"thumb_tip"}) {
     if (result.landmarks.count(name) == 0) {
       return reject(std::string("missing landmark: ") + name);
     }

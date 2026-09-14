@@ -91,27 +91,20 @@ for finger in ("index", "middle", "ring", "little"):
         )
 
 THUMB_SPECS = [
-    ParamSpec("thumb_ik_posture_weight", "IK posture weight", 0.0, 2.0, 0.05),
-    ParamSpec("thumb_ik_smooth_weight", "IK smooth weight", 0.0, 2.0, 0.05),
+    ParamSpec("thumb_ik_position_sigma_m", "Position scale m", 0.001, 0.1, 0.001),
+    ParamSpec("thumb_ik_posture_sigma_deg", "Posture scale deg", 1.0, 90.0, 1.0),
+    ParamSpec("thumb_ik_smooth_sigma_deg", "Smooth scale deg", 1.0, 90.0, 1.0),
+    ParamSpec("thumb_ik_tip_weight", "Tip objective weight", 0.0, 0.01, 0.00001, digits=7),
+    ParamSpec("{side}_thumb_ik_pip_weight", "PIP objective weight", 0.0, 0.0001, 0.0000001, digits=8),
+    ParamSpec("{side}_thumb_ik_dip_weight", "DIP objective weight", 0.0, 0.0001, 0.0000001, digits=8),
+    ParamSpec("thumb_ik_posture_weight", "IK posture weight", 0.0, 0.01, 0.00001, digits=7),
+    ParamSpec("thumb_ik_smooth_weight", "IK smooth weight", 0.0, 0.01, 0.00001, digits=7),
     ParamSpec("thumb_ik_max_iterations", "IK max iterations", 0.0, 60.0, 1.0, kind="int", digits=0),
     ParamSpec("thumb_ik_max_step_deg", "IK max step deg", 0.0, 20.0, 0.5, digits=2),
-    ParamSpec("thumb_ik_max_frame_delta_deg", "IK max frame delta deg", 0.0, 30.0, 0.5, digits=2),
     ParamSpec("thumb_ik_damping", "IK damping", 0.0, 0.2, 0.005, digits=4),
     ParamSpec("thumb_ik_step_size", "IK step size", 0.0, 1.0, 0.01, digits=3),
-    ParamSpec("thumb_ik_tolerance", "IK tolerance", 0.0, 0.01, 0.0001, digits=5),
-    ParamSpec("{side}_thumb_cmp_offset_deg_physical", "CMP retarget offset deg", -40.0, 40.0, 0.5, digits=2),
-    ParamSpec("{side}_thumb_cmp_scale_physical", "CMP retarget scale", 0.05, 2.5, 0.05),
-    ParamSpec("legacy_{side}_physical_thumb_cmr_offset_deg", "CMR retarget offset deg", -40.0, 40.0, 0.5, digits=2),
-    ParamSpec("legacy_{side}_physical_thumb_mcp_offset_deg", "MCP retarget offset deg", -40.0, 40.0, 0.5, digits=2),
-    ParamSpec("legacy_{side}_physical_thumb_mcp_scale", "MCP retarget scale", 0.05, 2.5, 0.05),
-    ParamSpec("legacy_{side}_physical_thumb_pip_scale", "PIP retarget scale", 0.05, 2.5, 0.05),
-    ParamSpec("legacy_{side}_physical_thumb_dip_scale", "DIP retarget scale", 0.05, 2.5, 0.05),
-    ParamSpec("legacy_{side}_physical_thumb_pip_ik_scale", "PIP IK target weight scale", 0.0, 3.0, 0.05),
-    ParamSpec("legacy_{side}_physical_thumb_dip_ik_scale", "DIP IK target weight scale", 0.0, 3.0, 0.05),
-    ParamSpec("legacy_{side}_physical_thumb_reach_scale", "Thumb reach scale", 0.2, 2.0, 0.05),
+    ParamSpec("thumb_ik_normalized_tolerance", "IK normalized tolerance", 0.0, 0.01, 0.0001, digits=5),
     ParamSpec("legacy_{side}_physical_thumb_ik_position_scale", "Thumb IK position scale", 0.2, 2.0, 0.05),
-    ParamSpec("legacy_{side}_physical_thumb_ema_prev", "Thumb EMA previous", 0.0, 1.0, 0.05),
-    ParamSpec("legacy_{side}_physical_thumb_ema_cur", "Thumb EMA current", 0.0, 1.0, 0.05),
     ParamSpec("physical_{side}_thumb_CMP_joint_offset_deg", "CMP out offset deg", -30.0, 30.0, 0.5, digits=2),
     ParamSpec("physical_{side}_thumb_CMR_joint_offset_deg", "CMR out offset deg", -30.0, 30.0, 0.5, digits=2),
     ParamSpec("physical_{side}_thumb_MCP_joint_offset_deg", "MCP out offset deg", -30.0, 30.0, 0.5, digits=2),
@@ -123,6 +116,9 @@ THUMB_SPECS = [
     ParamSpec("physical_{side}_thumb_PIP_joint_scale", "PIP out scale", 0.0, 2.5, 0.05),
     ParamSpec("physical_{side}_thumb_DIP_joint_scale", "DIP out scale", 0.0, 2.5, 0.05),
 ]
+
+THUMB_SPECS += [ParamSpec(f"thumb_ik_posture_{joint}_weight", f"{joint.upper()} posture relative weight", 0.0, 4.0, 0.01)
+                for joint in ("cmp", "cmr", "mcp", "pip", "dip")]
 
 BOOL_PARAMS = [
     ("mit_velocity_feedforward_enabled", "MIT velocity feedforward"),

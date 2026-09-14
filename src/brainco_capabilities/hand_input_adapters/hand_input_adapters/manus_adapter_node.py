@@ -90,17 +90,6 @@ class ManusHandAdapter(Node):
                 canonical_joints[canonical] = value
         for name, value in canonical_joints.items():
             append_joint(output, name, value)
-        for finger in ("index", "middle", "ring", "little"):
-            available = False
-            flexion = 0.0
-            for joint, weight in (("mcp", 0.50), ("pip", 0.35), ("dip", 0.15)):
-                value = canonical_joints.get(f"{finger}_{joint}")
-                if value is not None:
-                    available = True
-                    flexion += weight * max(0.0, value)
-            if available:
-                append_joint(output, f"{finger}_flexion", flexion)
-
         for node in message.raw_nodes:
             landmark = NODE_LANDMARKS.get(int(node.node_id))
             if landmark is None:

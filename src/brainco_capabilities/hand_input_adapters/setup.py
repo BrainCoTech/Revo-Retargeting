@@ -24,7 +24,6 @@ setup(
     entry_points={
         "console_scripts": [
             "humandex_hand_adapter = hand_input_adapters.humandex_adapter_node:main",
-            "calibrate_dv1_fingers = hand_input_adapters.calibrate_dv1_fingers:main",
             "manus_hand_adapter = hand_input_adapters.manus_adapter_node:main",
             "hex_hand_adapter = hand_input_adapters.hex_adapter_node:main",
         ],

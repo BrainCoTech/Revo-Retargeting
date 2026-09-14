@@ -1,7 +1,6 @@
+# Single output calibration; normalized IK compatibility weights.
 manus_revo3_retarget:
   ros__parameters:
-    left_thumb_cmp_offset_deg_physical: 0.0
-    left_thumb_cmp_scale_physical: 1.0
     legacy_left_physical_all_finger_angle_scale: 1.0
     legacy_left_physical_four_finger_mcp_scale: 1.0
     legacy_left_physical_index_angle_scale: 1.0
@@ -20,17 +19,7 @@ manus_revo3_retarget:
     legacy_left_physical_ring_spread_forward_scale: 1.0
     legacy_left_physical_ring_spread_offset_deg: -4.5
     legacy_left_physical_ring_spread_scale: -1.0
-    legacy_left_physical_thumb_cmr_offset_deg: 0.0
-    legacy_left_physical_thumb_dip_ik_scale: 1.0
-    legacy_left_physical_thumb_dip_scale: 1.2000000000000002
-    legacy_left_physical_thumb_ema_cur: 0.5
-    legacy_left_physical_thumb_ema_prev: 0.5
     legacy_left_physical_thumb_ik_position_scale: 1.0
-    legacy_left_physical_thumb_mcp_offset_deg: 0.0
-    legacy_left_physical_thumb_mcp_scale: 1.0
-    legacy_left_physical_thumb_pip_ik_scale: 1.0
-    legacy_left_physical_thumb_pip_scale: 1.2000000000000002
-    legacy_left_physical_thumb_reach_scale: 1.0
     mit_default_kd: 0.04
     mit_default_kp: 0.4
     mit_velocity_feedforward_enabled: true
@@ -71,16 +60,27 @@ manus_revo3_retarget:
     physical_left_thumb_CMR_joint_offset_deg: 0.0
     physical_left_thumb_CMR_joint_scale: 1.0
     physical_left_thumb_DIP_joint_offset_deg: 0.0
-    physical_left_thumb_DIP_joint_scale: 1.0
+    physical_left_thumb_DIP_joint_scale: 1.2000000000000002
     physical_left_thumb_MCP_joint_offset_deg: 0.0
     physical_left_thumb_MCP_joint_scale: 1.0
     physical_left_thumb_PIP_joint_offset_deg: 0.0
-    physical_left_thumb_PIP_joint_scale: 1.0
+    physical_left_thumb_PIP_joint_scale: 1.2000000000000002
     thumb_ik_damping: 0.02
-    thumb_ik_max_frame_delta_deg: 6.0
     thumb_ik_max_iterations: 5
     thumb_ik_max_step_deg: 3.0
-    thumb_ik_posture_weight: 0.1
-    thumb_ik_smooth_weight: 0.1
+    thumb_ik_posture_weight: 0.00030461741978670857
+    thumb_ik_smooth_weight: 0.00030461741978670857
     thumb_ik_step_size: 0.3
-    thumb_ik_tolerance: 0.0005
+    physical_right_thumb_MCP_joint_scale: 1.0
+    physical_right_thumb_MCP_joint_offset_deg: -4.0
+    physical_right_thumb_PIP_joint_scale: 1.44
+    physical_right_thumb_PIP_joint_offset_deg: 15.0
+    physical_right_thumb_DIP_joint_scale: 1.2
+    physical_right_thumb_DIP_joint_offset_deg: 10.0
+    physical_right_thumb_CMP_joint_scale: 1.04
+    physical_right_thumb_CMP_joint_offset_deg: 0.0
+    physical_right_thumb_CMR_joint_scale: 1.0
+    physical_right_thumb_CMR_joint_offset_deg: 0.0
+    thumb_ik_normalized_tolerance: 0.0005
+    left_thumb_ik_pip_weight: 1.0e-06
+    left_thumb_ik_dip_weight: 1.0e-06

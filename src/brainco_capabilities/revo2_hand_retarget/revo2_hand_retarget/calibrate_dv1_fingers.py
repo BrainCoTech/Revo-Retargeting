@@ -1,4 +1,4 @@
-"""Record open/fist endpoints from ROS; writes a local adapter YAML only."""
+"""Record open/fist endpoints from ROS; writes a local Revo2 flexion YAML only."""
 
 import argparse
 from datetime import datetime, timezone
@@ -31,16 +31,16 @@ def main():
     parser.add_argument('--side', choices=['left', 'right'], default='left')
     parser.add_argument('--topic', help='Default /humandex_<side>/joint_states')
     parser.add_argument('--seconds', type=float, default=2.0)
-    parser.add_argument('--config', type=Path, help='Template adapter YAML; defaults to dv1_<side>.yaml')
+    parser.add_argument('--config', type=Path, help='Template Revo2 flexion YAML; defaults to flexion_dv1_<side>.yaml')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not math.isfinite(args.seconds) or args.seconds < 1:
         parser.error('--seconds must be at least 1')
-    template = args.config or Path(get_package_share_directory('hand_input_adapters')) / 'config' / f'dv1_{args.side}.yaml'
+    template = args.config or Path(get_package_share_directory('revo2_hand_retarget')) / 'config' / f'flexion_dv1_{args.side}.yaml'
     document = yaml.safe_load(template.read_text())
-    params = document['/humandex_hand_adapter']['ros__parameters']
-    if params.get('hand_mode') != args.side or params.get('input_mode') != 'dv1_joint_states':
-        parser.error('Template hand/input mode does not match the requested DV1 hand')
+    params = document
+    if params.get('hand_mode') != args.side:
+        parser.error('Template hand mode does not match the requested DV1 hand')
     names = [f'{args.side}_{k.rsplit("_", 1)[0]}_{k.rsplit("_", 1)[1].upper()}_joint' for k in JOINTS]
     rclpy.init(args=[])
     node = rclpy.create_node('dv1_finger_calibration')
@@ -80,12 +80,13 @@ def main():
         CalibratedFingerFlexion(captured['open'], captured['closed'], [1.] * 3, 1.4661, True)
         for pose in ('open', 'closed'):
             params[f'{args.side}_four_finger_{pose}_rad'] = captured[pose]
+        params['four_finger_mapping'] = 'calibrated'
         params['four_finger_wrap_angles'] = True
         params['four_finger_calibration_label'] = f'measured {args.side} {datetime.now(timezone.utc).isoformat()}'
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text('# DV1 open/fist ranges; firmware zero and FK angles are unchanged.\n'
                                + yaml.safe_dump(document, sort_keys=False))
-        print(f'Saved {args.output.resolve()}; restart adapter with adapter_config:=this_file')
+        print(f'Saved {args.output.resolve()}; restart Revo2 with finger_flexion_config:=this_file')
     finally:
         node.destroy_node()
         rclpy.shutdown()

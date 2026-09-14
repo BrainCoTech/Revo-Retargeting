@@ -28,3 +28,7 @@ ros2 launch revo2_hand_retarget pipeline_launch.py \
 Use `revo2_teleop_bringup/teleop.launch.py` for normal operation so the selected
 input adapter, retargeter, controller, and hardware lifecycle are composed from
 one profile.
+
+## Explicit aggregate flexion
+
+MANUS/HumanDex input requires `finger_flexion_config:=flexion_manus.yaml` or `flexion_humandex_pip.yaml` (or a calibrated profile). Profile-driven bringup selects this explicitly. Use `ros2 run revo2_hand_retarget calibrate_dv1_fingers` for DV1 endpoints. See [migration](../../../docs/revo3_architecture_migration.md).

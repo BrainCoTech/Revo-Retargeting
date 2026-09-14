@@ -160,6 +160,7 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
             "use_split_controller": "true",
             "controller_backend": "ros2_control",
             "control_config": str(retarget_config.get("control_config", "retarget.yaml")),
+            "finger_flexion_config": LaunchConfiguration("finger_flexion_config").perform(context) or str(retarget_config.get("finger_flexion_config", "")),
             "retarget_config": str(retarget_config.get("algorithm_config", "")),
             "if_sim": LaunchConfiguration("if_sim"),
             "retarget_delay": str(retarget_config.get("start_delay_sec", 18.0)),
@@ -170,6 +171,7 @@ def _create_actions(context: LaunchContext, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument("finger_flexion_config", default_value=""),
         DeclareLaunchArgument("profile", default_value="humandex_revo2"),
         DeclareLaunchArgument("hand_mode", default_value=""),
         DeclareLaunchArgument("launch_input_driver", default_value=""),

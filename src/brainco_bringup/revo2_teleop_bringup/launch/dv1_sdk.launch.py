@@ -43,7 +43,8 @@ def create_actions(context):
     if retarget:
         retarget_share = Path(get_package_share_directory('revo2_hand_retarget'))
         arguments = {'hand_mode': side, 'controller_backend': 'ros2_control',
-                     'control_config': value('control_config')}
+                     'control_config': value('control_config'),
+                     'finger_flexion_config': value('finger_flexion_config') or f'flexion_dv1_{side}.yaml'}
         name = 'pipeline_launch.py'
         if hardware:
             name = 'real_hand_pipeline_launch.py'
@@ -71,6 +72,7 @@ def generate_launch_description():
                              description='Optional Revo2 robot protocol YAML for the selected side'),
         DeclareLaunchArgument('sdk_python', default_value='/usr/bin/python3'),
         DeclareLaunchArgument('adapter_config', default_value=''),
+        DeclareLaunchArgument('finger_flexion_config', default_value=''),
         DeclareLaunchArgument('control_config', default_value='retarget.yaml'),
         *(DeclareLaunchArgument(k, default_value=v, choices=['true', 'false']) for k, v in (
             ('launch_sdk', 'true'), ('launch_retarget', 'false'), ('launch_revo2_driver', 'false'))),
