@@ -2,6 +2,9 @@
 
 Finger order is thumb, index, middle, ring, little. Missing observations stay
 missing; holding or returning to neutral belongs to the caller's controller.
+The optional bone_scaled adapter anchors each source chain's unit directions
+at the robot's neutral finger root and uses robot bone lengths. The solver
+still receives only endpoints and optional distal directions.
 """
 from dataclasses import dataclass
 import json
@@ -73,8 +76,22 @@ def _missing(timestamp_s, source_kind, include_directions):
 
 
 def _extract(points, tips, dips, timestamp_s, basis, wrist, scale,
-             source_kind, include_directions):
-    positions = points[tips] * scale @ basis.T + wrist
+             source_kind, include_directions, target_mode='wrist_scaled', robot_rest_chains_m=None,
+             chains=None):
+    if target_mode == 'bone_scaled':
+        rest = _reference_chains(robot_rest_chains_m)
+        vectors = np.diff(points[chains], axis=1)
+        lengths = np.linalg.norm(vectors, axis=2, keepdims=True)
+        good = np.isfinite(vectors).all(axis=2, keepdims=True) & np.isfinite(lengths) & (lengths > 1e-8)
+        directions = np.divide(vectors, lengths, out=np.zeros_like(vectors), where=good)
+        robot_lengths = np.linalg.norm(np.diff(rest, axis=1), axis=2, keepdims=True)
+        local_tips = rest[:,0] + scale*np.sum(directions*robot_lengths, axis=1)
+        positions = local_tips @ basis.T + wrist
+        positions[~good.all(axis=(1,2))] = np.nan
+    elif target_mode == 'wrist_scaled':
+        positions = points[tips] * scale @ basis.T + wrist
+    else:
+        raise ValueError('target_mode must be wrist_scaled or bone_scaled')
     valid = np.isfinite(positions).all(axis=1)
     directions = direction_valid = None
     if include_directions:
@@ -86,19 +103,32 @@ def _extract(points, tips, dips, timestamp_s, basis, wrist, scale,
                            direction_valid, source_kind)
 
 
+def _reference_chains(rest):
+    rest = np.asarray(rest, dtype=float)
+    if rest.shape != (5,4,3) or not np.isfinite(rest).all():
+        raise ValueError('bone_scaled requires finite robot_rest_chains_m with shape (5,4,3) in palm coordinates')
+    if np.any(np.linalg.norm(np.diff(rest,axis=1),axis=2) <= 1e-8):
+        raise ValueError('Robot reference chain contains a zero-length bone')
+    return rest
+
+
 def from_manus(points, timestamp_s, *, basis, wrist, scale,
-               source_kind='recorded_manus', include_directions=False):
+               source_kind='recorded_manus', include_directions=False,
+               target_mode='wrist_scaled', robot_rest_chains_m=None):
     """Extract endpoints from already canonicalized/reflected MANUS 25 points."""
     basis, wrist, scale = _transform(basis, wrist, scale)
     points = np.asarray(points, dtype=float)
     if points.shape != (25, 3):
         raise ValueError('MANUS points must have shape (25, 3)')
     return _extract(points, [4, 9, 14, 19, 24], [3, 8, 13, 18, 23],
-                    timestamp_s, basis, wrist, scale, source_kind, include_directions)
+                    timestamp_s, basis, wrist, scale, source_kind, include_directions,
+                    target_mode, robot_rest_chains_m,
+                    [[1,2,3,4],[6,7,8,9],[11,12,13,14],[16,17,18,19],[21,22,23,24]])
 
 
 def from_mediapipe(world, timestamp_s, *, hand_side, basis, wrist, scale,
-                   palm_x_sign=1.0, include_directions=False):
+                   palm_x_sign=1.0, include_directions=False,
+                   target_mode='wrist_scaled', robot_rest_chains_m=None):
     """Canonicalize native 21-point observations, then extract endpoints.
 
     Palm axes: z wrist-to-middle MCP; y little-to-index MCP, orthogonalized
@@ -111,6 +141,10 @@ def from_mediapipe(world, timestamp_s, *, hand_side, basis, wrist, scale,
         raise ValueError('hand_side must be Left or Right')
     if palm_x_sign not in (-1., 1.):
         raise ValueError('palm_x_sign must be -1 or 1')
+    if target_mode not in ('wrist_scaled', 'bone_scaled'):
+        raise ValueError('target_mode must be wrist_scaled or bone_scaled')
+    if target_mode == 'bone_scaled':
+        _reference_chains(robot_rest_chains_m)
     if world is None:
         return _missing(timestamp_s, 'mediapipe', include_directions)
     points = np.asarray(world, dtype=float)
@@ -133,7 +167,8 @@ def from_mediapipe(world, timestamp_s, *, hand_side, basis, wrist, scale,
     x = np.cross(y, z) * (1. if hand_side == 'Right' else -1.) * palm_x_sign
     local = (points - points[0]) @ np.stack([x, y, z], axis=1)
     return _extract(local, [4, 8, 12, 16, 20], [3, 7, 11, 15, 19],
-                    timestamp_s, basis, wrist, scale, 'mediapipe', include_directions)
+                    timestamp_s, basis, wrist, scale, 'mediapipe', include_directions,
+                    target_mode, robot_rest_chains_m, np.arange(1,21).reshape(5,4))
 
 
 def iter_mediapipe_jsonl(path, *, hand_side='Right', input_field='raw'):

@@ -45,7 +45,9 @@ def validate(cfg):
 
 def frames(path, inp, hand):
     common = dict(basis=hand.basis, wrist=hand.wrist, scale=inp['scale'],
-                  include_directions=inp.get('include_directions', False))
+                  include_directions=inp.get('include_directions', False),
+                  target_mode=inp.get('target_mode', 'wrist_scaled'),
+                  robot_rest_chains_m=hand.rest_chains)
     if inp['source'] == 'mediapipe':
         for ts, world, row in iter_mediapipe_jsonl(path, hand_side=inp['hand_side'],
                                                  input_field=inp.get('input_field', 'raw')):

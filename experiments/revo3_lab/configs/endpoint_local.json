@@ -1,0 +1,27 @@
+{
+  "model_id": "right_official_pd_v2",
+  "max_gap_s": 1.0,
+  "input": {
+    "target_mode": "bone_scaled",
+    "include_directions": true
+  },
+  "solver": {
+    "kind": "vector",
+    "observation_mode": "legacy",
+    "pad_pair_weight": 0.0,
+    "position_scale_m": 0.05,
+    "pair_weight": 1.0,
+    "temporal_weight": 0.05,
+    "posture_weight": 0.01,
+    "collision_weight": 0.0,
+    "max_nfev": 100,
+    "filter_tau_s": 0.06,
+    "max_command_speed_rad_s": 4.0,
+    "hold_s": 0.3,
+    "max_dt_s": 0.1,
+    "close_enter_m": 0.015,
+    "close_exit_m": 0.025,
+    "close_weight_multiplier": 1.0,
+    "distal_direction_weight": 0.1
+  }
+}

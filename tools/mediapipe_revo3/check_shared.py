@@ -73,6 +73,56 @@ class SharedChecks(unittest.TestCase):
         self.assertTrue(np.isfinite(result).all())
         self.assertTrue(np.isfinite(detail['ik_solution']).all())
 
+    def test_bone_scaled_size_invariance_and_invalid_bone(self):
+        from endpoint_input import from_manus
+        h = self.mapper.hand
+        indices = np.array([[1,2,3,4],[6,7,8,9],[11,12,13,14],
+                            [16,17,18,19],[21,22,23,24]])
+        points = np.zeros((25,3))
+        points[indices] = h.rest_chains
+        options = dict(basis=h.basis, wrist=h.wrist, scale=1.,
+                       target_mode='bone_scaled', robot_rest_chains_m=h.rest_chains,
+                       include_directions=True)
+        target = from_manus(points, 0., **options)
+        np.testing.assert_allclose(target.positions_m, h.rest_tips @ h.basis.T + h.wrist, atol=1e-12)
+        changed = points.copy()
+        for finger, chain in enumerate(indices):
+            vectors = np.diff(points[chain], axis=0) * np.array([.6,1.4,.8])[:,None]
+            changed[chain] = points[chain[0]] + [0,.01*finger,-.03] + np.vstack([np.zeros(3),np.cumsum(vectors,axis=0)])
+        resized = from_manus(changed, .1, **options)
+        np.testing.assert_allclose(resized.positions_m, target.positions_m, atol=1e-12)
+        changed[24] = changed[23]
+        invalid = from_manus(changed, .2, **options)
+        np.testing.assert_array_equal(invalid.valid, [True,True,True,True,False])
+        self.assertFalse(invalid.direction_valid[-1])
+
+    def test_mediapipe_size_invariance_and_legacy_profile(self):
+        from endpoint_input import from_mediapipe
+        from shared_mapper import CORE
+        h = self.mapper.hand
+        options = dict(hand_side='Right', basis=h.basis, wrist=h.wrist, scale=1.,
+                       target_mode='bone_scaled', robot_rest_chains_m=h.rest_chains)
+        first = from_mediapipe(fixture(), 0., **options)
+        second = from_mediapipe(fixture()*.6, .1, **options)
+        np.testing.assert_allclose(first.positions_m, second.positions_m, atol=1e-12)
+        old = SharedMapper(self.path, solver_config=CORE.parent/'configs/endpoint_baseline.json')
+        output = old.update(fixture(), 0.)
+        self.assertEqual(old.target_mode, 'wrist_scaled')
+        direct = from_mediapipe(fixture(), 0., hand_side='Right', basis=h.basis,
+                               wrist=h.wrist, scale=1.)
+        np.testing.assert_array_equal(output['target_tips_m'], direct.positions_m)
+
+    def test_open_endpoints_recover_from_folded_little_finger(self):
+        h = self.mapper.hand
+        solver = self.mapper.solver
+        solver.previous[-2:] = np.deg2rad(85.)
+        h.fk(h.q0)
+        directions, _ = h.distal_directions()
+        for i in range(30):
+            target = EndpointTargets(i*.1, h.rest_tips @ h.basis.T + h.wrist, np.ones(5,bool), directions)
+            command, _ = solver.solve_endpoints(target)
+        self.assertLess(np.max(np.abs(command[-2:])), np.deg2rad(5.))
+
     def test_full_official_dynamics(self):
         m=self.mapper.model
         self.assertEqual((m.nq,m.nv,m.nu,m.nexclude),(21,21,21,5))

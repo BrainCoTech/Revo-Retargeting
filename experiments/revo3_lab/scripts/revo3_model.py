@@ -100,6 +100,10 @@ class Hand:
         self.wrist = wrist
         self.rest_tips = (tips-wrist)@self.basis
         self.rest_bases = (bases-wrist)@self.basis
+        self.chain_ids = np.array([[self.model.body(f'right_{finger}_{joint}_Link').id
+            for joint in (['CMP','MCP','PIP','tip'] if finger == 'thumb' else ['MCP','PIP','DIP','tip'])]
+            for finger in FINGERS])
+        self.rest_chains = (self.data.xpos[self.chain_ids]-wrist)@self.basis
         self.robot_width = np.linalg.norm(bases[1]-bases[4])
         self.distal_geoms = {i: finger for i in range(self.model.ngeom) for finger in range(5)
                              if self.model.geom(i).name == f'right_{FINGERS[finger]}_DIP_Link_collision_0'}

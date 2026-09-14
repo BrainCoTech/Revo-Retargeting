@@ -23,8 +23,9 @@ def arguments():
     source.add_argument('--video', type=Path)
     source.add_argument('--replay', type=Path, help='Replay a previous frames.jsonl')
     p.add_argument('--solver', choices=['shared', 'baseline'], default='shared')
-    p.add_argument('--scale', type=float, default=1., help='Fixed source-to-robot scale (shared solver)')
+    p.add_argument('--scale', type=float, default=1., help='Length multiplier: robot bones in bone_scaled, wrist offsets in wrist_scaled')
     p.add_argument('--palm-x-sign', type=int, choices=[-1, 1], default=1)
+    p.add_argument('--target-mode', choices=['wrist_scaled', 'bone_scaled'], help='Override endpoint profile target construction')
     p.add_argument('--solver-config', type=Path, help='Endpoint profile JSON; solver section and max_gap_s are used')
     p.add_argument('--hand', choices=['Right', 'Left'], default='Right')
     p.add_argument('--input-mirrored', action='store_true', help='Unmirror mirrored source BEFORE inference')
@@ -42,7 +43,7 @@ def arguments():
     args = p.parse_args()
     if not math.isfinite(args.scale) or args.scale <= 0:
         p.error('--scale must be positive and finite')
-    if args.solver == 'baseline' and (args.solver_config or args.scale != 1 or args.palm_x_sign != 1):
+    if args.solver == 'baseline' and (args.target_mode or args.solver_config or args.scale != 1 or args.palm_x_sign != 1):
         p.error('Scale, palm reflection and solver config overrides require --solver shared')
     if args.noise_mm < 0 or not 0 <= args.dropout <= 1 or args.max_frames < 0:
         p.error('Invalid noise/dropout/max-frames value')
@@ -160,7 +161,7 @@ def main():
         from shared_mapper import SharedMapper
         model_path = prepare_local_model()
         mapper = SharedMapper(model_path, scale=args.scale, palm_x_sign=args.palm_x_sign,
-                              solver_config=args.solver_config)
+                              solver_config=args.solver_config, target_mode=args.target_mode)
     else:
         from mapper import Mapper
         model_path = folder / 'kinematics.xml'
@@ -235,7 +236,7 @@ def main():
         manifest['solver_profile'] = {'path': str(mapper.profile_path), 'sha256': sha(mapper.profile_path),
                                       'snapshot': 'solver_profile.json'}
         manifest['solver_config'] = mapper.config
-        manifest['input_transform'] = {'scale': args.scale, 'palm_x_sign': args.palm_x_sign, 'hand_side': args.hand}
+        manifest['input_transform'] = {'scale': args.scale, 'palm_x_sign': args.palm_x_sign, 'hand_side': args.hand, 'target_mode': mapper.target_mode}
         manifest['max_gap_s'] = mapper.max_gap_s
     manifest['code_snapshot'] = 'code/'
     json_write(out / 'manifest.json', manifest)

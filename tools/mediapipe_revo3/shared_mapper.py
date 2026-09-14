@@ -10,17 +10,20 @@ REPO = Path(__file__).resolve().parents[2]
 CORE = REPO / 'experiments/revo3_lab/scripts'
 sys.path.insert(0, str(CORE))
 from endpoint_input import from_mediapipe
-from revo3_model import Hand, FINGERS
+from revo3_model import Hand
 from vector_solver import Solver
 
 
 class SharedMapper:
-    def __init__(self, model_path, *, scale=1., palm_x_sign=1., solver_config=None):
+    def __init__(self, model_path, *, scale=1., palm_x_sign=1., solver_config=None, target_mode=None):
         if not np.isfinite(scale) or scale <= 0 or palm_x_sign not in (-1, 1):
             raise ValueError('Expected positive finite scale and palm_x_sign +/-1')
-        profile_path = Path(solver_config) if solver_config else CORE.parent / 'configs/endpoint_baseline.json'
+        profile_path = Path(solver_config) if solver_config else CORE.parent / 'configs/endpoint_local.json'
         self.profile_path = profile_path.resolve()
         profile = json.loads(profile_path.read_text())
+        self.target_mode = target_mode or profile.get('input', {}).get('target_mode', 'wrist_scaled')
+        if self.target_mode not in ('wrist_scaled','bone_scaled'):
+            raise ValueError('target_mode must be wrist_scaled or bone_scaled')
         self.config = profile['solver'].copy()
         if (self.config.get('kind') != 'vector' or self.config.get('pad_pair_weight', 0) != 0
                 or self.config.get('observation_mode', 'legacy') != 'legacy'):
@@ -38,16 +41,15 @@ class SharedMapper:
         mujoco.mj_forward(self.model, self.data)
         self.scale, self.palm_x_sign = scale, palm_x_sign
         self.last_time = self.origin = None
-        self.ids = np.array([[self.model.body(f'right_{finger}_{joint}_Link').id
-                              for joint in (['CMP', 'MCP', 'PIP', 'tip'] if finger == 'thumb'
-                                            else ['MCP', 'PIP', 'DIP', 'tip'])] for finger in FINGERS])
+        self.ids = self.hand.chain_ids
 
     def update(self, world, time_s, side='Right'):
         if not np.isfinite(time_s) or (self.last_time is not None and not 0 < time_s-self.last_time <= self.max_gap_s):
             raise ValueError(f'Invalid source timestamp/gap; maximum gap is {self.max_gap_s}s')
         target = from_mediapipe(world, time_s, hand_side=side, basis=self.hand.basis,
                                wrist=self.hand.wrist, scale=self.scale, palm_x_sign=self.palm_x_sign,
-                               include_directions=bool(self.config.get('distal_direction_weight', 0)))
+                               include_directions=bool(self.config.get('distal_direction_weight', 0)),
+                               target_mode=self.target_mode, robot_rest_chains_m=self.hand.rest_chains)
         if self.origin is None:
             self.origin = time_s
         self.last_time = time_s

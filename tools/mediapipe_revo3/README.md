@@ -14,7 +14,7 @@ bash tools/mediapipe_revo3/run.sh --camera 0 --hand Right --record-video --sessi
 bash tools/mediapipe_revo3/run.sh --replay artifacts/mediapipe_revo3/runs/20260914T064114Z_c0956351/frames.jsonl --hand Right
 ```
 
-加 `--no-display` 可全速离线计算；有窗口时按源时间间隔回放。回放只读取关键点，不初始化 MediaPipe 检测器。新默认模型首次使用会下载固定官方版本的碰撞／显示网格并缓存；本机已完成缓存。用 `--scale` 指定固定人手到机器人尺度，默认 1.0 尚未校准；`--palm-x-sign` 默认 1。`--solver-config` 读取 profile 的 `solver` 与 `max_gap_s`，其 `input` 部分不覆盖 CLI 的输入、手侧和尺度。
+加 `--no-display` 可全速离线计算；有窗口时按源时间间隔回放。回放只读取关键点，不初始化 MediaPipe 检测器。新默认模型首次使用会下载固定官方版本的碰撞／显示网格并缓存；本机已完成缓存。默认使用 `endpoint_local.json` 的 `bone_scaled`：保留人手各骨段方向，换用机器人中立姿态的指根和骨长构造末端位置，并以 0.1 权重约束末节方向，避免手型尺寸差导致张手时折指。`--scale` 在此模式下缩放机器人骨长，默认 1.0；`--palm-x-sign` 默认 1。`--solver-config` 读取 profile 的 `solver` 与 `max_gap_s`，同时读取 `input.target_mode`，但不覆盖 CLI 的输入、手侧和尺度。`--target-mode` 可显式覆盖目标构造方式。复现旧的腕坐标距离映射（含旧 DSW 对比）请指定 `--solver-config experiments/revo3_lab/configs/endpoint_baseline.json`。
 
 窗口左侧为输入图像及 MediaPipe 原始 21 点，右侧第一个视角正对掌心，第二个从拇指侧看向手掌；下方输入骨架的投影方向与对应模型视角一致。按 **q / Esc** 退出。默认选择 Right；如果要用左手驱动右机器人，改成 `--hand Left`。左右手分类分数不等同于关键点置信度。第一次请正对镜头张开手、再屈伸食指，确认标签与屈伸方向；输入视频本身若已镜像，加 `--input-mirrored`，程序先取消镜像再推理。不会自动猜测或切换镜像。
 
