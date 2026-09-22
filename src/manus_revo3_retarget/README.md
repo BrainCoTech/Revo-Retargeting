@@ -33,10 +33,9 @@ export PYTHONNOUSERSITE=1
   --port /dev/ttyACM0
 ```
 
-**Terminal 2: start DV1 adaptation with FK, Revo3 retargeting, and the hardware driver.**
+**Terminal 2: from the Revo-Retargeting repository root, start DV1 adaptation with FK, Revo3 retargeting, and the hardware driver.**
 
 ```bash
-cd ~/code/tele-retarget/Revo-Retargeting
 source /opt/ros/humble/setup.bash
 conda activate revo_teleop
 source install/setup.bash

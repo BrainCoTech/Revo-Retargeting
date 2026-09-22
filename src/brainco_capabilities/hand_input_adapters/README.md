@@ -105,10 +105,9 @@ ros2 launch revohuman_bringup revohuman.launch.py mode:=right set_name:=bench \
   tracker_mode:=off publish_tactile:=off camera_mode:=off
 ```
 
-终端 2：监听 `/revohuman/right/joint_states`，计算 FK，发布 `/hand_kinematics/right`。
+终端 2：在 Revo-Retargeting 仓库根目录运行，监听 `/revohuman/right/joint_states`，计算 FK，发布 `/hand_kinematics/right`。
 
 ```bash
-cd ~/code/tele-retarget/Revo-Retargeting
 source ~/miniforge3/etc/profile.d/conda.sh
 conda activate revo_teleop
 source /opt/ros/humble/setup.bash
@@ -119,10 +118,9 @@ ros2 launch hand_input_adapters dv1_input.launch.py \
   urdf_path:=$HOME/code/tele-retarget/brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf
 ```
 
-终端 3：启动 Revo3 右手驱动和重定向，读取已有 HandKinematics。
+终端 3：在 Revo-Retargeting 仓库根目录运行，启动 Revo3 右手驱动和重定向，读取已有 HandKinematics。
 
 ```bash
-cd ~/code/tele-retarget/Revo-Retargeting
 source ~/miniforge3/etc/profile.d/conda.sh
 conda activate revo_teleop
 source /opt/ros/humble/setup.bash

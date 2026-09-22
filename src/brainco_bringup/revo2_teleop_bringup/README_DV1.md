@@ -55,15 +55,19 @@ SDK 和本仓库分别构建、分别启动。SDK 已有官方 `revohuman_msgs`�
 `2683152` 是本次依据的接口版本；`main` / `develop` 不提供相同的 bringup 入口。
 
 ```bash
+conda activate revo_teleop
+export PYTHONNOUSERSITE=1
 source /opt/ros/humble/setup.bash
 SDK_ROOT="$(realpath ../brainco_revohuman_sdk)"
 cd "$SDK_ROOT"
 git branch --show-current
 git rev-parse --short HEAD
-python3 -m pip install -e .
+python -m pip install -e .
 mkdir -p ~/ros2_revohuman_ws
 cd ~/ros2_revohuman_ws
-colcon build --base-paths "$SDK_ROOT/ros2" --symlink-install
+python -m colcon build --base-paths "$SDK_ROOT/ros2" --symlink-install \
+  --cmake-args -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python" \
+               -DPYTHON_EXECUTABLE="$CONDA_PREFIX/bin/python"
 source install/setup.bash
 ```
 
@@ -131,6 +135,8 @@ export ROS_DOMAIN_ID=25
 先在独立终端加载 ROS 环境，再启动上游 SDK（此终端保持运行）：
 
 ```bash
+conda activate revo_teleop
+export PYTHONNOUSERSITE=1
 source /opt/ros/humble/setup.bash
 source ~/ros2_revohuman_ws/install/setup.bash
 export ROS_DOMAIN_ID=25

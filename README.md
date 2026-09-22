@@ -29,18 +29,20 @@ Use the SDK branch `feat/tracker-world-frame-and-bringup`; this interface follow
 **Terminal 1: start official SDK acquisition and keep it running.** This example selects the right hand; replace the registry set name as needed.
 
 ```bash
+conda activate revo_teleop
+export PYTHONNOUSERSITE=1
 source /opt/ros/humble/setup.bash
 source ~/ros2_revohuman_ws/install/setup.bash
 ros2 launch revohuman_bringup revohuman.launch.py mode:=right set_name:=bench \
   tracker_mode:=off publish_tactile:=off camera_mode:=off
 ```
 
-**Terminal 2: start DV1 adaptation with FK, Revo3 retargeting, and the hardware driver.**
+**Terminal 2: from the Revo-Retargeting repository root, start DV1 adaptation with FK, Revo3 retargeting, and the hardware driver.**
 
 ```bash
-cd ~/code/tele-retarget/Revo-Retargeting
-source /opt/ros/humble/setup.bash
 conda activate revo_teleop
+export PYTHONNOUSERSITE=1
+source /opt/ros/humble/setup.bash
 source install/setup.bash
 bash scripts/teleop.sh right input_source:=dv1
 ```
@@ -91,7 +93,7 @@ Install system, ROS, Python, Git LFS, and submodule dependencies:
 
 The script installs the ROS control stack, Pinocchio, RViz support, MCAP bag support, Git LFS, and Python packages from `requirements.txt`. The shared `revo_teleop` environment is created by `setup_revo_conda.sh` in step 1.
 
-MANUS SDK shared libraries are not stored in this repository. Download the official MANUS SDK from MANUS, then provide it to the installer with one of these options:
+MANUS SDK installation and checks are optional. DV1 users can run the dependency installer without it. For MANUS input, download the official SDK (its shared libraries are not stored in this repository), then provide one of these options:
 
 ```bash
 MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_revo3_deps.sh
@@ -108,7 +110,7 @@ MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
 The SDK installer copies the official `libManusSDK*.so` files into `src/brainco_drivers/manus_ros2/ManusSDK/lib/`. After installing the SDK, verify the workspace with:
 
 ```bash
-./scripts/check_system_deps.sh
+./scripts/check_system_deps.sh --with-manus
 ```
 
 To create a customer SDK package from a machine that already has the official
@@ -121,7 +123,7 @@ MANUS SDK files installed locally:
 This creates `dist/manus-sdk-linux-x86_64.tar.gz` plus a `.sha256` checksum.
 Customers can install that archive with `MANUS_SDK_ARCHIVE=... ./scripts/install_manus_sdk.sh`.
 
-Use the check script any time you move to a new computer or a new shell environment.
+Use `./scripts/check_system_deps.sh` to check the base dependencies; add `--with-manus` when using MANUS input. To install/check an existing MANUS SDK along with system dependencies, run `./scripts/install_revo3_deps.sh --with-manus`.
 
 ## Hardware Connection
 

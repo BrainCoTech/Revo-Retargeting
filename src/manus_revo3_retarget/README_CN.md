@@ -33,10 +33,9 @@ export PYTHONNOUSERSITE=1
   --port /dev/ttyACM0
 ```
 
-**终端 2：启动 DV1 适配与 FK、Revo3 重定向和真机 driver。**
+**终端 2：在 Revo-Retargeting 仓库根目录，启动 DV1 适配与 FK、Revo3 重定向和真机 driver。**
 
 ```bash
-cd ~/code/tele-retarget/Revo-Retargeting
 source /opt/ros/humble/setup.bash
 conda activate revo_teleop
 source install/setup.bash

@@ -29,18 +29,20 @@ SDK 使用 `feat/tracker-world-frame-and-bringup` 分支，接口依据 [Issue #
 **终端 1：启动revohuman官方 SDK 采集并保持运行。** 下例启动右手；registry 组名按实际配置填写。
 
 ```bash
+conda activate revo_teleop
+export PYTHONNOUSERSITE=1
 source /opt/ros/humble/setup.bash
 source ~/ros2_revohuman_ws/install/setup.bash
 ros2 launch revohuman_bringup revohuman.launch.py mode:=right set_name:=bench \
   tracker_mode:=off publish_tactile:=off camera_mode:=off
 ```
 
-**终端 2：启动 DV1 适配与 FK、Revo3 重定向和真机 driver。**
+**终端 2：在 Revo-Retargeting 仓库根目录，启动 DV1 适配与 FK、Revo3 重定向和真机 driver。**
 
 ```bash
-cd ~/code/tele-retarget/Revo-Retargeting
-source /opt/ros/humble/setup.bash
 conda activate revo_teleop
+export PYTHONNOUSERSITE=1
+source /opt/ros/humble/setup.bash
 source install/setup.bash
 bash scripts/teleop.sh right input_source:=dv1
 ```
@@ -79,7 +81,7 @@ git submodule update --init --recursive
 bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
 ```
 
-MANUS 用户另需安装官方 SDK，参见 [SDK 安装说明](README.md#fresh-computer-setup)。
+依赖安装和检查默认不要求 MANUS SDK，DV1 用户可直接跳过。MANUS 用户另需安装官方 SDK，并用 `bash scripts/check_system_deps.sh --with-manus` 检查，参见 [SDK 安装说明](README.md#fresh-computer-setup)。
 Revo3 串口权限、自动识别和可选固定设备名见 [连接说明](src/manus_revo3_retarget/README_CN.md#revo3-真机连接与设备命名)。
 
 ## Revo2 说明

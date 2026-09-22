@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+WITH_MANUS=false
+for arg in "$@"; do
+  case "$arg" in
+    --with-manus) WITH_MANUS=true ;;
+    -h|--help)
+      echo "Usage: install_revo3_deps.sh [--with-manus]"
+      echo "MANUS SDK is optional; provide MANUS_SDK_ARCHIVE, MANUS_SDK_DIR or MANUS_SDK_URL to install it."
+      exit 0 ;;
+    *) echo "Unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
+if [[ -n "${MANUS_SDK_ARCHIVE:-}${MANUS_SDK_DIR:-}${MANUS_SDK_URL:-}" ]]; then
+  WITH_MANUS=true
+fi
+
 ROS_DISTRO="${ROS_DISTRO:-humble}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -45,15 +60,21 @@ echo "[deps] Initializing Git LFS and submodules..."
 git lfs install --local
 git submodule update --init --recursive
 
-echo "[deps] Checking MANUS SDK shared libraries..."
-"${SCRIPT_DIR}/install_manus_sdk.sh"
+if $WITH_MANUS; then
+  echo "[deps] Installing/checking MANUS SDK shared libraries..."
+  "${SCRIPT_DIR}/install_manus_sdk.sh"
+else
+  echo "[deps] Skipping optional MANUS SDK (use --with-manus for MANUS input)."
+fi
 
 echo "[deps] Installing Python dependencies into: $("${PYTHON_BIN}" -c 'import sys; print(sys.executable)')"
 "${PYTHON_BIN}" -m pip install --upgrade pip
 "${PYTHON_BIN}" -m pip install -r "${WORKSPACE}/requirements.txt"
 
 echo "[deps] Verifying dependency set..."
-"${SCRIPT_DIR}/check_system_deps.sh" revo3
+check_args=(revo3)
+if $WITH_MANUS; then check_args+=(--with-manus); fi
+"${SCRIPT_DIR}/check_system_deps.sh" "${check_args[@]}"
 
 cat <<EOF
 [deps] Revo3 dependencies are ready.
