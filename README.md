@@ -47,6 +47,8 @@ source install/setup.bash
 bash scripts/teleop.sh right input_source:=dv1
 ```
 
+Adjust `*_offset_deg` (degrees) in `src/manus_revo3_retarget/config/four_finger_retarget.yaml` (fingers), `spread_retarget.yaml` (spread), or `thumb_retarget.yaml` (thumb).
+
 Use `left` in both commands for the other hand. For both hands, set SDK `mode:=pair`, then run `bash scripts/teleop.sh both input_source:=dv1`. A single hand defaults to `joint_state_layout:=sdk_single`, consuming `/revohuman/{side}/joint_states`. Both hands default to `sdk_pair`, selecting 21 joints per side from `/revohuman/pair/joint_states`.
 
 When running two independent SDK single-hand processes (`mode:=left` and `mode:=right`), use `bash scripts/teleop.sh both input_source:=dv1 joint_state_layout:=sdk_single`. Do not run pair and single-hand acquisition together: each glove allows one owning process.

@@ -51,7 +51,6 @@ bash scripts/teleop.sh right input_source:=dv1
 
 若双手采集使用两个独立的 SDK 单手进程（`mode:=left` 和 `mode:=right`），下游显式运行 `bash scripts/teleop.sh both input_source:=dv1 joint_state_layout:=sdk_single`。不要同时启动 `pair` 和单手采集；一只手套只能由一个进程打开。
 
-适配器以 BEST_EFFORT 订阅，保留 SDK 采样时间戳，直接使用已转换的弧度关节角计算 FK。调试话题 `/humandex_{side}/fk_joint_states`、`/humandex_{side}/eef_pose` 保留。源消息的 `frame_id` 与 FK 的掌心坐标独立；SDK 自定义 `frame_id` 时用 `left_source_frame_id:=...` / `right_source_frame_id:=...` 配套设置。
 SDK 放在本仓库的同级目录，目录名为 `brainco_revohuman_sdk`：
 
 ```text
@@ -67,6 +66,9 @@ SDK 放在本仓库的同级目录，目录名为 `brainco_revohuman_sdk`：
 不传 `input_source:=dv1` 时，`teleop.sh` 保留 MANUS 默认输入并启动 MANUS 采集。
 `humandex` 对应旧的关节和位姿双话题输入；`external` 接收已有的 `HandKinematics` 发布者。
 
+## offset调整
+如果对指效果不好需要调整,可以 在 `src/manus_revo3_retarget/config/` 下的 `four_finger_retarget.yaml`（四指）、`spread_retarget.yaml`（侧摆）和 `thumb_retarget.yaml`（拇指）中修改 `*_offset_deg`（单位：度）。
+
 ## 首次配置和硬件连接
 
 目标环境为 Ubuntu 22.04、ROS 2 Humble、Python 3.10。克隆或切换分支后先拉取 Revo3 子模块：
@@ -81,7 +83,6 @@ git submodule update --init --recursive
 bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
 ```
 
-依赖安装和检查默认不要求 MANUS SDK，DV1 用户可直接跳过。MANUS 用户另需安装官方 SDK，并用 `bash scripts/check_system_deps.sh --with-manus` 检查，参见 [SDK 安装说明](README.md#fresh-computer-setup)。
 Revo3 串口权限、自动识别和可选固定设备名见 [连接说明](src/manus_revo3_retarget/README_CN.md#revo3-真机连接与设备命名)。
 
 ## Revo2 说明
