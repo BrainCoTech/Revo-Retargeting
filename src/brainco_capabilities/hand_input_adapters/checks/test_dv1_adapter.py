@@ -71,3 +71,23 @@ def test_config_requires_separate_left_endpoints():
     p = yaml.safe_load((ROOT.parent / 'revo2_hand_retarget/config/flexion_dv1_left.yaml').read_text())
     assert p['hand_mode'] == 'left' and p['four_finger_calibration_label'].startswith('PROVISIONAL')
     assert not any(k.startswith('right_') for k in p)
+
+
+@pytest.mark.parametrize("context_active", [False, True])
+def test_shutdown_wait_set_error_only_ignored_after_shutdown(monkeypatch, context_active):
+    from hand_input_adapters import humandex_adapter_node as module
+    destroyed = []
+    monkeypatch.setattr(module.rclpy, 'init', lambda **kw: None)
+    monkeypatch.setattr(module.rclpy, 'ok', lambda: context_active)
+    monkeypatch.setattr(module.rclpy, 'shutdown', lambda: None)
+    monkeypatch.setattr(module, 'HumanDexHandAdapter', lambda: SimpleNamespace(
+        destroy_node=lambda: destroyed.append(True)))
+    def stopped_spin(node):
+        raise module.rclpy_implementation.RCLError('context is not valid')
+    monkeypatch.setattr(module.rclpy, 'spin', stopped_spin)
+    if context_active:
+        with pytest.raises(module.rclpy_implementation.RCLError):
+            module.main()
+    else:
+        assert module.main() == 0
+    assert destroyed == [True]

@@ -1,35 +1,57 @@
 # Revo Retargeting
 
-ROS 2 Humble workspace for teleoperating BrainCo Revo3 hands through HandKinematics inputs.
+ROS 2 Humble workspace for BrainCo Revo3 and Revo2 teleoperation with shared hand input adapters.
 
-This workspace includes Revo3 and Revo2 pipelines sharing the hand input adapters.
-The Revo3 operator entrypoints are in `scripts/`. For Revo2 and DV1 input setup,
-see [Revo2 guide](README_REVO2.md), [中文说明](README_CN.md), and
-[DV1 adapter](src/brainco_capabilities/hand_input_adapters/README.md).
-Revo3 uses `requirements.txt`; the imported Revo2 dependency set is preserved in
-`requirements-revo2.txt`.
+[Chinese version](README_CN.md) · [Revo2 guide](README_REVO2.md) · [DV1 adapter](src/brainco_capabilities/hand_input_adapters/README.md) · [Revo3 package guide](src/manus_revo3_retarget/README.md)
 
-## What This Branch Starts
+## Start Revo3 with HumanDex / DV1
 
-`./scripts/teleop.sh` starts the full Revo3 teleoperation stack:
+Run the build commands from the repository root.
 
-```text
-Revo3 driver
-MANUS publisher
-MANUS adapter -> HandKinematics -> Revo3 retarget pipeline
-```
+### Step 1: Build
 
-The retarget pipeline uses `manus_revo3_retarget/launch/pipeline_launch.py` and publishes `revo3_mit_controller_msgs/msg/Revo3MITCommand` to the Revo3 MIT controller topics.
-
-使用 HumanDex 时，先在 BrainCo-HumanDex 中启动采集/FK，再运行：
+If this workspace is already built, skip step 1. On a new computer, prepare the system dependencies and initialize submodules as described below first.
 
 ```bash
-./scripts/teleop.sh right input_source:=humandex
+bash scripts/setup_revo_conda.sh
+conda activate revo_teleop
+source /opt/ros/humble/setup.bash
+PYTHONNOUSERSITE=1 python -m colcon build --base-paths src --symlink-install \
+  --packages-up-to manus_revo3_retarget revo3_driver revo2_teleop_bringup \
+  --cmake-args -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python" \
+               -DPYTHON_EXECUTABLE="$CONDA_PREFIX/bin/python"
 ```
 
-该选项只启动 HumanDex adapter，不启动 HumanDex 采集或 MANUS publisher。
-当前分支完成 Revo3 输入接口接入，HumanDex 的关节零位和实际 tip 点仍待标定。
-字段要求和配置见 [retarget README](src/manus_revo3_retarget/README.md)。
+### Step 2: Start
+
+**Terminal 1: start SDK acquisition and keep it running.** Adjust the SDK path and serial port to match your machine.
+
+```bash
+source /opt/ros/humble/setup.bash
+export PYTHONNOUSERSITE=1
+/usr/bin/python3 \
+  "$HOME/code/tele-retarget/brainco_revohuman_sdk/tools/ros2_joint_state_pub.py" \
+  --hand right \
+  --port /dev/ttyACM0
+```
+
+**Terminal 2: start DV1 adaptation with FK, Revo3 retargeting, and the hardware driver.**
+
+```bash
+cd ~/code/tele-retarget/Revo-Retargeting
+source /opt/ros/humble/setup.bash
+conda activate revo_teleop
+source install/setup.bash
+bash scripts/teleop.sh right input_source:=dv1
+```
+
+Use `left` for the other hand. For `both`, run SDK acquisition for each hand with its own serial port, then run `bash scripts/teleop.sh both input_source:=dv1`.
+The adapter computes FK from the SDK joint states; no separate FK process is needed.
+Override `sdk_path:=/path/to/brainco_revohuman_sdk` or `urdf_path:=/path/to/model.urdf` when needed.
+The default SDK path is `$HOME/code/tele-retarget/brainco_revohuman_sdk`.
+
+Without `input_source:=dv1`, `teleop.sh` keeps its MANUS default and starts the MANUS publisher.
+The `humandex` source uses the older paired joint/pose topics; `external` consumes an existing `HandKinematics` publisher.
 
 ## Fresh Computer Setup
 
@@ -44,15 +66,8 @@ Clone the repository and initialize the Revo3 driver submodule:
 ```bash
 git clone https://github.com/BrainCoTech/Revo-Retargeting.git
 cd Revo-Retargeting
-git checkout revo3_retargeting
+git switch feat/revo3-hand-kinematics
 git submodule update --init --recursive
-```
-
-Create and activate a Python environment. Conda is recommended:
-
-```bash
-conda create -n revo_retargeting python=3.10 -y
-conda activate revo_retargeting
 ```
 
 Install system, ROS, Python, Git LFS, and submodule dependencies:
@@ -61,7 +76,7 @@ Install system, ROS, Python, Git LFS, and submodule dependencies:
 ./scripts/install_revo3_deps.sh
 ```
 
-The script installs the ROS control stack, Pinocchio, RViz support, MCAP bag support, Git LFS, and Python packages from `requirements.txt`.
+The script installs the ROS control stack, Pinocchio, RViz support, MCAP bag support, Git LFS, and Python packages from `requirements.txt`. The shared `revo_teleop` environment is created by `setup_revo_conda.sh` in step 1.
 
 MANUS SDK shared libraries are not stored in this repository. Download the official MANUS SDK from MANUS, then provide it to the installer with one of these options:
 
@@ -95,57 +110,16 @@ Customers can install that archive with `MANUS_SDK_ARCHIVE=... ./scripts/install
 
 Use the check script any time you move to a new computer or a new shell environment.
 
-## Build
+## Hardware Connection
+
+See the [Revo3 hardware connection and device naming guide](src/manus_revo3_retarget/README.md#revo3-hardware-connection-and-device-naming). Device aliases are optional when automatic detection is enabled.
+
+For MANUS, connect and calibrate before first use:
 
 ```bash
-source /opt/ros/humble/setup.bash
-python -m colcon build --symlink-install --packages-select \
-  manus_ros2_msgs manus_ros2 \
-  revo3_mit_controller_msgs revo3_description revo3_mit_controller revo3_driver \
-  revohuman_msgs revohuman_driver revohuman_kinematics \
-  hand_teleop_msgs hand_input_adapters manus_revo3_retarget
-source install/setup.bash
+bash scripts/calibrate_manus.sh right
+bash scripts/calibrate_manus.sh left
 ```
-
-## Real Hardware Setup
-
-On a new computer, configure Revo3 serial aliases and permissions once:
-
-```bash
-cd src/brainco_revo3_ros2/revo3_driver/setup
-bash bootstrap_revo3.sh
-bash check_revo3_setup.sh
-cd -
-```
-
-Connect and calibrate MANUS before first use, or after changing users:
-
-```bash
-./scripts/calibrate_manus.sh right
-./scripts/calibrate_manus.sh left
-```
-
-## Start Teleoperation
-
-Start with one hand first:
-
-```bash
-./scripts/teleop.sh right
-```
-
-Left hand:
-
-```bash
-./scripts/teleop.sh left
-```
-
-Both hands:
-
-```bash
-./scripts/teleop.sh both
-```
-
-`Ctrl-C` stops all process groups started by the script.
 
 ## Useful Script Options
 

@@ -20,6 +20,9 @@ def create_actions(context):
         share / 'config' / f'dv1_{side}.yaml')
     if not config.is_file():
         raise ValueError(f'Adapter config not found: {config}')
+    overrides = {}
+    if value('output_topic'):
+        overrides[f'{side}_output_topic'] = value('output_topic')
     return [Node(
         package='hand_input_adapters', executable='humandex_hand_adapter',
         name='humandex_hand_adapter', output='screen',
@@ -27,6 +30,7 @@ def create_actions(context):
             'input_mode': 'dv1_joint_states', 'hand_mode': side,
             'joint_topic': value('joint_topic') or f'/humandex_{side}/joint_states',
             'urdf_path': str(urdf.resolve()),
+            **overrides,
         }],
     )]
 
@@ -37,5 +41,6 @@ def generate_launch_description():
         DeclareLaunchArgument('urdf_path', description='Path to the external SDK DV1 URDF'),
         DeclareLaunchArgument('adapter_config', default_value=''),
         DeclareLaunchArgument('joint_topic', default_value=''),
+        DeclareLaunchArgument('output_topic', default_value=''),
         OpaqueFunction(function=create_actions),
     ])

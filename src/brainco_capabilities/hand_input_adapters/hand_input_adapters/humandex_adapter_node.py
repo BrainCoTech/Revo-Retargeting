@@ -9,6 +9,7 @@ from geometry_msgs.msg import Pose, PoseArray
 from hand_teleop_msgs.msg import HandKinematics
 import rclpy
 from rclpy.executors import ExternalShutdownException
+from rclpy.impl.implementation_singleton import rclpy_implementation
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 
@@ -259,6 +260,11 @@ def main(args=None) -> int:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except rclpy_implementation.RCLError:
+        # SIGINT can invalidate the context while spin() creates its wait set.
+        # Runtime errors while the context is still active must remain visible.
+        if rclpy.ok():
+            raise
     finally:
         if node is not None:
             node.destroy_node()

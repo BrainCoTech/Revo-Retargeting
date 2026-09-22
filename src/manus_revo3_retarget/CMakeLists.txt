@@ -111,7 +111,7 @@ install(PROGRAMS manus_revo3_retarget/retarget_tuning_panel.py
   RENAME retarget_tuning_panel
 )
 
-install(FILES package.xml README.md
+install(FILES package.xml README.md README_CN.md
   DESTINATION share/${PROJECT_NAME}
 )
 

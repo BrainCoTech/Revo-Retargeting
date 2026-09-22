@@ -1,9 +1,75 @@
-# Revo2 Retargeting
+# Revo Retargeting
 
-这是一个支持 HumanDex、MANUS、Hex 手套遥操作 BrainCo Revo2 灵巧手的 ROS 2
-Humble workspace。
+支持 Revo3 和 Revo2、共用手部输入适配器的 ROS 2 Humble 工作区。
 
-English: [README.md](README.md)
+[English](README.md) · [Revo3 使用说明](src/manus_revo3_retarget/README_CN.md)
+
+## 使用 HumanDex / DV1 启动 Revo3
+
+构建命令在仓库根目录运行。
+
+### 步骤 1：构建
+
+已有构建时，跳过步骤 1。新电脑先按下方说明准备系统依赖并初始化子模块。
+
+```bash
+bash scripts/setup_revo_conda.sh
+conda activate revo_teleop
+source /opt/ros/humble/setup.bash
+PYTHONNOUSERSITE=1 python -m colcon build --base-paths src --symlink-install \
+  --packages-up-to manus_revo3_retarget revo3_driver revo2_teleop_bringup \
+  --cmake-args -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python" \
+               -DPYTHON_EXECUTABLE="$CONDA_PREFIX/bin/python"
+```
+
+### 步骤 2：启动
+
+**终端 1：启动 SDK 采集并保持运行。** 根据本机情况修改 SDK 路径和串口。
+
+```bash
+source /opt/ros/humble/setup.bash
+export PYTHONNOUSERSITE=1
+/usr/bin/python3 \
+  "$HOME/code/tele-retarget/brainco_revohuman_sdk/tools/ros2_joint_state_pub.py" \
+  --hand right \
+  --port /dev/ttyACM0
+```
+
+**终端 2：启动 DV1 适配与 FK、Revo3 重定向和真机 driver。**
+
+```bash
+cd ~/code/tele-retarget/Revo-Retargeting
+source /opt/ros/humble/setup.bash
+conda activate revo_teleop
+source install/setup.bash
+bash scripts/teleop.sh right input_source:=dv1
+```
+
+左手将 `right` 改为 `left`；双手先分别运行两个 SDK 采集进程，各自指定手侧和串口，再运行 `bash scripts/teleop.sh both input_source:=dv1`。
+适配器直接读取 SDK 关节话题并计算 FK，无需另开 FK 进程。
+SDK 默认目录为 `$HOME/code/tele-retarget/brainco_revohuman_sdk`，可通过 `sdk_path:=/实际路径` 或 `urdf_path:=/实际路径/model.urdf` 覆盖模型位置。
+
+不传 `input_source:=dv1` 时，`teleop.sh` 保留 MANUS 默认输入并启动 MANUS 采集。
+`humandex` 对应旧的关节和位姿双话题输入；`external` 接收已有的 `HandKinematics` 发布者。
+
+## 首次配置和硬件连接
+
+目标环境为 Ubuntu 22.04、ROS 2 Humble、Python 3.10。克隆或切换分支后先拉取 Revo3 子模块：
+
+```bash
+git submodule update --init --recursive
+```
+
+系统和 ROS 依赖安装见 [英文主说明](README.md#fresh-computer-setup)。Revo2 driver 所需 Stark SDK：
+
+```bash
+bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
+```
+
+MANUS 用户另需安装官方 SDK，参见 [SDK 安装说明](README.md#fresh-computer-setup)。
+Revo3 串口权限、自动识别和可选固定设备名见 [连接说明](src/manus_revo3_retarget/README_CN.md#revo3-真机连接与设备命名)。
+
+## Revo2 说明
 
 ## 架构
 
@@ -34,25 +100,6 @@ src/brainco_drivers/hex_glove_driver             只负责原始 UDP 传输
 src/brainco_drivers/manus_ros2                   MANUS SDK 原生驱动
 src/brainco_drivers/revo2_driver                 Revo2 ros2_control 驱动
 ```
-
-## 构建
-
-目标环境为 Ubuntu 22.04、ROS 2 Humble、Python 3.10。
-
-```bash
-source /opt/ros/humble/setup.bash
-python -m colcon build
-source install/setup.bash
-```
-
-构建 `revo2_driver` 前按需安装 BrainCo Stark SDK：
-
-```bash
-bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
-```
-
-使用 MANUS profile 时，还需要把官方 SDK 放在
-`src/brainco_drivers/manus_ros2/ManusSDK/`。
 
 ## 启动
 

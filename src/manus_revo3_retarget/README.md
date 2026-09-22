@@ -1,8 +1,133 @@
 # Revo3 HandKinematics Retarget
 
-本包保留 `manus_revo3_retarget` 包名以兼容现有脚本。C++ retarget 节点现在只订阅
-`hand_teleop_msgs/HandKinematics`；MANUS 和 HumanDex 由独立 adapter 接入。
-Pinocchio 求解器、21 个输出关节、MIT 插值和控制器话题保持原有结构。
+[Chinese version](README_CN.md) · [Workspace setup](../../README.md)
+
+## Start Revo3 with HumanDex / DV1
+
+Run the build commands from the repository root.
+
+### Step 1: Build
+
+If this workspace is already built, skip step 1. On a new computer, prepare the system dependencies and initialize submodules as described below first.
+
+```bash
+bash scripts/setup_revo_conda.sh
+conda activate revo_teleop
+source /opt/ros/humble/setup.bash
+PYTHONNOUSERSITE=1 python -m colcon build --base-paths src --symlink-install \
+  --packages-up-to manus_revo3_retarget revo3_driver revo2_teleop_bringup \
+  --cmake-args -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python" \
+               -DPYTHON_EXECUTABLE="$CONDA_PREFIX/bin/python"
+```
+
+### Step 2: Start
+
+**Terminal 1: start SDK acquisition and keep it running.** Adjust the SDK path and serial port to match your machine.
+
+```bash
+source /opt/ros/humble/setup.bash
+export PYTHONNOUSERSITE=1
+/usr/bin/python3 \
+  "$HOME/code/tele-retarget/brainco_revohuman_sdk/tools/ros2_joint_state_pub.py" \
+  --hand right \
+  --port /dev/ttyACM0
+```
+
+**Terminal 2: start DV1 adaptation with FK, Revo3 retargeting, and the hardware driver.**
+
+```bash
+cd ~/code/tele-retarget/Revo-Retargeting
+source /opt/ros/humble/setup.bash
+conda activate revo_teleop
+source install/setup.bash
+bash scripts/teleop.sh right input_source:=dv1
+```
+
+Use `left` for the other hand. For `both`, run SDK acquisition for each hand with its own serial port, then run `bash scripts/teleop.sh both input_source:=dv1`.
+The adapter computes FK from the SDK joint states; no separate FK process is needed.
+Override `sdk_path:=/path/to/brainco_revohuman_sdk` or `urdf_path:=/path/to/model.urdf` when needed.
+The default SDK path is `$HOME/code/tele-retarget/brainco_revohuman_sdk`.
+
+Without `input_source:=dv1`, `teleop.sh` keeps its MANUS default and starts the MANUS publisher.
+The `humandex` source uses the older paired joint/pose topics; `external` consumes an existing `HandKinematics` publisher.
+
+## Revo3 Hardware Connection and Device Naming
+
+Power on the hand and connect it to the computer through USB serial. The default
+configuration uses Modbus at 5 Mbps. With `auto_detect: true`, the driver scans
+serial ports for slave ID 126 (left) or 127 (right). This mode ignores the configured
+`port`, so no device alias is required.
+
+Run the following commands from the repository root. This command lists local
+serial ports and the USB topology without opening serial communication:
+
+```bash
+bash src/brainco_revo3_ros2/revo3_driver/setup/discover_revo3_serial.sh
+```
+
+The list includes other serial devices. Stop the driver and unplug/reconnect each
+hand individually to identify its port. Your user account needs read/write access
+to the serial port. If access is denied, run the following and log in again:
+
+```bash
+sudo usermod -aG dialout "$USER"
+```
+
+### Optional: Stable Device Aliases
+
+Device numbers such as `/dev/ttyUSB*` and `/dev/ttyACM*` may change after reconnecting.
+For a stable port name, identify the right-hand port and run the following,
+replacing `/dev/ttyUSB0` with the verified port:
+
+```bash
+sudo bash src/brainco_revo3_ros2/revo3_driver/setup/setup_revo3_udev_rules.sh \
+  /dev/ttyUSB0 right
+ls -l /dev/revo3_hand_right
+```
+
+The script creates the `/dev/revo3_hand_right` symlink and retains the original
+device name. Use `left` for `/dev/revo3_hand_left`. It overwrites
+`/etc/udev/rules.d/99-revo3-hands.rules`, removes old aliases for any side omitted
+from the invocation, and sets matching serial ports to mode `0666` (read/write
+access for all local users). For both hands, provide both ports in a single call,
+for example `/dev/ttyUSB0 right /dev/ttyUSB1 left`, rather than running the
+single-hand command twice. Reconnect USB if the alias does not appear.
+
+Rules prefer USB topology matching. The default `hub-relative` mode matches the
+last two port levels only when the path is deep enough; shallower paths use the
+full path. USB serial numbers and interface numbers are used only when `ID_PATH`
+is unavailable. Recheck the bindings after changing hub ports or the USB topology;
+an alias is not guaranteed to follow the same physical hand.
+
+### Launch with a Fixed Port
+
+Creating an alias does not update the driver configuration. First, copy the complete
+right-hand protocol configuration:
+
+```bash
+cp src/brainco_revo3_ros2/revo3_driver/config/protocol_modbus_right.yaml \
+  /tmp/revo3_protocol_right.yaml
+```
+
+Under `hardware` in the copy, set `auto_detect` to `false` and `port` to
+`/dev/revo3_hand_right`, leaving all other fields unchanged. Source the ROS and
+workspace environments from step 2, then launch:
+
+```bash
+REVO3_RIGHT_PROTOCOL_CONFIG=/tmp/revo3_protocol_right.yaml \
+  bash scripts/teleop.sh right input_source:=dv1
+```
+
+For the left hand, use `protocol_modbus_left.yaml` and `REVO3_LEFT_PROTOCOL_CONFIG`.
+For long-term use, save the copy in your own configuration directory and pass its
+absolute path to the launch command.
+
+## Architecture and Runtime Behavior
+
+The package retains the name `manus_revo3_retarget` for compatibility with existing
+scripts. The C++ retarget node subscribes only to `hand_teleop_msgs/HandKinematics`;
+separate adapters connect MANUS and HumanDex. The Pinocchio solver, 21 output
+joints, MIT interpolation, and controller topics retain their existing structure.
 
 ```text
 MANUS → manus_hand_adapter ───────┐
@@ -10,16 +135,9 @@ MANUS → manus_hand_adapter ───────┐
 HumanDex mux → humandex_hand_adapter ┘
 ```
 
-HumanDex 默认监听外部 `/joint_states` 和 `/humandex_eef_pose`。合入的共享 adapter
-还支持 `input_mode:=dv1_joint_states`：监听 SDK 的单手 JointState，在 adapter 内
-用 DV1 URDF 计算 FK。Revo3 launch 默认仍使用原有双话题模式；已有 DV1 adapter
-发布 HandKinematics 时，选择 `input_source:=external` 并指定 `input_humandex.yaml`。
-
-## Runtime Assumptions
-
-- Start the target repository Revo3 hardware launch first, for example
-  `revo3_driver/launch/revo3_system.launch.py` or
-  `revo3_driver/launch/dual_revo3_system.launch.py`.
+- `scripts/teleop.sh` includes the driver; do not start it again separately.
+  The lower-level `pipeline_launch.py` includes only input and retargeting.
+  When using it to control physical hardware, start the Revo3 driver separately.
 - This package publishes `revo3_mit_controller_msgs/msg/Revo3MITCommand`.
 - Retargeting runs directly from the HandKinematics subscription callback. MIT commands
   are published by a separate timer at `mit_command_publish_hz` (default 200 Hz)
@@ -29,56 +147,55 @@ HumanDex 默认监听外部 `/joint_states` 和 `/humandex_eef_pose`。合入的
   - `/revo3_right/joint_forward_mit_controller/commands`
 - The thumb IK backend is Pinocchio and uses the shared `revo3_description` URDF.
 
-## Build
+## Inputs and Parameters
 
-```bash
-cd revoarm_hardware/Revoarm_ws
-source /opt/ros/humble/setup.bash
-colcon build --packages-up-to manus_ros2 manus_revo3_retarget
-source install/setup.bash
-```
+`scripts/teleop.sh` accepts `left`, `right`, or `both` as its first argument.
+For DV1, it starts one FK adapter per selected side and connects the resulting
+HandKinematics topics to the retarget pipeline. SDK acquisition runs separately.
+Use `START_REVO3_DRIVER=0` to reuse an existing driver.
+For MANUS, prepare its official SDK and build `manus_ros2`; the default script
+starts the MANUS publisher unless `START_MANUS_PUBLISHER=0` is set.
 
-## Launch
+The older `input_source:=humandex` mode requires `/joint_states` and
+`/humandex_eef_pose` with matching timestamps from external acquisition/FK.
+Use `input_source:=dv1` for the SDK JointState input described above.
+Driver protocol overrides use `REVO3_LEFT_PROTOCOL_CONFIG` and
+`REVO3_RIGHT_PROTOCOL_CONFIG` environment variables.
 
-```bash
-source install/setup.bash
-ros2 launch manus_revo3_retarget pipeline_launch.py hand_mode:=both
-```
+If a HandKinematics publisher is already running, use `input_source:=external`
+to skip the adapter and specify the field mapping with `input_config:=/path/to/input.yaml`.
+`left_input_topic` and `right_input_topic` are passed to both the adapter and
+retargeter, defaulting to `/hand_kinematics/left` and `/hand_kinematics/right`.
 
-默认启动 MANUS publisher 和 adapter。选择 HumanDex 时不会启动 MANUS 或 HumanDex 驱动：
+Input must contain a positive source timestamp, the correct side, and the
+`hand_retarget_<side>` frame. Array lengths, name uniqueness, and finite numeric
+values are validated. MCP/PIP/DIP values for all four fingers, the selected
+spread fields, and thumb_tip are required; incomplete frames do not update the target.
+The `thumb_pip` and `thumb_dip` positions and thumb angle references are optional.
+`source` is message metadata only; the algorithm does not select behavior by device name.
 
-```bash
-ros2 launch manus_revo3_retarget pipeline_launch.py input_source:=humandex hand_mode:=right
-```
-
-已有 HandKinematics 发布者时，可用 `input_source:=external` 跳过 adapter，并通过
-`input_config:=/path/to/input.yaml` 指定字段映射。`left_input_topic` 和
-`right_input_topic` 同时传给 adapter 和 retargeter，默认是 `/hand_kinematics/left` 和
-`/hand_kinematics/right`。
-
-输入必须包含正的源时间戳、正确的 side 和 `hand_retarget_<side>` frame；数组长度、
-名称唯一性和有限数值均会检查。四指的 MCP/PIP/DIP、所选侧摆字段和 thumb_tip 必须完整；
-缺失帧不更新目标。`thumb_pip`、`thumb_dip` 位置及拇指角度参考可省略。
-`source` 仅作消息元数据，算法不根据设备名选择行为。
-
-| 配置 | MANUS | HumanDex |
+| Configuration | MANUS | HumanDex |
 |---|---|---|
-| 四指屈曲 | `index_mcp/pip/dip` 等，rad | 同名字段，rad |
+| Four-finger flexion | `index_mcp/pip/dip`, etc., in rad | Same field names, in rad |
 | `spread_joint_suffix` | `spread` | `mpr` |
 | `spread_relative_to_middle` | `true` | `false` |
 | `thumb_cmr_joint_name` | `thumb_mcp_spread` | `thumb_cmr` |
-| 坐标转换 | adapter 执行 `(-y, -x, z)` | adapter 透传掌心局部坐标 |
+| Coordinate transformation | Adapter applies `(-y, -x, z)` | Adapter passes through palm-local coordinates |
 
-输入配置位于 `config/input_manus.yaml` 和 `config/input_humandex.yaml`，在原有
-retarget 配置之后、用户 calibration override 之前加载。字段选择和输入正负号可通过
-这些配置修改；retargeter 不再转换 MANUS 角度单位或使用 MANUS node ID。
+Input configurations are in `config/input_manus.yaml` and `config/input_humandex.yaml`.
+They load after the base retargeting configurations and before user calibration
+overrides. Use them to change field selection and input signs. The retargeter
+no longer converts MANUS angle units or uses MANUS node IDs.
 
-tip 定义为手套／模型指尖；HumanDex_bimanual 的 DIP 到指尖偏移已写入 BrainCo-HumanDex 默认 FK 配置。
-机器人 IK 仍使用现有 `thumb_tip_Link`。`config/revo3_pad_contacts.yaml` 单独保存指腹参考点，当前不加载到 IK。
-`config/humandex_fingertips.yaml` 记录模型、偏移和使用范围；不同 DV1 SDK 模型不能直接套用。
-MANUS/HumanDex adapter 不再生成 aggregate flexion，Revo2 独立执行此映射。
-补偿合并、归一化 IK 和配置迁移见 [架构迁移说明](../../docs/revo3_architecture_migration.md)。
-本次保留既有 MIT 定时发布行为：输入停止时继续发布最后目标，不能将输入校验当作失联停机策略。
+A tip is the glove/model fingertip. The HumanDex_bimanual DIP-to-tip offsets are
+included in the default BrainCo-HumanDex FK configuration. Robot IK continues
+to use `thumb_tip_Link`. `config/revo3_pad_contacts.yaml` separately stores
+finger-pad reference points and is not currently loaded by IK.
+`config/humandex_fingertips.yaml` documents the model, offsets, and their scope;
+they cannot be applied directly to different DV1 SDK models. MANUS/HumanDex adapters do not generate aggregate flexion; Revo2 performs this mapping independently.
+See the [architecture migration guide](../../docs/revo3_architecture_migration.md) for compensation merging, normalized IK, and configuration migration. Existing periodic MIT publishing is retained: the last target
+continues to be published when input stops. Input validation does not provide
+an automatic stop on connection loss.
 
 `hand_mode:=both` starts two independent retarget processes:
 `manus_revo3_retarget_left` and `manus_revo3_retarget_right`. Each process only
@@ -125,7 +242,7 @@ To start the pipeline and record the default Manus/Revo3 topics into
 `manus_revo3_retarget/log`:
 
 ```bash
-cd src/brainco_capabilities/manus_revo3_retarget
+cd src/manus_revo3_retarget
 ./scripts/run_pipeline_record_mcap.sh
 ```
 
@@ -189,7 +306,7 @@ ENABLE_JOINT_STATE_ALIGNER=0 ./scripts/run_pipeline_record_mcap.sh
 To run a direct MIT command test without Manus input, use:
 
 ```bash
-cd src/brainco_capabilities/manus_revo3_retarget
+cd src/manus_revo3_retarget
 ./scripts/run_quintic_test_record_mcap.sh
 ```
 
