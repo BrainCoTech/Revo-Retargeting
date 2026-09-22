@@ -40,7 +40,7 @@ Choose `joint_state_layout` explicitly when using paired or older input:
 
 | Layout | Default source topic | Input names | Default source `frame_id` |
 | --- | --- | --- | --- |
-| `sdk_single` (single-hand default) | `/revohuman/{side}/joint_states` | 21 unprefixed names, e.g. `index_DIP_joint` | `revohuman_left` / `revohuman_right` |
+| `sdk_single` (single-hand default) | `/revohuman/{side}/joint_states` | 21 names prefixed with the selected side, e.g. `left_index_DIP_joint` | `revohuman_left` / `revohuman_right` |
 | `sdk_pair` | `/revohuman/pair/joint_states` | 42 names with `left_` / `right_` prefixes | `revohuman_pair` |
 | `legacy` | `/humandex_{side}/joint_states` | 21 names prefixed with the selected side | `left_palm_link` / `right_palm_link` |
 

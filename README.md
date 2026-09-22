@@ -51,7 +51,15 @@ When running two independent SDK single-hand processes (`mode:=left` and `mode:=
 
 The adapter subscribes with BEST_EFFORT QoS, preserves the SDK sample timestamp, and computes FK directly from the supplied radians. Debug topics remain `/humandex_{side}/fk_joint_states` and `/humandex_{side}/eef_pose`. The source `frame_id` is separate from the internal palm frame; if you customize it in the SDK, pass the corresponding `left_source_frame_id:=...` / `right_source_frame_id:=...`.
 Override `sdk_path:=/path/to/brainco_revohuman_sdk` or `urdf_path:=/path/to/model.urdf` when needed.
-The default SDK path is `$HOME/code/tele-retarget/brainco_revohuman_sdk`.
+Place the SDK checkout beside this repository, with the directory name `brainco_revohuman_sdk`:
+
+```text
+<parent>/
+├── Revo-Retargeting/
+└── brainco_revohuman_sdk/
+```
+
+The default SDK path is resolved relative to this repository, independently of the terminal's current directory.
 
 For an older `/humandex_{side}/joint_states` publisher, explicitly select `joint_state_layout:=legacy` and set `left_joint_topic:=...` / `right_joint_topic:=...` as needed. Its joint names and frame must follow the legacy contract. See the [adapter layout table](src/brainco_capabilities/hand_input_adapters/README.md#dv1-sdk-direct-input). The old `revohuman_revo2` profile uses this repository's raw serial driver and must not run alongside SDK acquisition.
 

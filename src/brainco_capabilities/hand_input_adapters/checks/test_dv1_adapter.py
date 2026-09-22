@@ -49,7 +49,7 @@ def test_direct_message_and_transform(side, layout):
     selected_values = [.1 + index / 100 for index in range(21)]
     if layout == 'sdk_single':
         msg.header.frame_id = f'revohuman_{side}'
-        names, positions = list(SDK_NAMES), selected_values
+        names, positions = [f'{side}_{name}' for name in SDK_NAMES], selected_values
     elif layout == 'sdk_pair':
         msg.header.frame_id = 'revohuman_pair'
         names = [f'{hand}_{name}' for hand in ('left', 'right') for name in SDK_NAMES]

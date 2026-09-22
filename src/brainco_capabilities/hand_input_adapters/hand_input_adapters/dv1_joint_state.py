@@ -19,8 +19,9 @@ class DV1JointStateInput:
                      for key in JOINT_KEYS)
         self.joint_names = tuple(f"{side}_{name}" for name in bare)
         if layout == "sdk_single":
-            self.wire_names = bare
-            self.selected_names = bare
+            # SDK glove_node calls joint_map.joint_names(handedness=side).
+            self.wire_names = self.joint_names
+            self.selected_names = self.joint_names
             default_frame = f"revohuman_{side}"
         elif layout == "sdk_pair":
             self.wire_names = tuple(f"{hand}_{name}" for hand in ("left", "right") for name in bare)

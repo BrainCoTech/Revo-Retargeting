@@ -7,7 +7,7 @@
 
 ```text
 SDK revohuman_bringup / revohuman.launch.py mode:=left
-  /revohuman/left/joint_states (21 个无手侧前缀的关节名，弧度)
+  /revohuman/left/joint_states (21 个带 left_ 前缀的关节名，弧度)
     → humandex_hand_adapter，input_mode=dv1_joint_states
       → SDK 名称适配 / 校验 / 可选 EMA → DV1 FK → 坐标转换
         → /hand_kinematics/left
@@ -22,7 +22,7 @@ FK 复用 `revohuman_kinematics/joint_fk.py` 和 `core.py`。SDK 已经按 joint
 
 | 布局 | 默认源话题 | 关节名 | 默认源 `frame_id` |
 | --- | --- | --- | --- |
-| `sdk_single`（单手入口默认） | `/revohuman/{side}/joint_states` | 21 个无手侧前缀名称，如 `index_DIP_joint` | `revohuman_left` / `revohuman_right` |
+| `sdk_single`（单手入口默认） | `/revohuman/{side}/joint_states` | 21 个带手侧前缀名称，如 `left_index_DIP_joint` | `revohuman_left` / `revohuman_right` |
 | `sdk_pair` | `/revohuman/pair/joint_states` | 双手共 42 个，带 `left_` / `right_` 前缀 | `revohuman_pair` |
 | `legacy` | `/humandex_{side}/joint_states` | 21 个，带所选侧前缀 | `left_palm_link` / `right_palm_link` |
 
@@ -50,12 +50,13 @@ FK 仍使用全部 21 个关节。左手范围默认为临时的 0～90°；必�
 SDK 和本仓库分别构建、分别启动。SDK 已有官方 `revohuman_msgs`；本仓库保留的旧同名包
 只提供 `RawFrame`。不要把 SDK ROS 包放入本仓库 `src`，也不要在同一终端叠加 source 两个工作区。
 
-在 ROS 2 Humble / Python 3.10 的新终端准备 SDK checkout，确认处于上述分支。
+将 SDK checkout 放在 `Revo-Retargeting` 同级目录，目录名为 `brainco_revohuman_sdk`。
+在 ROS 2 Humble / Python 3.10 的新终端，从 `Revo-Retargeting` 仓库根目录执行，确认 SDK 处于上述分支。
 `2683152` 是本次依据的接口版本；`main` / `develop` 不提供相同的 bringup 入口。
 
 ```bash
 source /opt/ros/humble/setup.bash
-SDK_ROOT="$HOME/code/tele-retarget/brainco_revohuman_sdk"
+SDK_ROOT="$(realpath ../brainco_revohuman_sdk)"
 cd "$SDK_ROOT"
 git branch --show-current
 git rev-parse --short HEAD
@@ -142,7 +143,7 @@ ros2 launch revohuman_bringup revohuman.launch.py mode:=left set_name:=bench \
 ```bash
 ros2 launch hand_input_adapters dv1_input.launch.py \
   hand_mode:=left \
-  urdf_path:=$HOME/code/tele-retarget/brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf
+  urdf_path:="$PWD/../brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf"
 ```
 
 SDK 路径和 registry 组名按本机配置修改，各终端必须使用相同 ROS_DOMAIN_ID。
@@ -159,7 +160,7 @@ ros2 topic echo /humandex_left/eef_pose geometry_msgs/msg/PoseArray --once
 ros2 topic echo /hand_kinematics/left hand_teleop_msgs/msg/HandKinematics --once
 ```
 
-单手默认校验 `frame_id=revohuman_left` 及 21 个无手侧前缀的 SDK 关节名。
+单手默认校验 `frame_id=revohuman_left` 及 21 个带 left_ 前缀的 SDK 关节名。
 无效路 NaN、缺失/重复关节、时间戳倒退或超过 0.5 秒的帧会丢弃。默认 EMA alpha=0.2，
 超过 0.5 秒的有效帧间隔后重置滤波。新版 SDK 的 `header.stamp` 是采样时间
 （`sample_wall_ns` / CLOCK_REALTIME），adapter 原样保留，不重新打到达时间戳。
@@ -199,7 +200,7 @@ ros2 run revo2_hand_retarget calibrate_dv1_fingers --side left \
 ```bash
 ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
   hand_mode:=left \
-  urdf_path:=$HOME/code/tele-retarget/brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf \
+  urdf_path:="$PWD/../brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf" \
   finger_flexion_config:="$PWD/flexion_dv1_left_measured.yaml" \
   launch_retarget:=true
 ```
@@ -225,7 +226,7 @@ IK 求解器内部残差**；IK/指令按不超过 50ms 的时间差近似配对
 ```bash
 ros2 launch revo2_teleop_bringup dv1_sdk.launch.py \
   hand_mode:=left \
-  urdf_path:=$HOME/code/tele-retarget/brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf \
+  urdf_path:="$PWD/../brainco_revohuman_sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf" \
   finger_flexion_config:="$PWD/flexion_dv1_left_measured.yaml" \
   launch_retarget:=true launch_revo2_driver:=true
 ```

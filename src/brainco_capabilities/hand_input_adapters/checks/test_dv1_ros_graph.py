@@ -20,7 +20,7 @@ SDK_NAMES = (
 
 def sdk_sample(side, layout, value):
     if layout == 'sdk_single':
-        return list(SDK_NAMES), [value] * 21, f'revohuman_{side}'
+        return [f'{side}_{name}' for name in SDK_NAMES], [value] * 21, f'revohuman_{side}'
     names = [f'{hand}_{name}' for hand in ('left', 'right') for name in SDK_NAMES]
     positions = ([value] * 21 + [-.7] * 21 if side == 'left'
                  else [-.7] * 21 + [value] * 21)

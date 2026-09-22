@@ -34,7 +34,7 @@ fi
 
 # Resolve input before starting any process, especially the hardware driver.
 INPUT_SOURCE=manus
-SDK_PATH="${HOME}/code/tele-retarget/brainco_revohuman_sdk"
+SDK_PATH="${WORKSPACE}/../brainco_revohuman_sdk"
 URDF_PATH=""
 ADAPTER_CONFIG=""
 LEFT_ADAPTER_CONFIG=""

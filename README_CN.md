@@ -26,7 +26,7 @@ PYTHONNOUSERSITE=1 python -m colcon build --base-paths src --symlink-install \
 
 SDK 使用 `feat/tracker-world-frame-and-bringup` 分支，接口依据 [Issue #13](https://github.com/HAOTianGa03/brainco_revohuman_sdk/issues/13) 的 `2683152`。首次使用先按 [SDK 准备步骤](src/brainco_bringup/revo2_teleop_bringup/README_DV1.md#sdk-准备独立工作区) 安装原生 Python SDK、构建其三个 ROS 包，并在 registry 中按 USB 拓扑声明手别。SDK 与本仓库继续使用独立工作区，各自终端只 source 各自工作区。
 
-**终端 1：启动官方 SDK 采集并保持运行。** 下例启动右手；registry 组名按实际配置填写。
+**终端 1：启动revohuman官方 SDK 采集并保持运行。** 下例启动右手；registry 组名按实际配置填写。
 
 ```bash
 source /opt/ros/humble/setup.bash
@@ -50,7 +50,15 @@ bash scripts/teleop.sh right input_source:=dv1
 若双手采集使用两个独立的 SDK 单手进程（`mode:=left` 和 `mode:=right`），下游显式运行 `bash scripts/teleop.sh both input_source:=dv1 joint_state_layout:=sdk_single`。不要同时启动 `pair` 和单手采集；一只手套只能由一个进程打开。
 
 适配器以 BEST_EFFORT 订阅，保留 SDK 采样时间戳，直接使用已转换的弧度关节角计算 FK。调试话题 `/humandex_{side}/fk_joint_states`、`/humandex_{side}/eef_pose` 保留。源消息的 `frame_id` 与 FK 的掌心坐标独立；SDK 自定义 `frame_id` 时用 `left_source_frame_id:=...` / `right_source_frame_id:=...` 配套设置。
-SDK 默认目录为 `$HOME/code/tele-retarget/brainco_revohuman_sdk`，可通过 `sdk_path:=/实际路径` 或 `urdf_path:=/实际路径/model.urdf` 覆盖模型位置。
+SDK 放在本仓库的同级目录，目录名为 `brainco_revohuman_sdk`：
+
+```text
+<父目录>/
+├── Revo-Retargeting/
+└── brainco_revohuman_sdk/
+```
+
+默认路径相对于本仓库解析，不依赖终端当前目录。可通过 `sdk_path:=/实际路径` 或 `urdf_path:=/实际路径/model.urdf` 覆盖模型位置。
 
 旧 `/humandex_{side}/joint_states` 发布者可显式使用 `joint_state_layout:=legacy`，并通过 `left_joint_topic:=...` / `right_joint_topic:=...` 指定旧话题；关节名与帧标识须满足旧契约。三种布局见 [适配器说明](src/brainco_capabilities/hand_input_adapters/README.md#dv1-sdk-direct-input)。
 

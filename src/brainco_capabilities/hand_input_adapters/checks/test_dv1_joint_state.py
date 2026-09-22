@@ -1,11 +1,11 @@
-"""SDK issue #13 wire fixtures, independent of the FK joint-name constants."""
+"""SDK 2683152 wire fixtures, independent of the FK joint-name constants."""
 
 import pytest
 
 from hand_input_adapters.dv1_joint_state import DV1JointStateInput
 
 
-# Explicit joint_map 0.2 names from the SDK's documented wire contract.
+# joint_map 0.2 base names; SDK glove_node supplies handedness to joint_names().
 SDK_NAMES = (
     'index_DIP_joint', 'index_PIP_joint', 'index_MCP_joint', 'index_MPR_joint',
     'middle_DIP_joint', 'middle_PIP_joint', 'middle_MCP_joint', 'middle_MPR_joint',
@@ -21,7 +21,7 @@ RIGHT_VALUES = [value + 4 for value in LEFT_VALUES]
 def wire_sample(side, layout):
     values = LEFT_VALUES if side == 'left' else RIGHT_VALUES
     if layout == 'sdk_single':
-        return list(SDK_NAMES), values.copy(), f'revohuman_{side}'
+        return [f'{side}_{name}' for name in SDK_NAMES], values.copy(), f'revohuman_{side}'
     if layout == 'sdk_pair':
         return ([f'{hand}_{name}' for hand in ('left', 'right') for name in SDK_NAMES],
                 LEFT_VALUES + RIGHT_VALUES, 'revohuman_pair')
@@ -102,12 +102,30 @@ def test_nonfinite_joint_values_are_rejected(side, layout, invalid):
 
 @pytest.mark.parametrize('side', ['left', 'right'])
 @pytest.mark.parametrize('layout,wire_layout', [
-    (layout, other) for layout in LAYOUTS for other in LAYOUTS if layout != other
+    (layout, other) for layout in LAYOUTS for other in LAYOUTS
+    if (layout == 'sdk_pair') != (other == 'sdk_pair')
 ])
 def test_schema_mismatch_is_not_inferred_from_incoming_names(side, layout, wire_layout):
     names, positions, _ = wire_sample(side, wire_layout)
     _, _, frame = wire_sample(side, layout)
     with pytest.raises(ValueError, match='unique joints'):
+        DV1JointStateInput(side, layout).normalize(names, positions, frame)
+
+
+@pytest.mark.parametrize('side', ['left', 'right'])
+@pytest.mark.parametrize('prefix', ['', 'opposite'])
+def test_sdk_single_rejects_unprefixed_or_opposite_hand_names(side, prefix):
+    other = 'right' if side == 'left' else 'left'
+    names = [f'{other}_{name}' if prefix else name for name in SDK_NAMES]
+    with pytest.raises(ValueError, match='unique joints'):
+        DV1JointStateInput(side).normalize(names, LEFT_VALUES, f'revohuman_{side}')
+
+
+@pytest.mark.parametrize('side', ['left', 'right'])
+@pytest.mark.parametrize('layout,wire_layout', [('sdk_single', 'legacy'), ('legacy', 'sdk_single')])
+def test_single_and_legacy_share_joint_names_but_require_distinct_source_frames(side, layout, wire_layout):
+    names, positions, frame = wire_sample(side, wire_layout)
+    with pytest.raises(ValueError, match='expected SDK frame'):
         DV1JointStateInput(side, layout).normalize(names, positions, frame)
 
 

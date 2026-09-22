@@ -95,6 +95,19 @@ def pipeline(records):
     return next(row for row in records if row[:3] == ['launch', 'manus_revo3_retarget', 'pipeline_launch.py'])
 
 
+def test_dv1_defaults_to_sibling_sdk_independently_of_current_directory(sandbox, monkeypatch):
+    root, _ = sandbox
+    sdk = root.parent / 'brainco_revohuman_sdk'
+    urdf = sdk / 'description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf'
+    urdf.parent.mkdir(parents=True, exist_ok=True)
+    urdf.touch()
+    monkeypatch.chdir(root / 'install')
+    records = launch(sandbox, ['left', 'input_source:=dv1'], 3)
+    adapter = next(row for row in records if row[1] == 'hand_input_adapters')
+    resolved = next(arg.split(':=', 1)[1] for arg in adapter if arg.startswith('urdf_path:='))
+    assert Path(resolved).resolve() == urdf.resolve()
+
+
 @pytest.mark.parametrize('mode,sides', [('right', ['right']), ('both', ['left', 'right'])])
 def test_dv1_starts_fk_per_hand_and_external_retarget(sandbox, mode, sides):
     root, _ = sandbox
