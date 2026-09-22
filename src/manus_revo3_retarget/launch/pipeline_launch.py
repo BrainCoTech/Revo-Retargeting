@@ -4,6 +4,10 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import math
+import os
+from pathlib import Path
+import shlex
+import subprocess
 import yaml
 
 
@@ -70,6 +74,9 @@ def _create_runtime_nodes(context, *args, **kwargs):
         hand_mode = hand_type
     if hand_mode not in ("left", "right", "both"):
         raise ValueError("hand_mode must be one of: left, right, both")
+    retarget_method = LaunchConfiguration("retarget_method").perform(context).strip().lower()
+    if retarget_method not in ("vendor", "anyteleop"):
+        raise ValueError("retarget_method must be vendor or anyteleop")
     manus_publish_rate_hz = float(LaunchConfiguration("manus_publish_rate_hz").perform(context))
     if not math.isfinite(manus_publish_rate_hz) or manus_publish_rate_hz <= 0.0:
         raise ValueError("manus_publish_rate_hz must be a finite positive value")
@@ -96,6 +103,23 @@ def _create_runtime_nodes(context, *args, **kwargs):
     calibration_config = LaunchConfiguration("calibration_config").perform(context)
     left_calibration_config = LaunchConfiguration("left_calibration_config").perform(context)
     right_calibration_config = LaunchConfiguration("right_calibration_config").perform(context)
+    anyteleop_config = LaunchConfiguration("anyteleop_config").perform(context)
+    anyteleop_python = LaunchConfiguration("anyteleop_python").perform(context)
+    if retarget_method == "anyteleop":
+        site = Path(subprocess.check_output([
+            anyteleop_python, "-c",
+            "import sys, sysconfig; assert sys.version_info[:2] == (3, 10), "
+            "'AnyTeleop requires Python 3.10 for ROS 2 Humble'; "
+            "print(sysconfig.get_path('purelib'))",
+        ], text=True).strip())
+        # Keep the optional backend's Pinocchio ahead of ROS's Python bindings.
+        python_env["PYTHONPATH"] = os.pathsep.join([
+            str(site), str(site / "cmeel.prefix/lib/python3.10/site-packages"),
+            os.environ.get("PYTHONPATH", ""),
+        ])
+        python_env["LD_LIBRARY_PATH"] = os.pathsep.join([
+            str(site / "cmeel.prefix/lib"), os.environ.get("LD_LIBRARY_PATH", ""),
+        ])
 
     overrides = {
         "use_revo3_namespace": use_revo3_namespace,
@@ -135,22 +159,26 @@ def _create_runtime_nodes(context, *args, **kwargs):
             side_calibration_config = left_calibration_config if side == "left" else right_calibration_config
             if side_calibration_config:
                 side_parameter_dicts.append(_load_ros_parameters(side_calibration_config))
+        parameters = [
+            *side_parameter_dicts,
+            {
+                **overrides,
+                "hand_mode": side,
+            },
+        ]
+        if retarget_method == "anyteleop":
+            parameters[-1]["anyteleop_config"] = anyteleop_config
         nodes.append(
             Node(
                 package="manus_revo3_retarget",
-                executable="retarget_node",
+                executable="anyteleop_retarget" if retarget_method == "anyteleop" else "retarget_node",
+                prefix=shlex.quote(anyteleop_python) if retarget_method == "anyteleop" else "",
                 name=(
                     f"manus_revo3_retarget_{side}"
                     if hand_mode == "both"
                     else "manus_revo3_retarget"
                 ),
-                parameters=[
-                    *side_parameter_dicts,
-                    {
-                        **overrides,
-                        "hand_mode": side,
-                    },
-                ],
+                parameters=parameters,
                 additional_env=python_env,
                 output="screen",
             )
@@ -172,6 +200,11 @@ def generate_launch_description():
             "hand_type",
             default_value="",
             description="Backward-compatible alias for hand_mode.",
+        ),
+        DeclareLaunchArgument(
+            "retarget_method",
+            default_value="vendor",
+            description="Retarget backend: vendor or anyteleop.",
         ),
         DeclareLaunchArgument(
             "launch_manus_publisher",
@@ -227,6 +260,16 @@ def generate_launch_description():
             "spread_retarget_config",
             default_value=PathJoinSubstitution([package_share, "config", "spread_retarget.yaml"]),
             description="Spread/MPR retarget parameter YAML.",
+        ),
+        DeclareLaunchArgument(
+            "anyteleop_config",
+            default_value=PathJoinSubstitution([package_share, "config", "anyteleop_retarget.yaml"]),
+            description="AnyTeleop retarget parameter YAML.",
+        ),
+        DeclareLaunchArgument(
+            "anyteleop_python",
+            default_value="python3",
+            description="Python interpreter used by AnyTeleop.",
         ),
         DeclareLaunchArgument(
             "retarget_config",

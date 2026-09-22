@@ -111,6 +111,11 @@ install(PROGRAMS manus_revo3_retarget/retarget_tuning_panel.py
   RENAME retarget_tuning_panel
 )
 
+install(PROGRAMS manus_revo3_retarget/anyteleop_node.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME anyteleop_retarget
+)
+
 install(FILES package.xml README.md
   DESTINATION share/${PROJECT_NAME}
 )
