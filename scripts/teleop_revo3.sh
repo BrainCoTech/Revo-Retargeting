@@ -6,6 +6,8 @@ usage() {
   echo "DV1: acquisition runs separately; sdk_path:=DIR or urdf_path:=FILE selects the SDK URDF."
   echo "Optional DV1 arguments: adapter_config:=FILE, left_adapter_config:=FILE, right_adapter_config:=FILE,"
   echo "  left_joint_topic:=TOPIC, right_joint_topic:=TOPIC. Default input remains manus."
+  echo "  joint_state_layout:=sdk_single|sdk_pair|legacy (default: sdk_pair for both, sdk_single otherwise),"
+  echo "  left_source_frame_id:=FRAME, right_source_frame_id:=FRAME."
 }
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   usage
@@ -37,8 +39,11 @@ URDF_PATH=""
 ADAPTER_CONFIG=""
 LEFT_ADAPTER_CONFIG=""
 RIGHT_ADAPTER_CONFIG=""
-LEFT_JOINT_TOPIC=/humandex_left/joint_states
-RIGHT_JOINT_TOPIC=/humandex_right/joint_states
+LEFT_JOINT_TOPIC=""
+RIGHT_JOINT_TOPIC=""
+JOINT_STATE_LAYOUT=""
+LEFT_SOURCE_FRAME_ID=""
+RIGHT_SOURCE_FRAME_ID=""
 LEFT_INPUT_TOPIC=/hand_kinematics/left
 RIGHT_INPUT_TOPIC=/hand_kinematics/right
 INPUT_CONFIG=""
@@ -53,6 +58,9 @@ for arg in "$@"; do
     right_adapter_config:=*) RIGHT_ADAPTER_CONFIG="${arg#*:=}" ;;
     left_joint_topic:=*) LEFT_JOINT_TOPIC="${arg#*:=}" ;;
     right_joint_topic:=*) RIGHT_JOINT_TOPIC="${arg#*:=}" ;;
+    joint_state_layout:=*) JOINT_STATE_LAYOUT="${arg#*:=}" ;;
+    left_source_frame_id:=*) LEFT_SOURCE_FRAME_ID="${arg#*:=}" ;;
+    right_source_frame_id:=*) RIGHT_SOURCE_FRAME_ID="${arg#*:=}" ;;
     left_input_topic:=*) LEFT_INPUT_TOPIC="${arg#*:=}"; pipeline_args+=("$arg") ;;
     right_input_topic:=*) RIGHT_INPUT_TOPIC="${arg#*:=}"; pipeline_args+=("$arg") ;;
     input_config:=*) INPUT_CONFIG="${arg#*:=}" ;;
@@ -81,6 +89,22 @@ source "${SETUP}"
 set -u
 
 if [[ "$INPUT_SOURCE" == dv1 ]]; then
+  if [[ -z "$JOINT_STATE_LAYOUT" ]]; then
+    JOINT_STATE_LAYOUT=sdk_single
+    if [[ "$MODE" == both ]]; then JOINT_STATE_LAYOUT=sdk_pair; fi
+  fi
+  case "$JOINT_STATE_LAYOUT" in
+    sdk_single)
+      LEFT_JOINT_TOPIC="${LEFT_JOINT_TOPIC:-/revohuman/left/joint_states}"
+      RIGHT_JOINT_TOPIC="${RIGHT_JOINT_TOPIC:-/revohuman/right/joint_states}" ;;
+    sdk_pair)
+      LEFT_JOINT_TOPIC="${LEFT_JOINT_TOPIC:-/revohuman/pair/joint_states}"
+      RIGHT_JOINT_TOPIC="${RIGHT_JOINT_TOPIC:-/revohuman/pair/joint_states}" ;;
+    legacy)
+      LEFT_JOINT_TOPIC="${LEFT_JOINT_TOPIC:-/humandex_left/joint_states}"
+      RIGHT_JOINT_TOPIC="${RIGHT_JOINT_TOPIC:-/humandex_right/joint_states}" ;;
+    *) echo "Unknown joint_state_layout: $JOINT_STATE_LAYOUT" >&2; exit 2 ;;
+  esac
   URDF_PATH="${URDF_PATH:-${SDK_PATH}/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf}"
   if [[ ! -f "$URDF_PATH" ]]; then
     echo "[teleop_revo3] DV1 URDF not found: $URDF_PATH; set sdk_path or urdf_path." >&2
@@ -198,12 +222,16 @@ if [[ "$INPUT_SOURCE" == dv1 ]]; then
     if [[ "$side" == left ]]; then
       joint_topic="$LEFT_JOINT_TOPIC"; output_topic="$LEFT_INPUT_TOPIC"
       config="${LEFT_ADAPTER_CONFIG:-$ADAPTER_CONFIG}"
+      source_frame="$LEFT_SOURCE_FRAME_ID"
     else
       joint_topic="$RIGHT_JOINT_TOPIC"; output_topic="$RIGHT_INPUT_TOPIC"
       config="${RIGHT_ADAPTER_CONFIG:-$ADAPTER_CONFIG}"
+      source_frame="$RIGHT_SOURCE_FRAME_ID"
     fi
     adapter_args=("hand_mode:=$side" "urdf_path:=$URDF_PATH"
-                  "joint_topic:=$joint_topic" "output_topic:=$output_topic")
+                  "joint_topic:=$joint_topic" "output_topic:=$output_topic"
+                  "joint_state_layout:=$JOINT_STATE_LAYOUT")
+    if [[ -n "$source_frame" ]]; then adapter_args+=("source_frame_id:=$source_frame"); fi
     if [[ -n "$config" ]]; then adapter_args+=("adapter_config:=$config"); fi
     start_managed "DV1 ${side} adapter/FK" ros2 launch hand_input_adapters dv1_input.launch.py \
       "${adapter_args[@]}"

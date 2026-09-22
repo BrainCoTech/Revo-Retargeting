@@ -19,6 +19,9 @@ def create_actions(context):
             'hand_mode': side,
             'urdf_path': value('urdf_path'),
             'adapter_config': value('adapter_config'),
+            'joint_topic': value('joint_topic'),
+            'joint_state_layout': value('joint_state_layout'),
+            'source_frame_id': value('source_frame_id'),
         }.items(),
     )]
     hardware = value('launch_revo2_driver') == 'true'
@@ -54,6 +57,10 @@ def generate_launch_description():
         DeclareLaunchArgument('revo2_protocol_config_file', default_value='',
                              description='Optional Revo2 robot protocol YAML for the selected side'),
         DeclareLaunchArgument('adapter_config', default_value=''),
+        DeclareLaunchArgument('joint_topic', default_value=''),
+        DeclareLaunchArgument('joint_state_layout', default_value='sdk_single',
+                             choices=['sdk_single', 'sdk_pair', 'legacy']),
+        DeclareLaunchArgument('source_frame_id', default_value=''),
         DeclareLaunchArgument('finger_flexion_config', default_value=''),
         DeclareLaunchArgument('control_config', default_value='retarget.yaml'),
         *(DeclareLaunchArgument(k, default_value=v, choices=['true', 'false']) for k, v in (

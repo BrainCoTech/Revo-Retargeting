@@ -10,7 +10,7 @@ Run the build commands from the repository root.
 
 ### Step 1: Build
 
-If this workspace is already built, skip step 1. On a new computer, prepare the system dependencies and initialize submodules as described below first.
+Run step 1 for the first build and after updating the adapter. On a new computer, prepare the system dependencies and initialize submodules as described below first.
 
 ```bash
 bash scripts/setup_revo_conda.sh
@@ -24,15 +24,15 @@ PYTHONNOUSERSITE=1 python -m colcon build --base-paths src --symlink-install \
 
 ### Step 2: Start
 
-**Terminal 1: start SDK acquisition and keep it running.** Adjust the SDK path and serial port to match your machine.
+Use the SDK branch `feat/tracker-world-frame-and-bringup`; this interface follows commit `2683152` documented in [Issue #13](https://github.com/HAOTianGa03/brainco_revohuman_sdk/issues/13). Complete the [SDK preparation steps](src/brainco_bringup/revo2_teleop_bringup/README_DV1.md#sdk-准备独立工作区) first: install the native Python SDK, build its three ROS packages, and register each hand by USB topology. Keep the SDK and this repository in separate workspaces; source only the corresponding workspace in each terminal.
+
+**Terminal 1: start official SDK acquisition and keep it running.** This example selects the right hand; replace the registry set name as needed.
 
 ```bash
 source /opt/ros/humble/setup.bash
-export PYTHONNOUSERSITE=1
-/usr/bin/python3 \
-  "$HOME/code/tele-retarget/brainco_revohuman_sdk/tools/ros2_joint_state_pub.py" \
-  --hand right \
-  --port /dev/ttyACM0
+source ~/ros2_revohuman_ws/install/setup.bash
+ros2 launch revohuman_bringup revohuman.launch.py mode:=right set_name:=bench \
+  tracker_mode:=off publish_tactile:=off camera_mode:=off
 ```
 
 **Terminal 2: start DV1 adaptation with FK, Revo3 retargeting, and the hardware driver.**
@@ -45,10 +45,15 @@ source install/setup.bash
 bash scripts/teleop.sh right input_source:=dv1
 ```
 
-Use `left` for the other hand. For `both`, run SDK acquisition for each hand with its own serial port, then run `bash scripts/teleop.sh both input_source:=dv1`.
-The adapter computes FK from the SDK joint states; no separate FK process is needed.
+Use `left` in both commands for the other hand. For both hands, set SDK `mode:=pair`, then run `bash scripts/teleop.sh both input_source:=dv1`. A single hand defaults to `joint_state_layout:=sdk_single`, consuming `/revohuman/{side}/joint_states`. Both hands default to `sdk_pair`, selecting 21 joints per side from `/revohuman/pair/joint_states`.
+
+When running two independent SDK single-hand processes (`mode:=left` and `mode:=right`), use `bash scripts/teleop.sh both input_source:=dv1 joint_state_layout:=sdk_single`. Do not run pair and single-hand acquisition together: each glove allows one owning process.
+
+The adapter subscribes with BEST_EFFORT QoS, preserves the SDK sample timestamp, and computes FK directly from the supplied radians. Debug topics remain `/humandex_{side}/fk_joint_states` and `/humandex_{side}/eef_pose`. The source `frame_id` is separate from the internal palm frame; if you customize it in the SDK, pass the corresponding `left_source_frame_id:=...` / `right_source_frame_id:=...`.
 Override `sdk_path:=/path/to/brainco_revohuman_sdk` or `urdf_path:=/path/to/model.urdf` when needed.
 The default SDK path is `$HOME/code/tele-retarget/brainco_revohuman_sdk`.
+
+For an older `/humandex_{side}/joint_states` publisher, explicitly select `joint_state_layout:=legacy` and set `left_joint_topic:=...` / `right_joint_topic:=...` as needed. Its joint names and frame must follow the legacy contract. See the [adapter layout table](src/brainco_capabilities/hand_input_adapters/README.md#dv1-sdk-direct-input). The old `revohuman_revo2` profile uses this repository's raw serial driver and must not run alongside SDK acquisition.
 
 Without `input_source:=dv1`, `teleop.sh` keeps its MANUS default and starts the MANUS publisher.
 The `humandex` source uses the older paired joint/pose topics; `external` consumes an existing `HandKinematics` publisher.

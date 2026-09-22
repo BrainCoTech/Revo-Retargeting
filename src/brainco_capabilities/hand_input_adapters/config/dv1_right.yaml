@@ -4,7 +4,8 @@
   ros__parameters:
     input_mode: dv1_joint_states
     hand_mode: right
-    joint_topic: /humandex_right/joint_states
+    joint_topic: /revohuman/right/joint_states
+    joint_state_layout: sdk_single
     right_input_frame_id: right_palm_link
     right_palm_translation_m:
     - 0.0

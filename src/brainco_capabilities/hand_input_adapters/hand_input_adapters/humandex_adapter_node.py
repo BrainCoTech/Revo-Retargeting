@@ -11,6 +11,7 @@ import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.impl.implementation_singleton import rclpy_implementation
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
 
 from .palm_transform import PalmTransform
@@ -78,9 +79,11 @@ class HumanDexHandAdapter(Node):
             if len(self.sides) != 1:
                 raise ValueError("DV1 direct input requires one hand per adapter process")
             from revohuman_kinematics.joint_fk import JointStateFK
+            from .dv1_joint_state import DV1JointStateInput
             side = self.sides[0]
             for key, value in (("urdf_path", ""), ("tip_offsets_m", [0.0] * 15),
                                ("fk_ema_alpha", 0.2), ("max_age_sec", 0.5),
+                               ("joint_state_layout", "sdk_single"), ("source_frame_id", ""),
                                ("fk_joint_topic", f"/humandex_{side}/fk_joint_states"),
                                ("fk_pose_topic", f"/humandex_{side}/eef_pose")):
                 self.declare_parameter(key, value)
@@ -89,6 +92,9 @@ class HumanDexHandAdapter(Node):
                 self.get_parameter("tip_offsets_m").value,
                 self.get_parameter("fk_ema_alpha").value,
                 self.get_parameter("max_age_sec").value)
+            self.joint_input = DV1JointStateInput(
+                side, self.get_parameter("joint_state_layout").value,
+                self.get_parameter("source_frame_id").value)
             self.fk_joint_pub = self.create_publisher(
                 JointState, self.get_parameter("fk_joint_topic").value, 20)
             self.fk_pose_pub = self.create_publisher(
@@ -100,7 +106,9 @@ class HumanDexHandAdapter(Node):
             JointState,
             str(self.get_parameter("joint_topic").value),
             self._joint_callback,
-            20,
+            QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT,
+                       durability=DurabilityPolicy.VOLATILE)
+            if self.joint_fk is not None else 20,
         )
         if input_mode == "paired":
             self.create_subscription(
@@ -116,6 +124,8 @@ class HumanDexHandAdapter(Node):
         if self.joint_fk is not None:
             self.get_logger().info(
                 f"DV1 FK from JointState radians: {self.get_parameter('urdf_path').value}; "
+                f"layout={self.get_parameter('joint_state_layout').value}, "
+                f"source_frame={self.joint_input.source_frame_id}, "
                 f"base={self.joint_fk.base_link}, tips=DIP_Link + local offsets")
 
     def _joint_callback(self, message: JointState) -> None:
@@ -128,9 +138,11 @@ class HumanDexHandAdapter(Node):
     def _publish_from_joint_state(self, message: JointState) -> None:
         from revohuman_kinematics.joint_fk import quaternion_xyzw
         try:
+            names, positions = self.joint_input.normalize(
+                message.name, message.position, message.header.frame_id)
             q, transforms = self.joint_fk.compute(
-                message.name, message.position, stamp_key(message.header),
-                self.get_clock().now().nanoseconds, message.header.frame_id)
+                names, positions, stamp_key(message.header),
+                self.get_clock().now().nanoseconds, self.joint_fk.base_link)
         except ValueError as exc:
             self.get_logger().warning(f"Dropping DV1 JointState: {exc}", throttle_duration_sec=2.0)
             return

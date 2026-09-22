@@ -103,6 +103,12 @@ def test_dv1_starts_fk_per_hand_and_external_retarget(sandbox, mode, sides):
     assert len(adapters) == len(sides)
     assert {next(x for x in row if x.startswith('hand_mode:=')) for row in adapters} == {f'hand_mode:={side}' for side in sides}
     assert all(row[2] == 'dv1_input.launch.py' for row in adapters)
+    layout = 'sdk_pair' if mode == 'both' else 'sdk_single'
+    for row in adapters:
+        side = next(x.split(':=')[1] for x in row if x.startswith('hand_mode:='))
+        source = 'pair' if mode == 'both' else side
+        assert f'joint_state_layout:={layout}' in row
+        assert f'joint_topic:=/revohuman/{source}/joint_states' in row
     target = pipeline(records)
     assert 'input_source:=external' in target
     assert 'launch_manus_publisher:=0' in target
@@ -136,6 +142,7 @@ def test_custom_topics_reach_adapter_and_retarget(sandbox):
     ['right', 'hand_type:=left'],
     ['right', 'input_source:=unknown'],
     ['right', 'launch_manus_publisher:=invalid'],
+    ['right', 'input_source:=dv1', 'joint_state_layout:=unknown'],
 ])
 def test_invalid_input_is_rejected_before_driver(sandbox, args):
     root, env = sandbox
@@ -180,3 +187,29 @@ def test_custom_adapter_configuration_is_forwarded(sandbox):
     assert f'adapter_config:={shared}' in left_call
     assert f'adapter_config:={right}' in right_call
     assert not any(x.startswith('adapter_config:=') for x in pipeline(records))
+
+
+@pytest.mark.parametrize('layout', ['sdk_single', 'legacy'])
+def test_both_can_use_separate_streams(sandbox, layout):
+    root, _ = sandbox
+    records = launch(sandbox, ['both', 'input_source:=dv1', f'sdk_path:={root / "sdk"}',
+                               f'joint_state_layout:={layout}'], 4)
+    adapters = [row for row in records if row[1] == 'hand_input_adapters']
+    for side in ('left', 'right'):
+        row = next(row for row in adapters if f'hand_mode:={side}' in row)
+        topic = f'/humandex_{side}/joint_states' if layout == 'legacy' else f'/revohuman/{side}/joint_states'
+        assert f'joint_topic:={topic}' in row
+        assert f'joint_state_layout:={layout}' in row
+    assert not any(x.startswith('joint_state_layout:=') for x in pipeline(records))
+
+
+def test_single_hand_can_select_pair_stream_and_custom_frame(sandbox):
+    root, _ = sandbox
+    records = launch(sandbox, ['left', 'input_source:=dv1', f'sdk_path:={root / "sdk"}',
+                               'joint_state_layout:=sdk_pair', 'left_joint_topic:=/custom/pair',
+                               'left_source_frame_id:=custom_pair'], 3)
+    adapter = next(row for row in records if row[1] == 'hand_input_adapters')
+    assert 'joint_state_layout:=sdk_pair' in adapter
+    assert 'joint_topic:=/custom/pair' in adapter
+    assert 'source_frame_id:=custom_pair' in adapter
+    assert not any('source_frame_id:=' in x for x in pipeline(records))
