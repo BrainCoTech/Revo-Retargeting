@@ -5,10 +5,10 @@ manus_revo3_retarget:
     legacy_left_physical_middle_spread_offset_deg: 15.0
     legacy_left_physical_ring_spread_offset_deg: 15.0
     legacy_left_physical_pinky_spread_offset_deg: 15.0
-    legacy_left_physical_index_spread_scale: -1.0
-    legacy_left_physical_middle_spread_scale: -1.0
-    legacy_left_physical_ring_spread_scale: -1.0
-    legacy_left_physical_pinky_spread_scale: -1.0
+    legacy_left_physical_index_spread_scale: 1.0
+    legacy_left_physical_middle_spread_scale: 1.0
+    legacy_left_physical_ring_spread_scale: 1.0
+    legacy_left_physical_pinky_spread_scale: 1.0
     legacy_left_physical_middle_spread_dynamic: true
     legacy_left_physical_ring_spread_forward_scale: 1.0
     legacy_left_physical_ring_spread_backward_scale: 1.0
