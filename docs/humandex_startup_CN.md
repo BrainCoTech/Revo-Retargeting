@@ -1,7 +1,8 @@
 # HumanDex / RevoHuman 手套连接检查与分步骤启动
 
-适用：本仓库 `feat/humandex-support` 分支、ROS 2 Humble，先检查手套输入，
-再运行不连接 Revo2 真机的重定向。下面的本机路径按需替换。
+原 `feat/humandex-support` 分支已归档至 [`archive/20260928/humandex-support-remote`](https://github.com/BrainCoTech/Revo-Retargeting/tree/archive/20260928/humandex-support-remote)。
+本文使用 ROS 2 Humble，先检查手套输入，再运行不连接 Revo2 真机的重定向。
+下面的本机路径按需替换。
 
 ## 1. 当前设备状态与缺少的组件
 
