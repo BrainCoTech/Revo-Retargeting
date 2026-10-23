@@ -1,0 +1,5 @@
+# ROS 2 Humble-compatible runtime; do not force a NumPy 2 upgrade.
+numpy>=1.24,<2
+scipy>=1.10,<1.16
+mujoco>=3.3.7,<4
+PyYAML>=5.4,<7

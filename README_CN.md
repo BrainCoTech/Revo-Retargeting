@@ -4,6 +4,15 @@
 
 [English](README.md) · [Revo3 使用说明](src/manus_revo3_retarget/README_CN.md)
 
+## MANUS 向量重定向
+
+可选 Vector 后端已接入现有 `revo_teleop` 环境与 `scripts/teleop.sh`。
+构建 `manus_revo3_vector_retarget` 后使用
+`bash scripts/teleop.sh right retarget_backend:=vector`（也支持 `left` / `both`）。
+该后端使用当前 May3 手模型，完成标定后通过服务启用输出；构建、启停和验证方式见
+[Vector 使用说明](src/manus_revo3_vector_retarget/README.md)。默认仍为 legacy。
+
+
 ## 使用 HumanDex / DV1 启动 Revo3
 
 构建命令在仓库根目录运行。

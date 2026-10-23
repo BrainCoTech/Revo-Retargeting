@@ -1,0 +1,168 @@
+# May3 model from brainco_revo3_ros2 @ 34528e75.
+# q_ros = q_model; same named limits and MIT gains as this workspace.
+# This is a software coordinate profile, not a physical calibration.
+model_version: may3
+hand_side: left
+urdf_sha256: b6817e989ebcd0cfb47223e6322928a261d97c35e0f475b585928b0333c8c3ca
+mapping_metadata:
+  status: provisional_not_physically_calibrated
+  mpr_sign_basis: Identity mapping matches this workspace physical_*_MPR_joint_scale=1
+    and the driver ROS joint coordinates. Do not apply the newer model axis migration.
+  encoder_zero_basis: Zero offsets retain this workspace output calibration; physical
+    calibration is still required.
+  thumb_alias_policy: Keep the May3 ROS joint names and driver channel order; no differential
+    transmission calibration is inferred.
+command:
+  publish_hz: 200.0
+  startup_duration_s: 2.0
+  target_timeout_s: 0.25
+  max_velocity_rad_s: 12.0
+  max_acceleration_rad_s2: 24.0
+  max_timer_gap_s: 0.1
+  velocity_feedforward: true
+gains:
+  default_kp: 0.2
+  default_kd: 0.02
+  by_joint:
+    little_MPR_joint:
+      kp: 0.7
+      kd: 0.08
+    ring_MPR_joint:
+      kp: 0.7
+      kd: 0.08
+    middle_MPR_joint:
+      kp: 0.7
+      kd: 0.08
+    index_MPR_joint:
+      kp: 0.7
+      kd: 0.08
+output_calibration:
+  left:
+    little_MPR_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    little_MCP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    little_PIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    little_DIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    ring_MPR_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    ring_MCP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    ring_PIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    ring_DIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    middle_MPR_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    middle_MCP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    middle_PIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    middle_DIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    index_MPR_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    index_MCP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    index_PIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    index_DIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    thumb_MCP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    thumb_PIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    thumb_DIP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    thumb_CMP_joint:
+      scale: 1.0
+      offset_deg: 0.0
+    thumb_CMR_joint:
+      scale: 1.0
+      offset_deg: 0.0
+  right: {}
+hardware_channel_bounds:
+  left_little_MPR_joint:
+    lower_rad: -0.2618
+    upper_rad: 0.2618
+  left_little_MCP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_little_PIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_little_DIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_ring_MPR_joint:
+    lower_rad: -0.2618
+    upper_rad: 0.2618
+  left_ring_MCP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_ring_PIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_ring_DIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_middle_MPR_joint:
+    lower_rad: -0.2618
+    upper_rad: 0.2618
+  left_middle_MCP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_middle_PIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_middle_DIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_index_MPR_joint:
+    lower_rad: -0.2618
+    upper_rad: 0.2618
+  left_index_MCP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_index_PIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_index_DIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_thumb_MCP_joint:
+    lower_rad: 0.0
+    upper_rad: 0.8727
+  left_thumb_PIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_thumb_DIP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.4835
+  left_thumb_CMP_joint:
+    lower_rad: 0.0
+    upper_rad: 1.9199
+  left_thumb_CMR_joint:
+    lower_rad: 0.0
+    upper_rad: 2.0071

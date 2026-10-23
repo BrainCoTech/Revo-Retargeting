@@ -55,5 +55,7 @@ src/manus_ros2/ManusSDK/lib/*.so*
 !src/manus_revo3_retarget/test/
 !src/manus_revo3_retarget/test/*.py
 !src/manus_revo3_retarget/test/*.cpp
+!src/manus_revo3_vector_retarget/tests/
+!src/manus_revo3_vector_retarget/tests/*.py
 !src/brainco_capabilities/revo2_hand_retarget/test/
 !src/brainco_capabilities/revo2_hand_retarget/test/*.py

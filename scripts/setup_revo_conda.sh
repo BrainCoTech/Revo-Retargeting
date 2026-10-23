@@ -76,7 +76,7 @@ if ! $check_only; then
   fi
   conda run --no-capture-output -n "$env_name" python -m pip install \
     'setuptools<80' 'numpy>=1.24,<2' colcon-common-extensions 'empy==3.3.4' catkin-pkg lark \
-    'mujoco>=3.0' dex-retargeting pyserial typeguard
+    'mujoco>=3.3.7,<4' 'scipy>=1.10,<1.16' dex-retargeting pyserial typeguard
 fi
 
 conda activate "$env_name"

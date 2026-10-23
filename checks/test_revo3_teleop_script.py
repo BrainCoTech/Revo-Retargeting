@@ -42,6 +42,7 @@ while True: time.sleep(.05)
 ''')
     fake.chmod(0o755)
     for rel in ['share/hand_input_adapters/launch/dv1_input.launch.py',
+                'share/manus_revo3_vector_retarget/launch/pipeline_launch.py',
                 'share/manus_revo3_retarget/config/input_humandex.yaml',
                 'sdk/description/urdf/Revo_Human_DV1_URDF_Bimanual.urdf']:
         path = tmp_path / rel
@@ -226,3 +227,51 @@ def test_single_hand_can_select_pair_stream_and_custom_frame(sandbox):
     assert 'joint_topic:=/custom/pair' in adapter
     assert 'source_frame_id:=custom_pair' in adapter
     assert not any('source_frame_id:=' in x for x in pipeline(records))
+
+
+@pytest.mark.parametrize('mode', ['left', 'right', 'both'])
+def test_vector_starts_selected_hands_without_legacy_adapters(sandbox, mode):
+    records = launch(sandbox, [mode, 'retarget_backend:=vector', 'interpolate:=true'], 2)
+    row = next(r for r in records if r[1] == 'manus_revo3_vector_retarget')
+    assert row[:3] == ['launch', 'manus_revo3_vector_retarget', 'pipeline_launch.py']
+    assert f'hand_mode:={mode}' in row
+    assert 'launch_manus_publisher:=true' in row
+    assert 'interpolate:=true' in row
+    assert all(not arg.startswith('input_source:=') for arg in row)
+    assert not any(r[1] in ('manus_revo3_retarget', 'hand_input_adapters') for r in records)
+
+
+def test_vector_reuses_driver_and_manus_and_preserves_quoted_paths(sandbox):
+    root, env = sandbox
+    env.update(START_REVO3_DRIVER='0', START_MANUS_PUBLISHER='0')
+    profile = root / "right profile's $(not-a-command).yaml"
+    profile.write_text('{}')
+    records = launch(sandbox, ['right', 'retarget_backend:=vector', f'right_profile:={profile}'], 1)
+    assert f'right_profile:={profile}' in records[0]
+    assert 'launch_manus_publisher:=false' in records[0]
+
+
+@pytest.mark.parametrize('args', [
+    ['retarget_backend:=unknown'],
+    ['retarget_backend:=vector', 'input_source:=dv1'],
+    ['retarget_backend:=vector', 'input_source:=humandex'],
+    ['retarget_backend:=vector', 'input_source:=external'],
+    ['retarget_backend:=vector', 'calibration_config:=/old.yaml'],
+    ['retarget_backend:=vector', 'input_config:=/old.yaml'],
+    ['retarget_backend:=vector', 'mit_command_publish_hz:=200'],
+])
+def test_invalid_vector_options_do_not_start_driver(sandbox, args):
+    root, env = sandbox
+    result = subprocess.run(['bash', str(root / 'scripts/teleop.sh'), 'right', *args],
+                            env=env, capture_output=True, text=True, timeout=10)
+    assert result.returncode != 0
+    assert not calls(root)
+
+
+def test_missing_vector_package_does_not_start_driver(sandbox):
+    root, env = sandbox
+    (root / 'share/manus_revo3_vector_retarget/launch/pipeline_launch.py').unlink()
+    result = subprocess.run(['bash', str(root / 'scripts/teleop.sh'), 'right', 'retarget_backend:=vector'],
+                            env=env, capture_output=True, text=True, timeout=10)
+    assert result.returncode != 0 and 'rebuild' in result.stderr
+    assert not calls(root)

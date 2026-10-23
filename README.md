@@ -4,6 +4,16 @@ ROS 2 Humble workspace for BrainCo Revo3 and Revo2 teleoperation with shared han
 
 [Chinese version](README_CN.md) · [Revo2 guide](README_REVO2.md) · [DV1 adapter](src/brainco_capabilities/hand_input_adapters/README.md) · [Revo3 package guide](src/manus_revo3_retarget/README.md)
 
+## MANUS with vector retargeting
+
+The optional vector backend is available on `feat/manus-revo3-vector`. Build
+`manus_revo3_vector_retarget` in the existing `revo_teleop` environment, then run
+`bash scripts/teleop.sh right retarget_backend:=vector` (`left` / `both` also work).
+It uses this workspace's May3 hand models and starts with output disabled;
+calibrate and enable using the package services. See the
+[Vector setup and operation guide](src/manus_revo3_vector_retarget/README.md).
+The default backend and other input adapters keep their existing behavior.
+
 ## Start Revo3 with HumanDex / DV1
 
 Run the build commands from the repository root.

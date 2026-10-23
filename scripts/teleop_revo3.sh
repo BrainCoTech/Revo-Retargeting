@@ -3,6 +3,8 @@ set -euo pipefail
 
 usage() {
   echo "Usage: teleop.sh [left|right|both] [input_source:=manus|humandex|dv1|external] [launch arguments...]"
+  echo "  retarget_backend:=legacy|vector (default: legacy; vector requires MANUS input)."
+  echo "  Vector starts disabled. Use its enable_retarget service after calibration."
   echo "DV1: acquisition runs separately; sdk_path:=DIR or urdf_path:=FILE selects the SDK URDF."
   echo "Optional DV1 arguments: adapter_config:=FILE, left_adapter_config:=FILE, right_adapter_config:=FILE,"
   echo "  left_joint_topic:=TOPIC, right_joint_topic:=TOPIC. Default input remains manus."
@@ -34,6 +36,7 @@ fi
 
 # Resolve input before starting any process, especially the hardware driver.
 INPUT_SOURCE=manus
+RETARGET_BACKEND=legacy
 SDK_PATH="${WORKSPACE}/../brainco_revohuman_sdk"
 URDF_PATH=""
 ADAPTER_CONFIG=""
@@ -50,6 +53,7 @@ INPUT_CONFIG=""
 pipeline_args=()
 for arg in "$@"; do
   case "$arg" in
+    retarget_backend:=*) RETARGET_BACKEND="${arg#*:=}" ;;
     input_source:=*) INPUT_SOURCE="${arg#*:=}" ;;
     sdk_path:=*) SDK_PATH="${arg#*:=}" ;;
     urdf_path:=*) URDF_PATH="${arg#*:=}" ;;
@@ -80,13 +84,49 @@ case "$INPUT_SOURCE" in
   manus|humandex|dv1|external) ;;
   *) echo "Unknown input_source: $INPUT_SOURCE" >&2; exit 2 ;;
 esac
+case "$RETARGET_BACKEND" in
+  legacy|vector) ;;
+  *) echo "Unknown retarget_backend: $RETARGET_BACKEND" >&2; exit 2 ;;
+esac
+if [[ "$RETARGET_BACKEND" == vector ]]; then
+  if [[ "$INPUT_SOURCE" != manus ]]; then
+    echo "Vector requires input_source:=manus (the complete raw MANUS skeleton)." >&2
+    exit 2
+  fi
+  # Reject unsupported mappings/options before starting the hardware driver.
+  if [[ -n "$INPUT_CONFIG" ]]; then
+    echo "Vector uses per-hand profiles, not input_config." >&2; exit 2
+  fi
+  for arg in "${pipeline_args[@]}"; do
+    case "$arg" in
+      left_profile:=*|right_profile:=*|left_glove_id:=*|right_glove_id:=*|cache_dir:=*|calibration_frames:=*|normal_sign:=*|numeric_threads:=*|interpolate:=*|max_velocity_rad_s:=*|max_acceleration_rad_s2:=*) ;;
+      *) echo "Unsupported Vector launch argument: $arg; see the Vector package README." >&2; exit 2 ;;
+    esac
+  done
+fi
 START_MANUS_PUBLISHER="${START_MANUS_PUBLISHER:-1}"
+case "$START_MANUS_PUBLISHER" in
+  true|1) START_MANUS_PUBLISHER=1 ;;
+  false|0) START_MANUS_PUBLISHER=0 ;;
+  *) echo "START_MANUS_PUBLISHER must be 0, 1, true or false" >&2; exit 2 ;;
+esac
 if [[ "$INPUT_SOURCE" != manus ]]; then START_MANUS_PUBLISHER=0; fi
 START_REVO3_DRIVER="${START_REVO3_DRIVER:-1}"
 
 set +u
 source "${SETUP}"
 set -u
+
+if [[ "$RETARGET_BACKEND" == vector ]]; then
+  vector_share="$(ros2 pkg prefix --share manus_revo3_vector_retarget)" || {
+    echo "[teleop_revo3] Build manus_revo3_vector_retarget in the revo_teleop environment first." >&2
+    exit 1
+  }
+  if [[ ! -f "$vector_share/launch/pipeline_launch.py" ]]; then
+    echo "[teleop_revo3] Vector pipeline is missing; rebuild manus_revo3_vector_retarget." >&2
+    exit 1
+  fi
+fi
 
 if [[ "$INPUT_SOURCE" == dv1 ]]; then
   if [[ -z "$JOINT_STATE_LAYOUT" ]]; then
@@ -244,10 +284,17 @@ if [[ "${START_REVO3_DRIVER}" == "1" ]]; then
   start_managed "Revo3 driver" "${SCRIPT_DIR}/start_revo3_driver.sh" "${MODE}"
 fi
 
-start_managed "Revo3 retarget" ros2 launch manus_revo3_retarget pipeline_launch.py \
-  hand_mode:="${MODE}" \
-  launch_manus_publisher:="${START_MANUS_PUBLISHER}" \
-  "input_source:=$INPUT_SOURCE" \
-  "${pipeline_args[@]}"
+if [[ "$RETARGET_BACKEND" == vector ]]; then
+  publish_manus=false
+  if [[ "$START_MANUS_PUBLISHER" == 1 ]]; then publish_manus=true; fi
+  start_managed "Revo3 vector retarget" ros2 launch manus_revo3_vector_retarget pipeline_launch.py \
+    "hand_mode:=$MODE" "launch_manus_publisher:=$publish_manus" "${pipeline_args[@]}"
+else
+  start_managed "Revo3 retarget" ros2 launch manus_revo3_retarget pipeline_launch.py \
+    hand_mode:="${MODE}" \
+    launch_manus_publisher:="${START_MANUS_PUBLISHER}" \
+    "input_source:=$INPUT_SOURCE" \
+    "${pipeline_args[@]}"
+fi
 
 wait_for_any

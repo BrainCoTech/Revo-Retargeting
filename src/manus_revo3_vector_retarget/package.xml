@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>manus_revo3_vector_retarget</name>
+  <version>0.1.0</version>
+  <description>MANUS to Revo3 vector-based retargeting.</description>
+  <maintainer email="1131359622@qq.com">1Jimmy-Chen</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>manus_ros2_msgs</exec_depend>
+  <exec_depend>revo3_mit_controller_msgs</exec_depend>
+  <exec_depend>revo3_description</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>manus_ros2</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
