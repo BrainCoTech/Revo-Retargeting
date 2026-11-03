@@ -214,16 +214,67 @@ public:
         std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
         // Serialize with computation AND publication: once disable returns,
         // no in-flight callback can publish or restore an old target.
-        std::lock_guard<std::mutex> lock(output_mutex_);
-        retarget_enabled_ = request->data;
-        clear_targets();
-        response->success = true;
-        response->message = request->data ? "retarget enabled" : "retarget disabled";
+        if (request->data) {
+          std::lock_guard<std::mutex> lock(output_mutex_);
+          response->success = !shutting_down_;
+          if (response->success) {
+            clear_targets();
+            retarget_enabled_ = true;
+          }
+          response->message = response->success ? "retarget enabled" : "node is shutting down";
+        } else {
+          response->success = release_outputs();
+          response->message = response->success ? "retarget disabled; zero-gain release sent" :
+            "retarget disabled, but zero-gain release delivery could not be confirmed";
+        }
         RCLCPP_INFO(get_logger(), "%s", response->message.c_str());
       });
 
     RCLCPP_INFO(get_logger(), "C++ retarget node ready hand_mode=%s command_hz=%.1f", hand_mode_.c_str(),
       mit_command_publish_hz_);
+  }
+
+  bool release_outputs(bool shutting_down = false)
+  {
+    std::lock_guard<std::mutex> output_lock(output_mutex_);
+    shutting_down_ = shutting_down_ || shutting_down;
+    retarget_enabled_ = false;
+    bool delivered = true;
+    // Stopping publication alone leaves the controller holding its last gains.
+    // Send every joint explicitly, including thumb joints masked in a stage.
+    for (const auto & state : {left_, right_}) {
+      if (!state) {
+        continue;
+      }
+      try {
+        Revo3MITCommand release;
+        release.header.stamp = now();
+        release.joint_names = state->names;
+        release.position.assign(state->names.size(), 0.0);
+        {
+          std::lock_guard<std::mutex> lock(state->mutex);
+          if (state->latest_target) {
+            release.position = state->latest_target->position;
+          }
+        }
+        release.velocity.assign(state->names.size(), 0.0);
+        release.effort.assign(state->names.size(), 0.0);
+        release.kp.assign(state->names.size(), 0.0);
+        release.kd.assign(state->names.size(), 0.0);
+        state->command_pub->publish(release);
+        // In particular, allow delivery before a launch shutdown destroys this
+        // writer. This confirms DDS delivery, not a physical motor response.
+        if (!state->command_pub->wait_for_all_acked(std::chrono::milliseconds(200))) {
+          RCLCPP_ERROR(get_logger(), "%s release delivery timed out", state->side.c_str());
+          delivered = false;
+        }
+      } catch (const std::exception & error) {
+        RCLCPP_ERROR(get_logger(), "%s release failed: %s", state->side.c_str(), error.what());
+        delivered = false;
+      }
+    }
+    clear_targets();
+    return delivered;
   }
 
 private:
@@ -708,6 +759,7 @@ private:
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback_;
   std::mutex output_mutex_;
   bool retarget_enabled_{false};
+  bool shutting_down_{false};
   std::string calibration_mode_;
 };
 
@@ -723,9 +775,22 @@ int main(int argc, char ** argv)
   options.start_parameter_services(true);
   options.start_parameter_event_publisher(false);
   auto node = std::make_shared<manus_revo3_retarget::RetargetNodeCpp>(options);
+  std::weak_ptr<manus_revo3_retarget::RetargetNodeCpp> weak_node = node;
+  node->get_node_base_interface()->get_context()->add_pre_shutdown_callback(
+    [weak_node]() {
+      if (auto live_node = weak_node.lock()) {
+        // SIGINT/SIGTERM must release while the ROS context is still valid.
+        live_node->release_outputs(true);
+      }
+    });
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
   executor.add_node(node);
-  executor.spin();
+  try {
+    executor.spin();
+  } catch (...) {
+    rclcpp::shutdown();
+    throw;
+  }
   rclcpp::shutdown();
   return 0;
 }

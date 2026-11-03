@@ -7,6 +7,7 @@ The panel interaction test also needs a working DISPLAY (or xvfb-run).
 import os
 import signal
 import subprocess
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -69,7 +70,7 @@ class Runtime:
         self.client.set_target(name)
         self.client.wait_ready(timeout_s=5)
 
-    def pump(self, duration=0.2, gloves=False):
+    def pump(self, duration=0.2, gloves=False, allow_exit=False):
         end = time.monotonic() + duration
         while time.monotonic() < end:
             if gloves:
@@ -78,7 +79,8 @@ class Runtime:
                     msg.side = side
                     self.gloves.publish(msg)
             rclpy.spin_once(self.client, timeout_sec=0.01)
-        assert all(p.poll() is None for p in self.processes), 'Retarget node exited; see test logs'
+        if not allow_exit:
+            assert all(p.poll() is None for p in self.processes), 'Retarget node exited; see test logs'
 
     def shutdown(self):
         for p in self.processes:
@@ -107,6 +109,13 @@ def runtime(tmp_path, request):
         if instance is not None:
             instance.shutdown()
         rclpy.shutdown()
+
+
+def assert_released(command):
+    assert len(command.joint_names) == 21
+    assert len(set(command.joint_names)) == 21
+    for field in ('velocity', 'effort', 'kp', 'kd'):
+        assert list(getattr(command, field)) == [0.0] * 21, field
 
 
 def test_runtime_stages_disable_and_single_hand_fallback(runtime):
@@ -145,6 +154,7 @@ def test_runtime_stages_disable_and_single_hand_fallback(runtime):
         r.client.set_values({'retarget_calibration_mode': 'typo'})
     r.client.set_enabled(False)
     r.pump()  # Drain DDS deliveries queued before the disable response.
+    assert_released(r.commands['right'][-1])
     r.commands['right'].clear()
     r.targets['right'].clear()
     r.pump(gloves=True)
@@ -182,9 +192,15 @@ def test_panel_switch_export_and_close(runtime, tmp_path, monkeypatch):
     r = runtime
     ui = panel.RetargetTuningPanel(root, r.client, r.nodes, 'right', 'tester', tmp_path)
     try:
+        r.pump()
+        for commands in r.commands.values():
+            assert_released(commands[-1])
+            commands.clear()
         ui.toggle_output()
         r.pump(gloves=True)
-        assert r.commands['right'] and not r.commands['left']
+        assert r.commands['right'] and any(r.commands['right'][-1].kp)
+        for command in r.commands['left']:
+            assert_released(command)
         ui.switch_hand()
         assert ui.current_side == 'left' and ui.output_enabled
         r.pump(gloves=True)
@@ -219,6 +235,7 @@ def test_panel_switch_export_and_close(runtime, tmp_path, monkeypatch):
         ui._on_close()
         r.pump(gloves=True)
         for values in r.commands.values():
+            assert_released(values[-1])
             values.clear()
         r.pump(gloves=True)
         assert not any(r.commands.values())
@@ -227,3 +244,86 @@ def test_panel_switch_export_and_close(runtime, tmp_path, monkeypatch):
             root.destroy()
         except tk.TclError:
             pass
+
+
+@pytest.mark.parametrize('stop_signal', [signal.SIGINT, signal.SIGTERM])
+def test_node_exit_releases_all_joints(runtime, stop_signal):
+    r = runtime
+    r.client.set_enabled(True)
+    r.pump(gloves=True)
+    assert any(r.commands['right'][-1].kp)
+    proc = r.processes[1]
+    proc.send_signal(stop_signal)
+    r.pump(duration=0.8, gloves=True, allow_exit=True)
+    assert proc.wait(timeout=5) == 0
+    assert_released(r.commands['right'][-1])
+    count = len(r.commands['right'])
+    r.pump(allow_exit=True)
+    assert len(r.commands['right']) == count
+
+
+@pytest.mark.parametrize('stop_signal', [signal.SIGINT, signal.SIGTERM])
+def test_standalone_panel_signal_releases(runtime, tmp_path, stop_signal):
+    if not os.environ.get('DISPLAY'):
+        pytest.skip('Tk interaction requires DISPLAY')
+    r = runtime
+    # Exercise the real entry point and its signal handlers with a hidden window.
+    code = '''
+import tkinter as tk
+original = tk.Tk
+def hidden_root():
+    root = original()
+    root.withdraw()
+    return root
+tk.Tk = hidden_root
+from manus_revo3_retarget.retarget_tuning_panel import main
+raise SystemExit(main())
+'''
+    log_path = tmp_path / 'panel.log'
+    with log_path.open('w') as log:
+        proc = subprocess.Popen([sys.executable, '-c', code,
+                                 '--left-node', r.nodes['left'],
+                                 '--right-node', r.nodes['right'],
+                                 '--calibration-dir', str(tmp_path)],
+                                stdout=log, stderr=subprocess.STDOUT)
+    try:
+        # The constructor sets the stage after connecting and disabling outputs.
+        deadline = time.monotonic() + 8
+        while r.client.get_values(['retarget_calibration_mode'])['retarget_calibration_mode'] != 'spread_only':
+            assert time.monotonic() < deadline and proc.poll() is None, log_path.read_text()
+            r.pump()
+        r.client.set_enabled(True)
+        r.pump(gloves=True)
+        assert any(r.commands['right'][-1].kp)
+        proc.send_signal(stop_signal)
+        while proc.poll() is None and time.monotonic() < deadline:
+            r.pump(gloves=True)
+        assert proc.wait(timeout=3) == 0, log_path.read_text()
+        r.pump(gloves=True)
+        assert_released(r.commands['right'][-1])
+        assert 'Traceback' not in log_path.read_text()
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+
+def test_panel_keeps_window_when_release_fails(runtime, tmp_path, monkeypatch):
+    import tkinter as tk
+    if not os.environ.get('DISPLAY'):
+        pytest.skip('Tk interaction requires DISPLAY')
+    root = tk.Tk()
+    root.withdraw()
+    r = runtime
+    ui = panel.RetargetTuningPanel(root, r.client, r.nodes, 'right', 'tester', tmp_path)
+    errors = []
+    monkeypatch.setattr(panel.messagebox, 'showerror', lambda title, text: errors.append(text))
+    def failed_release(*args, **kwargs):
+        raise TimeoutError('unreachable')
+    try:
+        monkeypatch.setattr(r.client, 'set_enabled_for', failed_release)
+        assert ui._on_close() is False
+        assert root.winfo_exists()
+        assert len(errors) == 1 and 'unreachable' in errors[0]
+    finally:
+        root.destroy()

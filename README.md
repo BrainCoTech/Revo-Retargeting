@@ -133,8 +133,9 @@ Both hands:
 
 ## Online Calibration
 
-Build the updated package with `colcon build --packages-select manus_revo3_retarget`
-and source `install/setup.bash`. Use a desktop terminal with the same
+Build with `colcon build --packages-select revo3_driver manus_revo3_retarget`,
+source `install/setup.bash`, and restart the hand driver to load its zero-gain
+release fix. Use a desktop terminal with the same
 `ROS_DOMAIN_ID` as the hand driver.
 
 ```bash
@@ -157,6 +158,13 @@ History is stored under `~/.brainco/retarget_calibration/library/<side>/`.
 Load a saved override with `right_calibration_config:=/absolute/path.yaml`
 (or `left_calibration_config`). Avoid starting a second MANUS publisher or hand
 driver against the same device.
+
+Closing the panel or pressing Ctrl+C releases all 21 joints using zero MIT
+gains and zero effort, allowing manual movement subject to mechanical friction.
+This requires the updated driver; old builds replace zero gains with defaults.
+If a connected retarget node does not confirm the release request, the panel
+stays open and displays an error. Forced termination or loss of communication
+cannot guarantee release.
 
 Direct `pipeline_launch.py` now defaults to output disabled; use
 `start_enabled:=true` for automatic teleoperation without the panel.

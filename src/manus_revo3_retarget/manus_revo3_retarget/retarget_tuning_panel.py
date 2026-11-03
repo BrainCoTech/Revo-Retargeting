@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import sys
 import tempfile
 import time
@@ -20,6 +21,7 @@ import yaml
 from rcl_interfaces.srv import GetParameters, SetParameters
 from rclpy.node import Node
 from rclpy.parameter import Parameter, parameter_value_to_python
+from rclpy.signals import SignalHandlerOptions
 from rclpy.utilities import remove_ros_args
 from std_srvs.srv import SetBool
 
@@ -831,10 +833,25 @@ class RetargetTuningPanel:
         text = "关闭当前手输出" if self.output_enabled else "启用当前手输出"
         self.enable_button.configure(text=text)
 
-    def _on_close(self) -> None:
-        for node in self.node_by_side.values():
-            self._disable_node_best_effort(node)
+    def release_nodes(self) -> list[str]:
+        errors = []
+        for side, node in self.node_by_side.items():
+            if side not in self.initial_values:
+                self._disable_node_best_effort(node)
+                continue
+            try:
+                self.client.set_enabled_for(node, False, timeout_s=2.0)
+            except Exception as exc:
+                errors.append(f"{node}: {exc}")
+        return errors
+
+    def _on_close(self) -> bool:
+        errors = self.release_nodes()
+        if errors:
+            messagebox.showerror("Revo3 标定", "未能确认释放命令，请检查节点后重试关闭：\n" + "\n".join(errors))
+            return False
         self.root.destroy()
+        return True
 
     def _status(self, text: str) -> None:
         self.status_var.set(text)
@@ -988,15 +1005,41 @@ def main() -> int:
         else config_calibration_dir
     )
 
-    rclpy.init()
+    # Keep ROS alive until the release service has completed. rclpy's default
+    # signal handler would invalidate the context before our finally block.
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     client = ParameterClient()
-    root = tk.Tk()
+    ui = None
+    close_requested = False
+
+    def request_close(_signum, _frame):
+        nonlocal close_requested
+        close_requested = True
+
+    previous_handlers = {sig: signal.signal(sig, request_close)
+                         for sig in (signal.SIGINT, signal.SIGTERM)}
     try:
-        RetargetTuningPanel(root, client, node_by_side, args.side, operator, calibration_dir)
+        root = tk.Tk()
+        ui = RetargetTuningPanel(root, client, node_by_side, args.side, operator, calibration_dir)
+
+        def poll_close():
+            nonlocal close_requested
+            if close_requested:
+                close_requested = False
+                if ui._on_close():
+                    return
+            root.after(100, poll_close)
+
+        root.after(100, poll_close)
         root.mainloop()
     finally:
+        if ui is not None and rclpy.ok():
+            for error in ui.release_nodes():
+                client.get_logger().error("Release failed: " + error)
         client.destroy_node()
         rclpy.shutdown()
+        for sig, handler in previous_handlers.items():
+            signal.signal(sig, handler)
     return 0
 
 

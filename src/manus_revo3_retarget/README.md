@@ -23,7 +23,7 @@ uses Pinocchio with the URDFs from `revo3_description`.
 ```bash
 cd ~/revo_retarget3/Revo-Retargeting
 source /opt/ros/humble/setup.bash
-colcon build --packages-select manus_ros2 manus_revo3_retarget
+colcon build --packages-select manus_ros2 revo3_driver manus_revo3_retarget
 source install/setup.bash
 ```
 
@@ -84,6 +84,18 @@ ros2 launch manus_revo3_retarget pipeline_launch.py hand_mode:=both launch_tunin
 
 Closing a panel started with `launch_tuning_panel:=true` also stops the pipeline
 and its MANUS publisher. Separately launched hardware drivers remain running.
+The panel first disables output and sends zero `kp`, `kd`, velocity and effort
+for all 21 joints, releasing active motor holding torque. Closing the window,
+Ctrl+C and SIGTERM use this same release path. If a previously connected node
+does not confirm the release request, the panel shows an error and stays open
+for retry. Retarget nodes also send a release before normal ROS shutdown.
+
+**Rebuild `revo3_driver` as well as this package, and restart the hand driver.**
+Older driver builds replace explicit zero gains with nonzero defaults and will
+continue holding the fingers. Release does not command a return to zero pose;
+passive mechanical friction remains. DDS acknowledgement confirms message
+delivery, not motor feedback. Forced termination (`kill -9`), communication loss,
+or shutting down the hardware driver at the same time cannot guarantee release.
 
 This launch includes the MANUS publisher. If it is already running, add
 `launch_manus_publisher:=false`. If the retarget nodes are already running,
@@ -166,8 +178,9 @@ ros2 service call /manus_revo3_retarget_right/enable_retarget std_srvs/srv/SetBo
 
 Use the `_left` service for the left node; single-hand launches use
 `/manus_revo3_retarget/enable_retarget`. `start_enabled` is a read-only startup
-parameter. Disable stops publishing; it does not send a hardware emergency-stop
-command. Enabling requires a fresh glove frame before any new command is sent.
+parameter. Disable sends a zero-gain, zero-effort release command for every joint
+before stopping publication. Enabling requires a fresh glove frame before any
+new motion command is sent.
 
 ### Verification
 
