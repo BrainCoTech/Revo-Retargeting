@@ -131,6 +131,39 @@ Both hands:
 
 `Ctrl-C` stops all process groups started by the script.
 
+## Online Calibration
+
+Build the updated package with `colcon build --packages-select manus_revo3_retarget`
+and source `install/setup.bash`. Use a desktop terminal with the same
+`ROS_DOMAIN_ID` as the hand driver.
+
+```bash
+# Terminal 1: start the connected hand driver once.
+./scripts/start_driver.sh right
+
+# Terminal 2: start MANUS, retargeting, and the staged calibration panel.
+ros2 launch manus_revo3_retarget pipeline_launch.py hand_mode:=right launch_tuning_panel:=true
+```
+
+If retargeting is already running, open only the panel:
+
+```bash
+ros2 run manus_revo3_retarget retarget_tuning_panel --side right --operator alice
+```
+
+The panel starts with output disabled. Enable the selected hand, tune spread,
+four-finger flexion, and thumb/pinch in order, then export an override YAML.
+History is stored under `~/.brainco/retarget_calibration/library/<side>/`.
+Load a saved override with `right_calibration_config:=/absolute/path.yaml`
+(or `left_calibration_config`). Avoid starting a second MANUS publisher or hand
+driver against the same device.
+
+Direct `pipeline_launch.py` now defaults to output disabled; use
+`start_enabled:=true` for automatic teleoperation without the panel.
+`./scripts/teleop.sh` keeps its automatic output behavior by passing that
+argument explicitly. See the [package calibration guide](src/manus_revo3_retarget/README.md#staged-online-calibration)
+for stages, service calls, saved configurations, and tests.
+
 ## Useful Script Options
 
 Start only the Revo3 driver:

@@ -1,5 +1,7 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, EmitEvent, OpaqueFunction, RegisterEventHandler
+from launch.event_handlers import OnProcessExit
+from launch.events import Shutdown
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -79,6 +81,10 @@ def _create_runtime_nodes(context, *args, **kwargs):
         "yes",
         "on",
     )
+    start_enabled = LaunchConfiguration("start_enabled").perform(context).lower() == "true"
+    launch_tuning_panel = LaunchConfiguration("launch_tuning_panel").perform(context).lower() == "true"
+    if start_enabled and launch_tuning_panel:
+        raise ValueError("Calibration must start with start_enabled:=false")
     use_revo3_namespace = LaunchConfiguration("use_revo3_namespace").perform(context).strip().lower() in (
         "1",
         "true",
@@ -98,6 +104,7 @@ def _create_runtime_nodes(context, *args, **kwargs):
     right_calibration_config = LaunchConfiguration("right_calibration_config").perform(context)
 
     overrides = {
+        "start_enabled": start_enabled,
         "use_revo3_namespace": use_revo3_namespace,
         "command_topic_suffix": command_topic_suffix,
         "retarget_target_topic_suffix": retarget_target_topic_suffix,
@@ -156,6 +163,21 @@ def _create_runtime_nodes(context, *args, **kwargs):
             )
         )
 
+    if launch_tuning_panel:
+        panel_node = Node(
+            package="manus_revo3_retarget",
+            executable="retarget_tuning_panel",
+            arguments=["--side", "right" if hand_mode == "both" else hand_mode],
+            additional_env=python_env,
+            output="screen",
+        )
+        nodes.extend([
+            RegisterEventHandler(OnProcessExit(
+                target_action=panel_node,
+                on_exit=[EmitEvent(event=Shutdown(reason="Calibration panel exited"))],
+            )),
+            panel_node,
+        ])
     return nodes
 
 
@@ -163,6 +185,18 @@ def generate_launch_description():
     package_share = get_package_share_directory("manus_revo3_retarget")
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            "start_enabled",
+            default_value="false",
+            choices=["true", "false"],
+            description="Enable output immediately (explicit teleoperation only).",
+        ),
+        DeclareLaunchArgument(
+            "launch_tuning_panel",
+            default_value="false",
+            choices=["true", "false"],
+            description="Open the staged calibration panel; requires start_enabled:=false.",
+        ),
         DeclareLaunchArgument(
             "hand_mode",
             default_value="both",

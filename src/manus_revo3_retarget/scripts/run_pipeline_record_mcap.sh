@@ -108,10 +108,7 @@ LAUNCH_LOG="${RUN_DIR}/pipeline_launch.log"
 BAG_LOG="${RUN_DIR}/rosbag_record.log"
 ALIGNER_LOG="${RUN_DIR}/joint_state_aligner.log"
 
-LAUNCH_ARGS=("$@")
-if [[ "${#LAUNCH_ARGS[@]}" == "0" ]]; then
-  LAUNCH_ARGS=("hand_mode:=both")
-fi
+LAUNCH_ARGS=("hand_mode:=both" "start_enabled:=true" "$@")
 
 echo "Log directory: ${RUN_DIR}"
 echo "MCAP bag directory: ${BAG_DIR}"
