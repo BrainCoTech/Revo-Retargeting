@@ -75,11 +75,12 @@ ros2 launch manus_revo3_retarget pipeline_launch.py \
 
 ## Staged Online Calibration
 
-Start the hand driver once, then launch the retarget nodes and panel:
+Both driver and pipeline startup default to both hands. Start the drivers once
+with `./scripts/start_driver.sh`, then launch the retarget nodes and panel:
 
 ```bash
 source install/setup.bash
-ros2 launch manus_revo3_retarget pipeline_launch.py hand_mode:=both launch_tuning_panel:=true
+ros2 launch manus_revo3_retarget pipeline_launch.py launch_tuning_panel:=true
 ```
 
 Closing a panel started with `launch_tuning_panel:=true` also stops the pipeline

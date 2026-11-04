@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:-right}"
+MODE="${1:-both}"
 if [[ $# -gt 0 ]]; then
   shift
 fi

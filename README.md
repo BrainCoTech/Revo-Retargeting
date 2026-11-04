@@ -139,12 +139,17 @@ release fix. Use a desktop terminal with the same
 `ROS_DOMAIN_ID` as the hand driver.
 
 ```bash
-# Terminal 1: start the connected hand driver once.
-./scripts/start_driver.sh right
+# Terminal 1: start both hand drivers (the default).
+./scripts/start_driver.sh
 
-# Terminal 2: start MANUS, retargeting, and the staged calibration panel.
-ros2 launch manus_revo3_retarget pipeline_launch.py hand_mode:=right launch_tuning_panel:=true
+# Terminal 2: start MANUS, both retarget nodes, and the staged calibration panel.
+ros2 launch manus_revo3_retarget pipeline_launch.py launch_tuning_panel:=true
 ```
+
+Both commands default to both hands. For a single hand, pass `right` or `left`
+to `start_driver.sh` and the matching `hand_mode:=right` or `hand_mode:=left`
+to the pipeline. The panel selects one hand at a time; use its hand switch to
+calibrate the other hand.
 
 If retargeting is already running, open only the panel:
 
