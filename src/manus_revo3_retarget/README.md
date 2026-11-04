@@ -1,5 +1,7 @@
 # Manus Revo3 Retarget
 
+[中文指南](README_CN.md)
+
 This package is the Manus-to-Revo3 retarget layer for the
 `Revo-Retargeting` workspace. The runtime retarget node is C++ and
 uses Pinocchio with the URDFs from `revo3_description`.
@@ -21,9 +23,9 @@ uses Pinocchio with the URDFs from `revo3_description`.
 ## Build
 
 ```bash
-cd ~/revo_retarget3/Revo-Retargeting
+# Run from the Revo-Retargeting repository root.
 source /opt/ros/humble/setup.bash
-colcon build --packages-select manus_ros2 revo3_driver manus_revo3_retarget
+colcon build --symlink-install --packages-up-to manus_ros2 revo3_driver manus_revo3_retarget
 source install/setup.bash
 ```
 
@@ -95,7 +97,9 @@ for retry. Retarget nodes also send a release before normal ROS shutdown.
 Older driver builds replace explicit zero gains with nonzero defaults and will
 continue holding the fingers. Release does not command a return to zero pose;
 passive mechanical friction remains. DDS acknowledgement confirms message
-delivery, not motor feedback. Forced termination (`kill -9`), communication loss,
+delivery, not motor feedback. The node waits up to four seconds per hand for
+reliable DDS readers; the panel allows ten seconds for an enable/release service call, including
+a node configured for both hands. Forced termination (`kill -9`), communication loss,
 or shutting down the hardware driver at the same time cannot guarantee release.
 
 This launch includes the MANUS publisher. If it is already running, add
@@ -131,6 +135,129 @@ switch and thumb geometry/IK/EMA controls use the existing `legacy_*` parameter
 names. These output adjustments apply on top of the configured legacy mapping;
 existing configuration and saved tuning files remain usable.
 
+### Spread direction and pinch calibration
+
+Use the final output parameters for routine direction, neutral-pose, and travel
+adjustments. They are stored in the split configs below and can be overridden
+in an exported calibration YAML. Here, `<side>` is `left` or `right`, and
+`<finger>` is `index`, `middle`, `ring`, or `little`.
+
+| Observed behavior | Parameter to change | Base config |
+| --- | --- | --- |
+| One finger spreads in the opposite direction | Negate its current `physical_<side>_<finger>_MPR_joint_scale`, keeping its magnitude | `config/spread_retarget.yaml` |
+| Fingers spread correctly but do not line up when held together | Its `physical_<side>_<finger>_MPR_joint_offset_deg` | `config/spread_retarget.yaml` |
+| Spread travel is too large or too small | Magnitude of the same MPR scale, preserving its sign | `config/spread_retarget.yaml` |
+| One finger bends too far or not far enough | `physical_<side>_<finger>_<joint>_joint_scale`, with `<joint>` = `MCP/PIP/DIP` | `config/four_finger_retarget.yaml` |
+| A four-finger flexion joint has a persistent pose offset | Corresponding `physical_<side>_<finger>_<joint>_joint_offset_deg` | `config/four_finger_retarget.yaml` |
+| Thumb palm-base posture misses the opposition pose | `physical_<side>_thumb_CMP_joint_offset_deg` / `physical_<side>_thumb_CMR_joint_offset_deg`, one at a time | `config/thumb_retarget.yaml` |
+| Thumb flexion is insufficient or excessive | `physical_<side>_thumb_<joint>_joint_scale` / `..._offset_deg`, with `<joint>` = `MCP/PIP/DIP` | `config/thumb_retarget.yaml` |
+
+The final compensation is:
+
+```text
+q_target_rad = scale * q_mapped_rad + offset_deg * pi / 180
+```
+
+`q_mapped` already includes the retarget algorithm and its legacy mapping.
+Thumb IK also has internal legacy compensation and joint-limit clipping.
+The final scale/offset operation above has no subsequent URDF-limit clamp in
+this node. Keep edits small and check the commanded and measured joint angles.
+The first two stages apply their zero-target masks after this operation.
+
+The panel applies slider changes when released, entry changes on Enter, and
+`+`/`−` clicks immediately. Joint-scale steps are `0.05`; joint-offset steps are
+`0.5°`. MPR scale allows `-2.5..2.5` and offset `±40°`; flexion/thumb scales allow
+`0..2.5` and offsets `±30°`. These UI ranges do not describe mechanical limits.
+
+Calibrate in this order:
+
+1. Confirm the MANUS hand and side are correct. Repeat straight, fingers-together,
+   open, and bent poses; correct unstable glove input before tuning output.
+2. In **Spread / MPR**, hold the fingers straight and test each finger's opening
+   and closing direction. If reversed, change only the sign of that finger's
+   current final MPR scale. Then tune fingers-together offsets and spread travel.
+   For example, change `1.0` to `-1.0`; an existing `-1.2` becomes `1.2`.
+3. In **Four-finger flexion**, check straight, half-closed, and closed poses.
+   Adjust one MCP/PIP/DIP scale or offset at a time. Recheck the straight pose
+   after changing travel.
+4. In **Thumb / pinch**, test thumb contact with index, middle, ring, and little
+   fingertips in sequence. Adjust thumb CMP/CMR offsets first, then thumb
+   MCP/PIP/DIP flexion. If only one opposing finger misses, inspect that finger's
+   MPR and flexion parameters. Recheck all four contacts and the open hand after
+   every change; the sign needed for an offset depends on the actual hand pose.
+5. Export the selected hand's YAML, restart with it explicitly, read back the
+   parameters, and repeat the pose checks before using the result for capture.
+
+The thumb stage enables all joints; it does not fit a contact constraint between
+the thumb and each finger. The existing thumb geometry gains
+`legacy_<side>_physical_thumb_reach_scale` and
+`legacy_<side>_physical_thumb_ik_position_scale`, IK task weights
+`legacy_<side>_physical_thumb_pip_ik_scale` / `..._dip_ik_scale`, and EMA weights
+`legacy_<side>_physical_thumb_ema_prev` / `..._ema_cur` remain available for
+advanced tuning. Change these only after the joint compensation checks. The
+`legacy_<side>_physical_middle_spread_dynamic` switch changes middle-finger spread
+behavior. Preserve the base legacy mapping while resolving an individual MPR
+sign, so a second sign change does not cancel the first.
+
+### Minimal override and configuration precedence
+
+For a right index whose current final MPR scale is `1.0`, the following file
+reverses direction while retaining a zero offset. Save only parameters you have
+measured and intend to override:
+
+```yaml
+manus_revo3_retarget:
+  ros__parameters:
+    physical_right_index_MPR_joint_scale: -1.0
+    physical_right_index_MPR_joint_offset_deg: 0.0
+```
+
+Launch it from the repository root:
+
+```bash
+ros2 launch manus_revo3_retarget pipeline_launch.py \
+  hand_mode:=right launch_tuning_panel:=true \
+  right_calibration_config:=/absolute/path/revo3_manus_right.yaml
+```
+
+Files are loaded in this order, with later values replacing earlier ones:
+`control_config` → `thumb_retarget_config` → `four_finger_retarget_config` →
+`spread_retarget_config` → optional `retarget_config` → calibration override.
+A nonempty `calibration_config` is applied to every launched side and causes
+`left_calibration_config` and `right_calibration_config` to be ignored. Otherwise,
+each side receives only its own side-specific override. Finally, the launch's
+runtime fields (`hand_mode`, `start_enabled`, `use_revo3_namespace`,
+`command_topic_suffix`, `retarget_target_topic_suffix`, and
+`mit_command_publish_hz`) take precedence over file values.
+
+Use the actual node name for readback; a right-only launch uses the unsuffixed
+node, while `hand_mode:=both` uses the `_left` and `_right` nodes:
+
+```bash
+ros2 node list
+# hand_mode:=right
+ros2 param get /manus_revo3_retarget physical_right_index_MPR_joint_scale
+ros2 param get /manus_revo3_retarget physical_right_index_MPR_joint_offset_deg
+# hand_mode:=both
+ros2 param get /manus_revo3_retarget_right physical_right_index_MPR_joint_scale
+```
+
+To compare targets, timer-published commands, and hardware feedback with the
+default namespaces:
+
+```bash
+ros2 topic echo /revo3_right/joint_forward_mit_controller/retarget_targets --once
+ros2 topic echo /revo3_right/joint_forward_mit_controller/commands --once
+ros2 topic echo /revo3_right/revo3_joint_state/joint_states --once
+ros2 launch manus_revo3_retarget command_state_viewer.launch.py hand_mode:=right
+```
+
+Match `joint_names` in MIT messages to `name` in JointState before comparing
+positions; angle values are radians. Targets are captured before linear
+interpolation, commands show the interpolated output, and JointState reports
+the measured hand pose. During release, zero gains and effort determine holding
+torque; release does not move the hand to the stage's zero target.
+
 ### Saving and loading calibration
 
 Set an operator ID and optional calibration name, then select **Export Override
@@ -147,7 +274,8 @@ YAML** for each hand. The default location is:
 
 Each export creates a timestamped snapshot and updates the side's latest pointer
 and compatibility copy. Replaced files retain a `.bak`. History **Set as latest**
-changes the stored selection; it does not apply that snapshot to running nodes.
+changes the stored selection and updates the current operator's compatibility
+copy; it does not apply that snapshot to running nodes.
 The export contains the panel's tuning parameters, not output enable, temporary
 stage, MIT gains, or the other legacy mapping parameters in the base configs.
 

@@ -158,7 +158,7 @@ EOF
     printf '  %s\n' "${missing_paths[@]}" >&2
     cat >&2 <<EOF
 
-Check that you cloned the complete revo3_retargeting_online branch.
+Check that you cloned the complete revo3_retargeting branch.
 The Revo3 driver sources are included under src/brainco_revo3_ros2.
 EOF
   fi

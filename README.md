@@ -1,10 +1,12 @@
 # Revo3 Retargeting
 
+[简体中文](README_CN.md) · [Package guide](src/manus_revo3_retarget/README.md)
+
 ROS 2 Humble workspace for teleoperating BrainCo Revo3 hands with MANUS gloves.
 
 This branch is the runnable Revo3 workspace. The operator entrypoints are in `scripts/`.
 
-The `revo3_retargeting_online` branch includes the Revo3 driver sources directly
+The `revo3_retargeting` branch includes the Revo3 driver sources directly
 under `src/brainco_revo3_ros2`, based on
 [BrainCoTech/brainco_revo3_ros2](https://github.com/BrainCoTech/brainco_revo3_ros2)
 with local zero-gain release and serial discovery fixes. No submodule setup is
@@ -30,10 +32,10 @@ Target environment:
 - ROS 2 Humble
 - Python 3.10
 
-Clone the online retargeting branch, including its Revo3 driver sources:
+Clone the Revo3 retargeting branch, including its driver sources:
 
 ```bash
-git clone --branch revo3_retargeting_online https://github.com/BrainCoTech/Revo-Retargeting.git
+git clone --branch revo3_retargeting https://github.com/BrainCoTech/Revo-Retargeting.git
 cd Revo-Retargeting
 ```
 
@@ -106,7 +108,9 @@ bash check_revo3_setup.sh
 cd -
 ```
 
-Connect and calibrate MANUS before first use, or after changing users:
+Connect and calibrate MANUS before first use, or after changing users. These
+commands overwrite the selected glove calibration (`.mcal`); Revo3 joint
+calibration is a separate step below:
 
 ```bash
 ./scripts/calibrate_manus.sh right
@@ -137,7 +141,7 @@ Both hands:
 
 ## Online Calibration
 
-Build with `colcon build --packages-select revo3_driver manus_revo3_retarget`,
+Build with `colcon build --packages-up-to manus_ros2 revo3_driver manus_revo3_retarget`,
 source `install/setup.bash`, and restart the hand driver to load its zero-gain
 release fix. Use a desktop terminal with the same
 `ROS_DOMAIN_ID` as the hand driver.
@@ -180,6 +184,34 @@ Direct `pipeline_launch.py` now defaults to output disabled; use
 `./scripts/teleop.sh` keeps its automatic output behavior by passing that
 argument explicitly. See the [package calibration guide](src/manus_revo3_retarget/README.md#staged-online-calibration)
 for stages, service calls, saved configurations, and tests.
+
+### Spread direction and pinch calibration
+
+Use the panel's final output parameters for routine adjustments:
+
+| Observation | Parameter to adjust | Base configuration |
+|---|---|---|
+| One finger spreads in the opposite direction | Negate its current `physical_<side>_<finger>_MPR_joint_scale` | `spread_retarget.yaml` |
+| Neutral spread is shifted, or its range is wrong | MPR `offset_deg`, or the magnitude of its scale | `spread_retarget.yaml` |
+| Thumb opposition or bending misses contact | Thumb CMP/CMR first, then MCP/PIP/DIP output offsets/scales | `thumb_retarget.yaml` |
+| Only one opposing finger bends incorrectly | That finger's MCP/PIP/DIP output offsets/scales | `four_finger_retarget.yaml` |
+
+The files are under `src/manus_revo3_retarget/config/`. Preserve the legacy
+mapping while tuning these final output parameters. Work through straight-hand
+spread, four-finger flexion, then thumb-to-index/middle/ring/little contact;
+change one parameter at a time and recheck opening after each change. Save the
+results as an override instead of overwriting shared base configurations.
+
+See the [step-by-step parameter guide](src/manus_revo3_retarget/README.md#spread-direction-and-pinch-calibration)
+([中文](src/manus_revo3_retarget/README_CN.md#侧摆方向与对指校准)) for exact names,
+examples, node selection, loading order and acceptance checks. The full stage
+uses the existing retargeting algorithm; contact still needs operator checking.
+
+| Entrypoint | Default hands | Initial retarget output |
+|---|---|---|
+| `./scripts/start_driver.sh` | Both | Starts only the drivers |
+| Direct `pipeline_launch.py` | Both | Disabled |
+| `./scripts/teleop.sh` | Right | Enabled explicitly |
 
 ## Useful Script Options
 
@@ -226,7 +258,7 @@ src/manus_revo3_retarget        MANUS to Revo3 retarget pipeline
 If `teleop.sh` says `Missing install/setup.bash`, build the workspace first.
 
 If `check_system_deps.sh` reports missing workspace paths, check that you cloned
-the complete `revo3_retargeting_online` branch. Its driver sources are included
+the complete `revo3_retargeting` branch. Its driver sources are included
 in the repository.
 
 If ROS packages are missing, rerun:
@@ -241,4 +273,4 @@ If MANUS SDK files are missing, download the official MANUS SDK and run:
 MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
 ```
 
-If a new clone does not contain `scripts/` or `src/`, the branch was not published with the runnable workspace files. A fresh computer needs this branch to track `scripts/`, `requirements.txt`, `.gitmodules`, and the ROS packages under `src/`.
+If a new clone does not contain `scripts/` or `src/`, the branch was not published with the runnable workspace files. A fresh computer needs this branch to track `scripts/`, `requirements.txt`, and the ROS packages, including the driver sources, under `src/`.
