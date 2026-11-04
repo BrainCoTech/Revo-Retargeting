@@ -4,6 +4,12 @@ ROS 2 Humble workspace for teleoperating BrainCo Revo3 hands with MANUS gloves.
 
 This branch is the runnable Revo3 workspace. The operator entrypoints are in `scripts/`.
 
+The `revo3_retargeting_online` branch includes the Revo3 driver sources directly
+under `src/brainco_revo3_ros2`, based on
+[BrainCoTech/brainco_revo3_ros2](https://github.com/BrainCoTech/brainco_revo3_ros2)
+with local zero-gain release and serial discovery fixes. No submodule setup is
+needed for this branch.
+
 ## What This Branch Starts
 
 `./scripts/teleop.sh` starts the full Revo3 teleoperation stack:
@@ -24,13 +30,11 @@ Target environment:
 - ROS 2 Humble
 - Python 3.10
 
-Clone the repository and initialize the Revo3 driver submodule:
+Clone the online retargeting branch, including its Revo3 driver sources:
 
 ```bash
-git clone https://github.com/BrainCoTech/Revo-Retargeting.git
+git clone --branch revo3_retargeting_online https://github.com/BrainCoTech/Revo-Retargeting.git
 cd Revo-Retargeting
-git checkout revo3_retargeting
-git submodule update --init --recursive
 ```
 
 Create and activate a Python environment. Conda is recommended:
@@ -40,7 +44,7 @@ conda create -n revo_retargeting python=3.10 -y
 conda activate revo_retargeting
 ```
 
-Install system, ROS, Python, Git LFS, and submodule dependencies:
+Install system, ROS, Python, and Git LFS dependencies:
 
 ```bash
 ./scripts/install_revo3_deps.sh
@@ -209,7 +213,7 @@ Pass extra launch arguments through to `pipeline_launch.py`:
 ```text
 src/manus_ros2_msgs             MANUS ROS 2 messages
 src/manus_ros2                  MANUS SDK bridge, without redistributing SDK .so files
-src/brainco_revo3_ros2          Revo3 upstream driver submodule
+src/brainco_revo3_ros2          Included Revo3 driver sources with online calibration fixes
 src/brainco_revo3_ros2/revo3_mit_controller_msgs
 src/brainco_revo3_ros2/revo3_mit_controller
 src/brainco_revo3_ros2/revo3_description
@@ -221,11 +225,9 @@ src/manus_revo3_retarget        MANUS to Revo3 retarget pipeline
 
 If `teleop.sh` says `Missing install/setup.bash`, build the workspace first.
 
-If `check_system_deps.sh` reports missing workspace paths, initialize submodules:
-
-```bash
-git submodule update --init --recursive
-```
+If `check_system_deps.sh` reports missing workspace paths, check that you cloned
+the complete `revo3_retargeting_online` branch. Its driver sources are included
+in the repository.
 
 If ROS packages are missing, rerun:
 

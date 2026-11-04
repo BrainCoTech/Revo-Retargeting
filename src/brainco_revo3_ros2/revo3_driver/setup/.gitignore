@@ -1,0 +1,3 @@
+bin/detect_revo3_ports
+build/
+logs/*.log

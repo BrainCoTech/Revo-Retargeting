@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!--
+  Revo3 hand macro — attaches a 21-DoF Revo3 dexterous hand to a parent link.
+
+  Parameters:
+    arm_prefix     "left" | "right"
+    connected_to   parent link name (default: {arm_prefix}_connector_tip)
+    xyz            mounting offset (default: 0 0 0)
+    rpy            mounting rotation (default: 0 0 0)
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="revo3_hand" params="
+    arm_prefix
+    connected_to:=''
+    xyz:='0 0 0'
+    rpy:='0 0 0'
+  ">
+
+    <!-- Resolve parent link: default to {arm_prefix}_connector_tip -->
+    <xacro:property name="parent_link"
+      value="${connected_to if connected_to != '' else arm_prefix + '_connector_tip'}" />
+
+    <!-- Fixed joint connecting the hand base to the parent -->
+    <joint name="${arm_prefix}_hand_base_joint" type="fixed">
+      <parent link="${parent_link}" />
+      <child  link="${arm_prefix}_hand_base_link" />
+      <origin xyz="${xyz}" rpy="${rpy}" />
+    </joint>
+
+    <!-- Include the kinematic/visual model for the appropriate hand -->
+    <xacro:if value="${arm_prefix == 'left'}">
+      <xacro:include filename="$(find revo3_description)/urdf/revo3_left_may3.urdf" />
+    </xacro:if>
+    <xacro:if value="${arm_prefix == 'right'}">
+      <xacro:include filename="$(find revo3_description)/urdf/revo3_right_may3.urdf" />
+    </xacro:if>
+
+  </xacro:macro>
+
+</robot>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- System-layer entry point for the standalone revo3 hand (no arm).
+     Loaded directly by the revo3_system.launch.py file.
+
+     Parameters:
+       hand_side               "left" | "right"
+       protocol_config_file    Path to protocol config YAML (protocol_modbus_{left|right}.yaml)
+       if_sim                  Use mock hardware when true
+-->
+<robot name="revo3_single" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="hand_side"              default="right" />
+  <xacro:arg name="protocol_config_file"   default="" />
+  <xacro:arg name="if_sim"                 default="false" />
+  <xacro:arg name="initial_positions_file" default="" />
+
+  <xacro:include filename="$(find revo3_description)/urdf/revo3_hand.xacro" />
+  <xacro:include filename="$(find revo3_driver)/config/revo3.ros2_control.xacro" />
+
+  <link name="world" />
+
+  <xacro:property name="hand_prefix" value="$(arg hand_side)" />
+
+  <xacro:revo3_hand
+    arm_prefix="${hand_prefix}"
+    connected_to="world" />
+
+  <xacro:revo3_ros2_control
+    name="${'revo3_' + hand_prefix + '_hardware_interface'}"
+    hand_side="${hand_prefix}"
+    protocol_config_file="$(arg protocol_config_file)"
+    if_sim="$(arg if_sim)"
+    initial_positions_file="$(arg initial_positions_file)" />
+
+</robot>

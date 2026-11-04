@@ -1,0 +1,11 @@
+# Revo3 right-hand Modbus transport configuration.
+# Loaded by revo3_system.launch.py and merged into the ros2_control hardware parameters.
+hardware:
+  slave_id: 127         # Right hand slave ID
+  log_level: info       # error | warn | info | debug | trace
+  port: /dev/ttyUSB0    # Ignored when auto_detect=true
+  baudrate: 5000000     # 5 Mbps – Revo3 default
+  auto_detect: true     # Scan serial ports and require slave_id=127
+  auto_detect_quick: true
+  auto_detect_port: ""  # Leave empty to scan all ports; set e.g. "/dev/ttyUSB" to restrict
+  read_decimation: 4     # Effective read feedback rate is update_rate / read_decimation

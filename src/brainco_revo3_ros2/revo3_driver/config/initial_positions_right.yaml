@@ -1,0 +1,69 @@
+# initial_positions_right.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Initial joint positions (rad) for the RIGHT Revo3 hand.
+#
+# These values are injected into ros2_control as the position state_interface
+# initial_value for simulation (mock_components/GenericSystem), so RViz and
+# all controllers see the correct starting pose without reading real hardware.
+#
+# Joint order matches the SDK / xacro hardware-interface declaration order:
+#   SDK 00  little_MPR   (abduction)
+#   SDK 01  little_MCP
+#   SDK 02  little_PIP
+#   SDK 03  little_DIP
+#   SDK 04  ring_MPR     (abduction)
+#   SDK 05  ring_MCP
+#   SDK 06  ring_PIP
+#   SDK 07  ring_DIP
+#   SDK 08  middle_MPR   (abduction)
+#   SDK 09  middle_MCP
+#   SDK 10  middle_PIP
+#   SDK 11  middle_DIP
+#   SDK 12  index_MPR    (abduction)
+#   SDK 13  index_MCP
+#   SDK 14  index_PIP
+#   SDK 15  index_DIP
+#   SDK 16  thumb_MCP
+#   SDK 17  thumb_PIP
+#   SDK 18  thumb_DIP
+#   SDK 19  thumb_CMP    (abduction)
+#   SDK 20  thumb_CMR
+#
+# Default: fully open hand (all joints at 0 rad).
+# ─────────────────────────────────────────────────────────────────────────────
+initial_positions:
+  right_little_MPR_joint: 0.18  # SDK 00
+  right_little_MCP_joint: 0.80  # SDK 01
+  right_little_PIP_joint: 0.50  # SDK 02
+  right_little_DIP_joint: 0.05  # SDK 03
+  right_ring_MPR_joint:   0.25  # SDK 04
+  right_ring_MCP_joint:   0.50  # SDK 05
+  right_ring_PIP_joint:   0.55  # SDK 06
+  right_ring_DIP_joint:   0.20  # SDK 07
+  right_middle_MPR_joint: 0.00  # SDK 08
+  right_middle_MCP_joint: 0.50  # SDK 09
+  right_middle_PIP_joint: 0.45  # SDK 10
+  right_middle_DIP_joint: 0.15  # SDK 11
+  right_index_MPR_joint:  -0.20  # SDK 12
+  right_index_MCP_joint:  0.85  # SDK 13
+  right_index_PIP_joint:  0.50  # SDK 14
+  right_index_DIP_joint:  0.10  # SDK 15
+  right_thumb_MCP_joint:  0.40  # SDK 16
+  right_thumb_PIP_joint:  0.40  # SDK 17
+  right_thumb_DIP_joint:  0.15  # SDK 18
+  right_thumb_CMP_joint:  1.55  # SDK 19
+  right_thumb_CMR_joint:  1.35  # SDK 20
+
+
+
+#"right_thumb_MCP_joint":  0.40, "right_thumb_PIP_joint":  0.40,
+#             "right_thumb_DIP_joint":  0.15, "right_thumb_CMP_joint":  1.55,
+#             "right_thumb_CMR_joint":  1.35,
+#             "right_index_MPR_joint": -0.20, "right_index_MCP_joint":  0.85,
+#             "right_index_PIP_joint":  0.50, "right_index_DIP_joint":  0.10,
+#             "right_middle_MPR_joint": 0.00, "right_middle_MCP_joint": 0.50,
+#             "right_middle_PIP_joint": 0.45, "right_middle_DIP_joint": 0.15,
+#             "right_ring_MPR_joint":   0.25, "right_ring_MCP_joint":   0.50,
+#             "right_ring_PIP_joint":   0.55, "right_ring_DIP_joint":   0.20,
+#             "right_little_MPR_joint": 0.18, "right_little_MCP_joint": 0.80,
+#             "right_little_PIP_joint": 0.50, "right_little_DIP_joint": 0.05,

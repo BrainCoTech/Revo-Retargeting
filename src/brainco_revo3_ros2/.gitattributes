@@ -1,0 +1,35 @@
+# Normalize source and documentation line endings.
+* text=auto eol=lf
+
+*.c text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+
+*.md text eol=lf
+*.rst text eol=lf
+*.txt text eol=lf
+*.xml text eol=lf
+*.xacro text eol=lf
+*.urdf text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.rviz text eol=lf
+*.msg text eol=lf
+
+# Binary assets and SDK payloads.
+*.so binary
+*.dylib binary
+*.dll binary
+*.STL binary
+*.stl binary
+*.obj binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.usd binary
+*.zip binary

@@ -41,9 +41,8 @@ echo "[deps] Installing apt dependencies for ROS ${ROS_DISTRO}..."
 sudo apt-get update
 sudo apt-get install -y "${APT_PACKAGES[@]}"
 
-echo "[deps] Initializing Git LFS and submodules..."
+echo "[deps] Initializing Git LFS..."
 git lfs install --local
-git submodule update --init --recursive
 
 echo "[deps] Checking MANUS SDK shared libraries..."
 "${SCRIPT_DIR}/install_manus_sdk.sh"

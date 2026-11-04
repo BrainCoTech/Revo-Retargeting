@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>revo3_mit_controller</name>
+  <version>0.1.0</version>
+  <description>Revo3 variable-size MIT command controller.</description>
+  <maintainer email="dev@brainco.cn">BrainCo</maintainer>
+  <license>Apache-2.0</license>
+  <url type="website">https://www.brainco-hz.com/docs/revolimb-hand/</url>
+  <url type="repository">https://github.com/BrainCoTech/brainco_revo3_ros2</url>
+  <url type="bugtracker">https://github.com/BrainCoTech/brainco_revo3_ros2/issues</url>
+  <author email="dev@brainco.cn">BrainCo</author>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>controller_interface</depend>
+  <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>revo3_mit_controller_msgs</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

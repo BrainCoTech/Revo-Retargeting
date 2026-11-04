@@ -1,0 +1,5 @@
+<library path="revo3_mit_controller">
+  <class name="revo3_mit_controller/Revo3MITController"
+         type="revo3_mit_controller::Revo3MITController"
+         base_class_type="controller_interface::ControllerInterface"/>
+</library>

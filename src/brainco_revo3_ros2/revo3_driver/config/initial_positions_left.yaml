@@ -1,0 +1,28 @@
+# initial_positions_left.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Initial joint positions (rad) for the LEFT Revo3 hand.
+# See initial_positions_right.yaml for field documentation.
+# Default: fully open hand (all joints at 0 rad).
+# ─────────────────────────────────────────────────────────────────────────────
+initial_positions:
+  left_little_MPR_joint: 0.0  # SDK 00
+  left_little_MCP_joint: 0.0  # SDK 01
+  left_little_PIP_joint: 0.0  # SDK 02
+  left_little_DIP_joint: 0.0  # SDK 03
+  left_ring_MPR_joint:   0.0  # SDK 04
+  left_ring_MCP_joint:   0.0  # SDK 05
+  left_ring_PIP_joint:   0.0  # SDK 06
+  left_ring_DIP_joint:   0.0  # SDK 07
+  left_middle_MPR_joint: 0.0  # SDK 08
+  left_middle_MCP_joint: 0.0  # SDK 09
+  left_middle_PIP_joint: 0.0  # SDK 10
+  left_middle_DIP_joint: 0.0  # SDK 11
+  left_index_MPR_joint:  0.0  # SDK 12
+  left_index_MCP_joint:  0.0  # SDK 13
+  left_index_PIP_joint:  0.0  # SDK 14
+  left_index_DIP_joint:  0.0  # SDK 15
+  left_thumb_MCP_joint:  0.0  # SDK 16
+  left_thumb_PIP_joint:  0.0  # SDK 17
+  left_thumb_DIP_joint:  0.0  # SDK 18
+  left_thumb_CMP_joint:  0.0  # SDK 19
+  left_thumb_CMR_joint:  0.0  # SDK 20

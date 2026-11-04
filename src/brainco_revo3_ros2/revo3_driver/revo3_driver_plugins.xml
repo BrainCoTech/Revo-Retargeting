@@ -1,0 +1,9 @@
+<library path="revo3_driver">
+  <class name="revo3_driver/Revo3HandHardware"
+         type="revo3_driver::Revo3HandHardware"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      BrainCo Revo3 21-DoF dexterous hand hardware interface (Modbus / MIT control).
+    </description>
+  </class>
+</library>

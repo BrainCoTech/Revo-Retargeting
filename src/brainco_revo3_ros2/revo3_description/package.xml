@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>revo3_description</name>
+  <version>1.0.0</version>
+  <description>revo3_description contains URDF/xacro files and meshes of BrainCo Revo3 dexterous hands (21-DoF)</description>
+  <maintainer email="dev@brainco.cn">BrainCo</maintainer>
+  <license>Apache-2.0</license>
+  <url type="website">https://www.brainco-hz.com/docs/revolimb-hand/</url>
+  <url type="repository">https://github.com/BrainCoTech/brainco_revo3_ros2</url>
+  <url type="bugtracker">https://github.com/BrainCoTech/brainco_revo3_ros2/issues</url>
+  <author email="dev@brainco.cn">BrainCo</author>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

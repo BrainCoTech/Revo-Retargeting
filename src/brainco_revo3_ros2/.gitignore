@@ -1,0 +1,40 @@
+# ROS 2 / colcon
+build/
+install/
+log/
+log_latest/
+
+# Python
+*.pyc
+__pycache__/
+.pytest_cache/
+
+# CMake / compile database
+.cache/
+.clangd
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Local package disable markers
+COLCON_IGNORE
+AMENT_IGNORE
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Runtime logs and downloaded archives
+logs/
+scripts/logs/
+*.log
+*.zip
+
+# Local release validation notes
+README_revo3_readme_verify_summary.md

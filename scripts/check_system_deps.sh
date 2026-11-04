@@ -94,7 +94,7 @@ require_cmd git-lfs
 require_cmd "${PYTHON_BIN}"
 require_cmd colcon
 
-require_path "${WORKSPACE}/src/brainco_revo3_ros2/revo3_driver/package.xml" "Revo3 driver submodule"
+require_path "${WORKSPACE}/src/brainco_revo3_ros2/revo3_driver/package.xml" "Revo3 driver sources"
 require_path "${WORKSPACE}/src/manus_revo3_retarget/package.xml" "MANUS Revo3 retarget package"
 require_path "${WORKSPACE}/src/manus_ros2/ManusSDK/include/ManusSDK.h" "MANUS SDK header"
 if [[ -f "${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK.so" || -f "${WORKSPACE}/src/manus_ros2/ManusSDK/lib/libManusSDK_Integrated.so" ]]; then
@@ -158,8 +158,8 @@ EOF
     printf '  %s\n' "${missing_paths[@]}" >&2
     cat >&2 <<EOF
 
-Initialize submodules from the repository root:
-  git submodule update --init --recursive
+Check that you cloned the complete revo3_retargeting_online branch.
+The Revo3 driver sources are included under src/brainco_revo3_ros2.
 EOF
   fi
 

@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ── Helper: declare a single Revo3 hand joint with MIT interfaces ── -->
+  <!--
+    command_interfaces: position, velocity, effort (torque_ff), kp, kd
+    state_interfaces:   position, velocity, current (A), motor_state
+
+    initial_position : starting value (rad) injected into the position
+                        state_interface for sim (mock_components only).
+    if_sim           : must match the outer revo3_ros2_control if_sim param.
+  -->
+  <xacro:macro name="revo3-hw-joint" params="joint_name initial_position:=0.0 if_sim:=false">
+    <joint name="${joint_name}">
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <command_interface name="effort"/>
+      <command_interface name="kp"/>
+      <command_interface name="kd"/>
+      <state_interface name="position">
+        <xacro:if value="${if_sim}">
+          <param name="initial_value">${initial_position}</param>
+        </xacro:if>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="current"/>
+      <state_interface name="motor_state"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ── Helper: read optional param from config dict ── -->
+  <xacro:macro name="revo3-optional-param" params="config key">
+    <xacro:if value="${key in config and config[key] != ''}">
+      <param name="${key}">${config[key]}</param>
+    </xacro:if>
+  </xacro:macro>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       revo3_ros2_control
+       params:
+         name                 – ros2_control system name (e.g. revo3_right_system)
+         hand_side            – prefix: "right" or "left"
+         protocol_config_file – path to protocol_modbus_{right|left}.yaml
+         if_sim               – true → use mock_components/GenericSystem
+       ════════════════════════════════════════════════════════════════════ -->
+  <xacro:macro
+    name="revo3_ros2_control"
+    params="name hand_side protocol_config_file if_sim:=false initial_positions_file:=''">
+
+    <xacro:property name="hand_prefix"     value="${hand_side}"/>
+    <xacro:property name="hardware_config"  value="${xacro.load_yaml(protocol_config_file)['hardware']}"/>
+    <!-- Load initial positions dict; fall back to empty dict if no file given -->
+    <!-- NOTE: use dict() not {} to avoid confusing xacro's brace counter inside ${} -->
+    <xacro:property name="initial_pos"
+      value="${xacro.load_yaml(initial_positions_file).get('initial_positions', dict()) if initial_positions_file else dict()}"/>
+
+    <ros2_control name="${name}" type="system">
+      <!-- ── Hardware plugin ── -->
+      <hardware>
+        <xacro:if value="${if_sim}">
+          <plugin>mock_components/GenericSystem</plugin>
+        </xacro:if>
+        <xacro:unless value="${if_sim}">
+          <plugin>revo3_driver/Revo3HandHardware</plugin>
+          <param name="slave_id">${hardware_config['slave_id']}</param>
+          <param name="log_level">${hardware_config['log_level']}</param>
+          <xacro:revo3-optional-param config="${hardware_config}" key="port" />
+          <xacro:revo3-optional-param config="${hardware_config}" key="baudrate" />
+          <xacro:revo3-optional-param config="${hardware_config}" key="auto_detect" />
+          <xacro:revo3-optional-param config="${hardware_config}" key="auto_detect_quick" />
+          <xacro:revo3-optional-param config="${hardware_config}" key="auto_detect_port" />
+          <xacro:revo3-optional-param config="${hardware_config}" key="read_decimation" />
+        </xacro:unless>
+      </hardware>
+
+      <!-- ── 21 joints in SDK order (index 0 → 20) ──
+           Joint ordering MUST match the SDK motor indices:
+             0-3  : little (pinky)  – MPR(Abd) / MCP / PIP / DIP
+             4-7  : ring            – MPR(Abd) / MCP / PIP / DIP
+             8-11 : middle          – MPR(Abd) / MCP / PIP / DIP
+            12-15 : index           – MPR(Abd) / MCP / PIP / DIP
+            16-20 : thumb           – MCP / PIP / DIP / CMP(Abd) / CMR
+
+           URDF joint naming used (from revo3_description):
+             Non-thumb fingers: {prefix}_{finger}_MPR_joint  (revolute abduction)
+                                {prefix}_{finger}_MCP_joint
+                                {prefix}_{finger}_PIP_joint
+                                {prefix}_{finger}_DIP_joint
+             Thumb:             {prefix}_thumb_MCP_joint
+                                {prefix}_thumb_PIP_joint
+                                {prefix}_thumb_DIP_joint
+                                {prefix}_thumb_CMP_joint  (CMC abduction, SDK 19)
+                                {prefix}_thumb_CMR_joint
+      -->
+
+      <!-- Little (Pinky) finger – SDK 0-3 -->
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_little_MPR_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_little_MPR_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_little_MCP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_little_MCP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_little_PIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_little_PIP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_little_DIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_little_DIP_joint', 0.0)}"/>
+
+      <!-- Ring finger – SDK 4-7 -->
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_ring_MPR_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_ring_MPR_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_ring_MCP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_ring_MCP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_ring_PIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_ring_PIP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_ring_DIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_ring_DIP_joint', 0.0)}"/>
+
+      <!-- Middle finger – SDK 8-11 -->
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_middle_MPR_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_middle_MPR_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_middle_MCP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_middle_MCP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_middle_PIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_middle_PIP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_middle_DIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_middle_DIP_joint', 0.0)}"/>
+
+      <!-- Index finger – SDK 12-15 -->
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_index_MPR_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_index_MPR_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_index_MCP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_index_MCP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_index_PIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_index_PIP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_index_DIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_index_DIP_joint', 0.0)}"/>
+
+      <!-- Thumb – SDK 16-20 -->
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_thumb_MCP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_thumb_MCP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_thumb_PIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_thumb_PIP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_thumb_DIP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_thumb_DIP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_thumb_CMP_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_thumb_CMP_joint', 0.0)}"/>
+      <xacro:revo3-hw-joint joint_name="${hand_prefix}_thumb_CMR_joint" if_sim="${if_sim}" initial_position="${initial_pos.get(hand_prefix + '_thumb_CMR_joint', 0.0)}"/>
+
+    </ros2_control>
+  </xacro:macro>
+</robot>

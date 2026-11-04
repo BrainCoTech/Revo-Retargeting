@@ -1,0 +1,159 @@
+# Revo3 hand controller configuration.
+# Launch code replaces:
+#   HAND_PREFIX -> left | right
+#   UPDATE_RATE -> controller manager update rate (Hz)
+#
+# The hardware plugin exposes per-joint command interfaces:
+#   position (rad), velocity (rad/s), effort (mA torque-ff), kp, kd
+# and state interfaces:
+#   position (rad), velocity (rad/s), current (A), motor_state (raw status bitmask)
+#
+# joint_forward_mit_controller exposes all Revo3 MIT command interfaces. Keep
+# joint_forward_pos_controller inactive unless the MIT controller is stopped,
+# because they claim overlapping position command interfaces.
+
+/**/controller_manager:
+  ros__parameters:
+    update_rate: UPDATE_RATE  # Hz – substituted by launch (revo3_system.launch.py: HAND_UPDATE_RATE)
+
+    load_on_configure:
+      - revo3_joint_state
+      - joint_forward_pos_controller
+      - joint_forward_mit_controller
+      - joint_traj_pos_controller
+
+    activate_on_configure:
+      - revo3_joint_state
+      - joint_forward_mit_controller
+
+    revo3_joint_state:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    joint_forward_pos_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    joint_forward_mit_controller:
+      type: revo3_mit_controller/Revo3MITController
+
+    joint_traj_pos_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+/**/revo3_joint_state:
+  ros__parameters:
+    use_local_topics: true
+    publish_dynamic_joint_states: true
+
+/**/joint_forward_pos_controller:
+  ros__parameters:
+    joints:
+      # SDK index 0-3: Little (Pinky) finger
+      - HAND_PREFIX_little_MPR_joint
+      - HAND_PREFIX_little_MCP_joint
+      - HAND_PREFIX_little_PIP_joint
+      - HAND_PREFIX_little_DIP_joint
+      # SDK index 4-7: Ring finger
+      - HAND_PREFIX_ring_MPR_joint
+      - HAND_PREFIX_ring_MCP_joint
+      - HAND_PREFIX_ring_PIP_joint
+      - HAND_PREFIX_ring_DIP_joint
+      # SDK index 8-11: Middle finger
+      - HAND_PREFIX_middle_MPR_joint
+      - HAND_PREFIX_middle_MCP_joint
+      - HAND_PREFIX_middle_PIP_joint
+      - HAND_PREFIX_middle_DIP_joint
+      # SDK index 12-15: Index finger
+      - HAND_PREFIX_index_MPR_joint
+      - HAND_PREFIX_index_MCP_joint
+      - HAND_PREFIX_index_PIP_joint
+      - HAND_PREFIX_index_DIP_joint
+      # SDK index 16-20: Thumb
+      - HAND_PREFIX_thumb_MCP_joint
+      - HAND_PREFIX_thumb_PIP_joint
+      - HAND_PREFIX_thumb_DIP_joint
+      - HAND_PREFIX_thumb_CMP_joint
+      - HAND_PREFIX_thumb_CMR_joint
+
+    interface_name: position
+
+/**/joint_forward_mit_controller:
+  ros__parameters:
+    # No stiffness by default. Scripts must publish kp/kd explicitly while commanding.
+    default_kp: 1.0
+    default_kd: 0.1
+    default_effort: 0.0
+    command_timeout_sec: 0.25
+    hold_position_on_timeout: true
+    joints:
+      # SDK index 0-3: Little (Pinky) finger
+      - HAND_PREFIX_little_MPR_joint
+      - HAND_PREFIX_little_MCP_joint
+      - HAND_PREFIX_little_PIP_joint
+      - HAND_PREFIX_little_DIP_joint
+      # SDK index 4-7: Ring finger
+      - HAND_PREFIX_ring_MPR_joint
+      - HAND_PREFIX_ring_MCP_joint
+      - HAND_PREFIX_ring_PIP_joint
+      - HAND_PREFIX_ring_DIP_joint
+      # SDK index 8-11: Middle finger
+      - HAND_PREFIX_middle_MPR_joint
+      - HAND_PREFIX_middle_MCP_joint
+      - HAND_PREFIX_middle_PIP_joint
+      - HAND_PREFIX_middle_DIP_joint
+      # SDK index 12-15: Index finger
+      - HAND_PREFIX_index_MPR_joint
+      - HAND_PREFIX_index_MCP_joint
+      - HAND_PREFIX_index_PIP_joint
+      - HAND_PREFIX_index_DIP_joint
+      # SDK index 16-20: Thumb
+      - HAND_PREFIX_thumb_MCP_joint
+      - HAND_PREFIX_thumb_PIP_joint
+      - HAND_PREFIX_thumb_DIP_joint
+      - HAND_PREFIX_thumb_CMP_joint
+      - HAND_PREFIX_thumb_CMR_joint
+
+/**/joint_traj_pos_controller:
+  ros__parameters:
+    joints:
+      # SDK index 0-3: Little (Pinky) finger
+      - HAND_PREFIX_little_MPR_joint
+      - HAND_PREFIX_little_MCP_joint
+      - HAND_PREFIX_little_PIP_joint
+      - HAND_PREFIX_little_DIP_joint
+      # SDK index 4-7: Ring finger
+      - HAND_PREFIX_ring_MPR_joint
+      - HAND_PREFIX_ring_MCP_joint
+      - HAND_PREFIX_ring_PIP_joint
+      - HAND_PREFIX_ring_DIP_joint
+      # SDK index 8-11: Middle finger
+      - HAND_PREFIX_middle_MPR_joint
+      - HAND_PREFIX_middle_MCP_joint
+      - HAND_PREFIX_middle_PIP_joint
+      - HAND_PREFIX_middle_DIP_joint
+      # SDK index 12-15: Index finger
+      - HAND_PREFIX_index_MPR_joint
+      - HAND_PREFIX_index_MCP_joint
+      - HAND_PREFIX_index_PIP_joint
+      - HAND_PREFIX_index_DIP_joint
+      # SDK index 16-20: Thumb
+      - HAND_PREFIX_thumb_MCP_joint
+      - HAND_PREFIX_thumb_PIP_joint
+      - HAND_PREFIX_thumb_DIP_joint
+      - HAND_PREFIX_thumb_CMP_joint
+      - HAND_PREFIX_thumb_CMR_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    # Use spline interpolation between waypoints. With only positions provided
+    # in the goal this gives a cubic-Hermite-like smoothing (still much
+    # smoother than the default linear). If the goal also includes
+    # `velocities` (and optionally `accelerations`) at the waypoints, JTC
+    # automatically upgrades to quintic interpolation. Stock ros2_controllers
+    # has no "force quintic from positions only" option.
+    interpolation_method: splines
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+    allow_partial_joints_goal: false
+    open_loop_control: true
+    allow_integration_in_goal_trajectories: false

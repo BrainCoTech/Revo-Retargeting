@@ -1,0 +1,145 @@
+{
+  "source": "E:\\BrainCO\\BrainCo-Revo3-URDF-April27\\meshes\\revo3_right_hand\\base_link.STL",
+  "parts": [
+    {
+      "file": "part_000.obj",
+      "vertices": 716,
+      "faces": 1428
+    },
+    {
+      "file": "part_001.obj",
+      "vertices": 184,
+      "faces": 364
+    },
+    {
+      "file": "part_002.obj",
+      "vertices": 411,
+      "faces": 818
+    },
+    {
+      "file": "part_003.obj",
+      "vertices": 194,
+      "faces": 384
+    },
+    {
+      "file": "part_004.obj",
+      "vertices": 520,
+      "faces": 1036
+    },
+    {
+      "file": "part_005.obj",
+      "vertices": 957,
+      "faces": 1910
+    },
+    {
+      "file": "part_006.obj",
+      "vertices": 228,
+      "faces": 452
+    },
+    {
+      "file": "part_007.obj",
+      "vertices": 131,
+      "faces": 258
+    },
+    {
+      "file": "part_008.obj",
+      "vertices": 490,
+      "faces": 976
+    },
+    {
+      "file": "part_009.obj",
+      "vertices": 279,
+      "faces": 554
+    },
+    {
+      "file": "part_010.obj",
+      "vertices": 398,
+      "faces": 792
+    },
+    {
+      "file": "part_011.obj",
+      "vertices": 126,
+      "faces": 248
+    },
+    {
+      "file": "part_012.obj",
+      "vertices": 206,
+      "faces": 408
+    },
+    {
+      "file": "part_013.obj",
+      "vertices": 646,
+      "faces": 1288
+    },
+    {
+      "file": "part_014.obj",
+      "vertices": 681,
+      "faces": 1358
+    },
+    {
+      "file": "part_015.obj",
+      "vertices": 228,
+      "faces": 452
+    },
+    {
+      "file": "part_016.obj",
+      "vertices": 159,
+      "faces": 314
+    },
+    {
+      "file": "part_017.obj",
+      "vertices": 437,
+      "faces": 870
+    },
+    {
+      "file": "part_018.obj",
+      "vertices": 839,
+      "faces": 1674
+    },
+    {
+      "file": "part_019.obj",
+      "vertices": 239,
+      "faces": 474
+    },
+    {
+      "file": "part_020.obj",
+      "vertices": 51,
+      "faces": 98
+    },
+    {
+      "file": "part_021.obj",
+      "vertices": 131,
+      "faces": 258
+    },
+    {
+      "file": "part_022.obj",
+      "vertices": 491,
+      "faces": 978
+    },
+    {
+      "file": "part_023.obj",
+      "vertices": 436,
+      "faces": 868
+    },
+    {
+      "file": "part_024.obj",
+      "vertices": 70,
+      "faces": 136
+    },
+    {
+      "file": "part_025.obj",
+      "vertices": 286,
+      "faces": 568
+    },
+    {
+      "file": "part_026.obj",
+      "vertices": 192,
+      "faces": 380
+    },
+    {
+      "file": "part_027.obj",
+      "vertices": 150,
+      "faces": 296
+    }
+  ]
+}

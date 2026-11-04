@@ -1,0 +1,4 @@
+scripts/bc_revo3_sdk_*.zip
+setup/bin/
+__pycache__/
+*.pyc
