@@ -288,14 +288,25 @@ raise SystemExit(main())
                                 stdout=log, stderr=subprocess.STDOUT)
     try:
         # The constructor sets the stage after connecting and disabling outputs.
-        deadline = time.monotonic() + 8
-        while r.client.get_values(['retarget_calibration_mode'])['retarget_calibration_mode'] != 'spread_only':
+        deadline = time.monotonic() + 2 * panel.RELEASE_SERVICE_TIMEOUT_S + 5
+        while True:
             assert time.monotonic() < deadline and proc.poll() is None, log_path.read_text()
+            try:
+                mode = r.client.get_values(['retarget_calibration_mode'])['retarget_calibration_mode']
+            except TimeoutError:
+                # A discovered node can still be servicing the panel's initial
+                # release. Keep polling within the overall startup deadline.
+                continue
+            if mode == 'spread_only':
+                break
             r.pump()
         r.client.set_enabled(True)
         r.pump(gloves=True)
         assert any(r.commands['right'][-1].kp)
         proc.send_signal(stop_signal)
+        # Startup must not consume the separate, bounded release/exit budget.
+        # Normal close and final cleanup can each release both configured nodes.
+        deadline = time.monotonic() + 4 * panel.RELEASE_SERVICE_TIMEOUT_S
         while proc.poll() is None and time.monotonic() < deadline:
             r.pump(gloves=True)
         assert proc.wait(timeout=3) == 0, log_path.read_text()

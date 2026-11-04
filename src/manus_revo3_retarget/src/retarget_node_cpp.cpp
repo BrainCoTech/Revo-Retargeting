@@ -263,8 +263,11 @@ public:
         release.kd.assign(state->names.size(), 0.0);
         state->command_pub->publish(release);
         // In particular, allow delivery before a launch shutdown destroys this
-        // writer. This confirms DDS delivery, not a physical motor response.
-        if (!state->command_pub->wait_for_all_acked(std::chrono::milliseconds(200))) {
+        // writer. Humble's Fast DDS can acknowledge the last sample on its
+        // default 3-second heartbeat after periodic publication stops. Allow
+        // one heartbeat plus margin, while keeping release failure bounded.
+        // This confirms DDS delivery, not a physical motor response.
+        if (!state->command_pub->wait_for_all_acked(std::chrono::seconds(4))) {
           RCLCPP_ERROR(get_logger(), "%s release delivery timed out", state->side.c_str());
           delivered = false;
         }

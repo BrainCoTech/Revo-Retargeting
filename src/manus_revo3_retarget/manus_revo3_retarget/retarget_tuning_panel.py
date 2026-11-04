@@ -31,6 +31,9 @@ CALIB_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]*$")  # 标定名，允许为空
 DEFAULT_CALIBRATION_DIR = Path.home() / ".brainco" / "retarget_calibration"
 DEFAULT_ROBOT_CONFIG = Path.home() / ".brainco" / "robot_config" / "robot_config.json"
 
+# A node can release both hands: allow two 4-second DDS waits plus service overhead.
+RELEASE_SERVICE_TIMEOUT_S = 10.0
+
 # 标定库子目录名与 latest 指针文件名。标定库结构：
 #   <retarget_calibration_dir>/library/<side>/<operator>_<name>_<ts>.yaml
 #   <retarget_calibration_dir>/library/<side>/latest.json
@@ -264,15 +267,19 @@ class ParameterClient(Node):
             raise RuntimeError("target node is not configured")
         request = SetBool.Request()
         request.data = bool(enabled)
-        response = self._call(self._enable_client.call_async(request), timeout_s=3.0)
+        response = self._call(self._enable_client.call_async(request), timeout_s=RELEASE_SERVICE_TIMEOUT_S)
         if not response.success:
             raise RuntimeError(response.message or "enable_retarget failed")
 
-    def set_enabled_for(self, target_node: str, enabled: bool, timeout_s: float = 1.0) -> None:
+    def set_enabled_for(
+        self, target_node: str, enabled: bool, timeout_s: float = RELEASE_SERVICE_TIMEOUT_S,
+        discovery_timeout_s: float | None = None,
+    ) -> None:
         target = self._normalize_target(target_node)
         client = self.create_client(SetBool, f"{target}/enable_retarget")
         try:
-            if not client.wait_for_service(timeout_sec=timeout_s):
+            discovery_timeout = timeout_s if discovery_timeout_s is None else discovery_timeout_s
+            if not client.wait_for_service(timeout_sec=discovery_timeout):
                 raise TimeoutError(f"Timed out waiting for {target}/enable_retarget")
             request = SetBool.Request()
             request.data = bool(enabled)
@@ -818,7 +825,11 @@ class RetargetTuningPanel:
 
     def _disable_node_best_effort(self, node: str) -> None:
         try:
-            self.client.set_enabled_for(node, False, timeout_s=0.5)
+            # Missing hands should be skipped quickly, but a discovered node
+            # still needs the full response budget for its DDS release wait.
+            self.client.set_enabled_for(
+                node, False, timeout_s=RELEASE_SERVICE_TIMEOUT_S, discovery_timeout_s=0.5
+            )
         except Exception:
             pass
 
@@ -840,7 +851,7 @@ class RetargetTuningPanel:
                 self._disable_node_best_effort(node)
                 continue
             try:
-                self.client.set_enabled_for(node, False, timeout_s=2.0)
+                self.client.set_enabled_for(node, False, timeout_s=RELEASE_SERVICE_TIMEOUT_S)
             except Exception as exc:
                 errors.append(f"{node}: {exc}")
         return errors
