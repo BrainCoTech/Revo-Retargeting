@@ -1,8 +1,17 @@
 # Revo3 Retargeting
 
+[简体中文](README_CN.md) · [Package guide](src/manus_revo3_retarget/README.md)
+
 ROS 2 Humble workspace for teleoperating BrainCo Revo3 hands with MANUS gloves.
 
 This branch is the runnable Revo3 workspace. The operator entrypoints are in `scripts/`.
+
+The `revo3_retargeting` branch manages
+[BrainCoTech/brainco_revo3_ros2](https://github.com/BrainCoTech/brainco_revo3_ros2)
+as a Git submodule at `src/brainco_revo3_ros2`. The main repository records a
+verified driver commit, including the required zero-gain release and serial
+discovery fixes. Initialize the submodule before installing or building the
+workspace.
 
 ## What This Branch Starts
 
@@ -24,12 +33,11 @@ Target environment:
 - ROS 2 Humble
 - Python 3.10
 
-Clone the repository and initialize the Revo3 driver submodule:
+Clone the Revo3 retargeting branch and initialize its pinned driver version:
 
 ```bash
-git clone https://github.com/BrainCoTech/Revo-Retargeting.git
+git clone --branch revo3_retargeting https://github.com/BrainCoTech/Revo-Retargeting.git
 cd Revo-Retargeting
-git checkout revo3_retargeting
 git submodule update --init --recursive
 ```
 
@@ -40,7 +48,7 @@ conda create -n revo_retargeting python=3.10 -y
 conda activate revo_retargeting
 ```
 
-Install system, ROS, Python, Git LFS, and submodule dependencies:
+Install system, ROS, Python, and Git LFS dependencies:
 
 ```bash
 ./scripts/install_revo3_deps.sh
@@ -80,6 +88,34 @@ Customers can install that archive with `MANUS_SDK_ARCHIVE=... ./scripts/install
 
 Use the check script any time you move to a new computer or a new shell environment.
 
+## Driver submodule version
+
+The main repository's gitlink pins a verified driver SHA. For routine updates,
+check out that recorded version after pulling the main repository:
+
+```bash
+git pull
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+The required driver fixes are tracked in [driver PR #1](https://github.com/BrainCoTech/brainco_revo3_ros2/pull/1)
+(`woltium:codex/revo3-online-driver-fixes` → `develop`). Until those fixes are
+merged into `develop`, use the main repository's pinned commit for online calibration.
+
+Maintainers can use the following command to follow the `develop` branch
+configured in `.gitmodules`, after confirming that remote `develop` contains
+the required fixes:
+
+```bash
+git submodule update --remote src/brainco_revo3_ros2
+```
+
+This changes the driver checkout beyond the main repository's recorded version.
+Validate the updated driver and calibration behavior, then commit the new
+`src/brainco_revo3_ros2` gitlink in the main repository. Routine synchronization
+uses the pinned update command above.
+
 ## Build
 
 ```bash
@@ -102,7 +138,9 @@ bash check_revo3_setup.sh
 cd -
 ```
 
-Connect and calibrate MANUS before first use, or after changing users:
+Connect and calibrate MANUS before first use, or after changing users. These
+commands overwrite the selected glove calibration (`.mcal`); Revo3 joint
+calibration is a separate step below:
 
 ```bash
 ./scripts/calibrate_manus.sh right
@@ -130,6 +168,80 @@ Both hands:
 ```
 
 `Ctrl-C` stops all process groups started by the script.
+
+## Online Calibration
+
+Build with `colcon build --packages-up-to manus_ros2 revo3_driver manus_revo3_retarget`,
+source `install/setup.bash`, and restart the hand driver to load its zero-gain
+release fix. Use a desktop terminal with the same
+`ROS_DOMAIN_ID` as the hand driver.
+
+```bash
+# Terminal 1: start both hand drivers (the default).
+./scripts/start_driver.sh
+
+# Terminal 2: start MANUS, both retarget nodes, and the staged calibration panel.
+ros2 launch manus_revo3_retarget pipeline_launch.py launch_tuning_panel:=true
+```
+
+Both commands default to both hands. For a single hand, pass `right` or `left`
+to `start_driver.sh` and the matching `hand_mode:=right` or `hand_mode:=left`
+to the pipeline. The panel selects one hand at a time; use its hand switch to
+calibrate the other hand.
+
+If retargeting is already running, open only the panel:
+
+```bash
+ros2 run manus_revo3_retarget retarget_tuning_panel --side right --operator alice
+```
+
+The panel starts with output disabled. Enable the selected hand, tune spread,
+four-finger flexion, and thumb/pinch in order, then export an override YAML.
+History is stored under `~/.brainco/retarget_calibration/library/<side>/`.
+Load a saved override with `right_calibration_config:=/absolute/path.yaml`
+(or `left_calibration_config`). Avoid starting a second MANUS publisher or hand
+driver against the same device.
+
+Closing the panel or pressing Ctrl+C releases all 21 joints using zero MIT
+gains and zero effort, allowing manual movement subject to mechanical friction.
+This requires the updated driver; old builds replace zero gains with defaults.
+If a connected retarget node does not confirm the release request, the panel
+stays open and displays an error. Forced termination or loss of communication
+cannot guarantee release.
+
+Direct `pipeline_launch.py` now defaults to output disabled; use
+`start_enabled:=true` for automatic teleoperation without the panel.
+`./scripts/teleop.sh` keeps its automatic output behavior by passing that
+argument explicitly. See the [package calibration guide](src/manus_revo3_retarget/README.md#staged-online-calibration)
+for stages, service calls, saved configurations, and tests.
+
+### Spread direction and pinch calibration
+
+Use the panel's final output parameters for routine adjustments:
+
+| Observation | Parameter to adjust | Base configuration |
+|---|---|---|
+| One finger spreads in the opposite direction | Negate its current `physical_<side>_<finger>_MPR_joint_scale` | `spread_retarget.yaml` |
+| Neutral spread is shifted, or its range is wrong | MPR `offset_deg`, or the magnitude of its scale | `spread_retarget.yaml` |
+| Thumb opposition or bending misses contact | Thumb CMP/CMR first, then MCP/PIP/DIP output offsets/scales | `thumb_retarget.yaml` |
+| Only one opposing finger bends incorrectly | That finger's MCP/PIP/DIP output offsets/scales | `four_finger_retarget.yaml` |
+
+The files are under `src/manus_revo3_retarget/config/`. Preserve the legacy
+mapping while tuning these final output parameters. Work through straight-hand
+spread, four-finger flexion, then thumb-to-index/middle/ring/little contact;
+change one parameter at a time and recheck opening after each change. Save the
+results as an override instead of overwriting shared base configurations.
+
+See the [step-by-step parameter guide](src/manus_revo3_retarget/README.md#spread-direction-and-pinch-calibration)
+([中文](src/manus_revo3_retarget/README_CN.md#侧摆方向与对指校准)) for exact names,
+examples, node selection, loading order and acceptance checks. The full stage
+uses the existing retargeting algorithm; contact still needs operator checking.
+
+| Entrypoint | Default hands | Initial retarget output |
+|---|---|---|
+| `./scripts/start_driver.sh` | Both | Starts only the drivers |
+| Direct `pipeline_launch.py` | Both | Disabled |
+| `./scripts/teleop.sh` | Right | Enabled explicitly |
 
 ## Useful Script Options
 
@@ -163,7 +275,7 @@ Pass extra launch arguments through to `pipeline_launch.py`:
 ```text
 src/manus_ros2_msgs             MANUS ROS 2 messages
 src/manus_ros2                  MANUS SDK bridge, without redistributing SDK .so files
-src/brainco_revo3_ros2          Revo3 upstream driver submodule
+src/brainco_revo3_ros2          Included Revo3 driver sources with online calibration fixes
 src/brainco_revo3_ros2/revo3_mit_controller_msgs
 src/brainco_revo3_ros2/revo3_mit_controller
 src/brainco_revo3_ros2/revo3_description
@@ -175,11 +287,16 @@ src/manus_revo3_retarget        MANUS to Revo3 retarget pipeline
 
 If `teleop.sh` says `Missing install/setup.bash`, build the workspace first.
 
-If `check_system_deps.sh` reports missing workspace paths, initialize submodules:
+If `check_system_deps.sh` reports missing driver paths, initialize or restore
+the recorded driver submodule version from the repository root:
 
 ```bash
+git submodule sync --recursive
 git submodule update --init --recursive
 ```
+
+Then rerun the dependency check. See [driver version management](#driver-submodule-version)
+when intentionally updating the driver.
 
 If ROS packages are missing, rerun:
 
@@ -193,4 +310,7 @@ If MANUS SDK files are missing, download the official MANUS SDK and run:
 MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
 ```
 
-If a new clone does not contain `scripts/` or `src/`, the branch was not published with the runnable workspace files. A fresh computer needs this branch to track `scripts/`, `requirements.txt`, `.gitmodules`, and the ROS packages under `src/`.
+If a new clone does not contain `scripts/` or `src/`, check that you cloned the
+complete `revo3_retargeting` branch. The main repository tracks `scripts/`,
+`requirements.txt`, the retarget packages, `.gitmodules`, and the driver gitlink;
+initializing the submodule checks out the driver sources.

@@ -14,7 +14,6 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace
@@ -490,8 +489,19 @@ void RunCalibration(uint32_t glove_id)
         {
             std::cout << step_data.description << "\n";
         }
-        const double step_seconds = step < 2 ? 1.0 : 10.0;
-        std::cout << "Duration: " << step_seconds << " seconds\n";
+        if (step_data.time > 0.0F)
+        {
+            std::cout << "Duration: " << step_data.time << " seconds\n";
+        }
+        else if (step_data.time < 0.0F)
+        {
+            std::cout << "Continuous motion; estimated duration: "
+                      << -step_data.time << " seconds\n";
+        }
+        else
+        {
+            std::cout << "Duration: determined by MANUS Core\n";
+        }
 
         WaitForEnter("Press Enter when ready to start this step...");
 
@@ -504,10 +514,7 @@ void RunCalibration(uint32_t glove_id)
             throw std::runtime_error("MANUS Core rejected calibration step");
         }
 
-        const auto wait_time = std::chrono::milliseconds(
-            static_cast<int>(step_seconds * 1000.0) + 250);
-        std::this_thread::sleep_for(wait_time);
-        std::cout << "Step capture window elapsed.\n";
+        std::cout << "Step recording completed.\n";
     }
 
     sdk_result = false;

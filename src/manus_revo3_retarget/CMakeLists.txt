@@ -8,7 +8,9 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(manus_ros2_msgs REQUIRED)
 find_package(revo3_mit_controller_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
@@ -47,7 +49,9 @@ target_compile_features(retarget_node PUBLIC cxx_std_17)
 target_link_libraries(retarget_node ${PROJECT_NAME}_algorithms ${CMAKE_DL_LIBS})
 ament_target_dependencies(retarget_node
   rclcpp
+  rcl_interfaces
   std_msgs
+  std_srvs
   manus_ros2_msgs
   revo3_mit_controller_msgs
   ament_index_cpp

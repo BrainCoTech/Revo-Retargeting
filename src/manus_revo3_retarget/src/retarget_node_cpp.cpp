@@ -16,7 +16,9 @@
 #include "ament_index_cpp/get_package_prefix.hpp"
 #include "manus_ros2_msgs/msg/manus_glove.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "revo3_mit_controller_msgs/msg/revo3_mit_command.hpp"
+#include "std_srvs/srv/set_bool.hpp"
 
 #include <dlfcn.h>
 
@@ -155,6 +157,30 @@ public:
     mit_velocity_feedforward_enabled_ = bool_param("mit_velocity_feedforward_enabled", true);
     mit_default_kp_ = double_param("mit_default_kp", 0.4);
     mit_default_kd_ = double_param("mit_default_kd", 0.05);
+    retarget_enabled_ = bool_param("start_enabled", false);
+    calibration_mode_ = string_param("retarget_calibration_mode", "full");
+    if (!valid_calibration_mode(calibration_mode_)) {
+      throw std::runtime_error("retarget_calibration_mode must be full, spread_only, or four_finger_only");
+    }
+    parameter_callback_ = add_on_set_parameters_callback(
+      [](const std::vector<rclcpp::Parameter> & parameters) {
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful = true;
+        for (const auto & parameter : parameters) {
+          if (parameter.get_name() == "start_enabled") {
+            result.successful = false;
+            result.reason = "start_enabled is startup-only; use ~/enable_retarget at runtime";
+          }
+          if (parameter.get_name() == "retarget_calibration_mode" &&
+            (parameter.get_type() != rclcpp::ParameterType::PARAMETER_STRING ||
+            !valid_calibration_mode(parameter.as_string())))
+          {
+            result.successful = false;
+            result.reason = "retarget_calibration_mode must be full, spread_only, or four_finger_only";
+          }
+        }
+        return result;
+      });
 
     if (hand_mode_ != "left" && hand_mode_ != "right" && hand_mode_ != "both") {
       throw std::runtime_error("hand_mode must be left, right, or both");
@@ -167,18 +193,91 @@ public:
       right_ = create_side("right");
     }
 
+    // Keep computation serialized while allowing parameter services to respond
+    // independently of the 200 Hz timer and thumb IK.
+    compute_cbg_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    rclcpp::SubscriptionOptions sub_options;
+    sub_options.callback_group = compute_cbg_;
     sub_0_ = create_subscription<ManusGlove>(
-      "/manus_glove_0", 10, [this](ManusGlove::SharedPtr msg) { on_glove(*msg); });
+      "/manus_glove_0", 10, [this](ManusGlove::SharedPtr msg) { on_glove(*msg); }, sub_options);
     sub_1_ = create_subscription<ManusGlove>(
-      "/manus_glove_1", 10, [this](ManusGlove::SharedPtr msg) { on_glove(*msg); });
+      "/manus_glove_1", 10, [this](ManusGlove::SharedPtr msg) { on_glove(*msg); }, sub_options);
 
     const double period_s = 1.0 / std::max(1.0, mit_command_publish_hz_);
     timer_ = create_wall_timer(
       std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>(period_s)),
-      [this]() { publish_latest(); });
+      [this]() { publish_latest(); }, compute_cbg_);
+
+    enable_retarget_srv_ = create_service<std_srvs::srv::SetBool>(
+      "~/enable_retarget",
+      [this](const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+        std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
+        // Serialize with computation AND publication: once disable returns,
+        // no in-flight callback can publish or restore an old target.
+        if (request->data) {
+          std::lock_guard<std::mutex> lock(output_mutex_);
+          response->success = !shutting_down_;
+          if (response->success) {
+            clear_targets();
+            retarget_enabled_ = true;
+          }
+          response->message = response->success ? "retarget enabled" : "node is shutting down";
+        } else {
+          response->success = release_outputs();
+          response->message = response->success ? "retarget disabled; zero-gain release sent" :
+            "retarget disabled, but zero-gain release delivery could not be confirmed";
+        }
+        RCLCPP_INFO(get_logger(), "%s", response->message.c_str());
+      });
 
     RCLCPP_INFO(get_logger(), "C++ retarget node ready hand_mode=%s command_hz=%.1f", hand_mode_.c_str(),
       mit_command_publish_hz_);
+  }
+
+  bool release_outputs(bool shutting_down = false)
+  {
+    std::lock_guard<std::mutex> output_lock(output_mutex_);
+    shutting_down_ = shutting_down_ || shutting_down;
+    retarget_enabled_ = false;
+    bool delivered = true;
+    // Stopping publication alone leaves the controller holding its last gains.
+    // Send every joint explicitly, including thumb joints masked in a stage.
+    for (const auto & state : {left_, right_}) {
+      if (!state) {
+        continue;
+      }
+      try {
+        Revo3MITCommand release;
+        release.header.stamp = now();
+        release.joint_names = state->names;
+        release.position.assign(state->names.size(), 0.0);
+        {
+          std::lock_guard<std::mutex> lock(state->mutex);
+          if (state->latest_target) {
+            release.position = state->latest_target->position;
+          }
+        }
+        release.velocity.assign(state->names.size(), 0.0);
+        release.effort.assign(state->names.size(), 0.0);
+        release.kp.assign(state->names.size(), 0.0);
+        release.kd.assign(state->names.size(), 0.0);
+        state->command_pub->publish(release);
+        // In particular, allow delivery before a launch shutdown destroys this
+        // writer. Humble's Fast DDS can acknowledge the last sample on its
+        // default 3-second heartbeat after periodic publication stops. Allow
+        // one heartbeat plus margin, while keeping release failure bounded.
+        // This confirms DDS delivery, not a physical motor response.
+        if (!state->command_pub->wait_for_all_acked(std::chrono::seconds(4))) {
+          RCLCPP_ERROR(get_logger(), "%s release delivery timed out", state->side.c_str());
+          delivered = false;
+        }
+      } catch (const std::exception & error) {
+        RCLCPP_ERROR(get_logger(), "%s release failed: %s", state->side.c_str(), error.what());
+        delivered = false;
+      }
+    }
+    clear_targets();
+    return delivered;
   }
 
 private:
@@ -187,6 +286,12 @@ private:
     auto state = std::make_shared<SideState>();
     state->side = side;
     state->names = joint_names(side);
+    // Expose every panel parameter before the first glove frame, including
+    // when the node is started without the packaged YAML files.
+    for (const auto & name : state->names) {
+      double_param("physical_" + name + "_scale", 1.0);
+      double_param("physical_" + name + "_offset_deg", 0.0);
+    }
     state->command_pub = create_publisher<Revo3MITCommand>(command_topic(side), 10);
     state->target_pub = create_publisher<Revo3MITCommand>(target_topic(side), 10);
 
@@ -272,6 +377,11 @@ private:
 
   void on_glove(const ManusGlove & msg)
   {
+    std::lock_guard<std::mutex> output_lock(output_mutex_);
+    sync_calibration_mode();
+    if (!retarget_enabled_) {
+      return;
+    }
     std::string side = msg.side;
     for (auto & ch : side) {
       ch = static_cast<char>(std::tolower(ch));
@@ -309,16 +419,22 @@ private:
 
     JointArray q{};
     q.fill(0.0);
-    state->four_finger.apply(ergonomics, q);
-    state->spread.apply(ergonomics, q);
-    state->thumb->set_config(load_thumb_config(state->side));
-    state->thumb->apply(ergonomics, keypoints, q);
+    if (calibration_mode_ != "spread_only") {
+      state->four_finger.apply(ergonomics, q);
+    }
+    if (calibration_mode_ != "four_finger_only") {
+      state->spread.apply(ergonomics, q);
+    }
+    if (calibration_mode_ == "full") {
+      state->thumb->apply(ergonomics, keypoints, q);
+    }
 
     Revo3MITCommand out;
     out.header.stamp = now();
     out.joint_names = state->names;
     out.position.assign(q.begin(), q.end());
     apply_output_calibration(state->side, state->names, out.position);
+    apply_calibration_mask(state->names, out.position);
     out.velocity.assign(state->names.size(), 0.0);
     out.effort.assign(state->names.size(), 0.0);
     mit_velocity_feedforward_enabled_ = bool_param(
@@ -340,6 +456,11 @@ private:
 
   void publish_latest()
   {
+    std::lock_guard<std::mutex> output_lock(output_mutex_);
+    sync_calibration_mode();
+    if (!retarget_enabled_) {
+      return;
+    }
     publish_latest(left_);
     publish_latest(right_);
   }
@@ -454,6 +575,54 @@ private:
   static double default_interpolation_duration_s()
   {
     return 1.0 / 60.0;
+  }
+
+  static bool valid_calibration_mode(const std::string & mode)
+  {
+    return mode == "full" || mode == "spread_only" || mode == "four_finger_only";
+  }
+
+  // Called under output_mutex_. A mode change invalidates the complete
+  // interpolation segment, so the timer cannot replay another stage's pose.
+  void sync_calibration_mode()
+  {
+    const auto mode = string_param("retarget_calibration_mode", "full");
+    if (mode != calibration_mode_) {
+      clear_targets();
+      calibration_mode_ = mode;
+    }
+  }
+
+  void clear_targets()
+  {
+    for (const auto & state : {left_, right_}) {
+      if (!state) {
+        continue;
+      }
+      std::lock_guard<std::mutex> lock(state->mutex);
+      state->latest_target.reset();
+      state->start_position.clear();
+      state->target_position.clear();
+      state->target_velocity.clear();
+      state->has_segment = false;
+      state->has_last_target = false;
+    }
+  }
+
+  void apply_calibration_mask(
+    const std::vector<std::string> & names, std::vector<double> & positions) const
+  {
+    if (calibration_mode_ == "full") {
+      return;
+    }
+    for (std::size_t i = 0; i < names.size() && i < positions.size(); ++i) {
+      const bool is_mpr = names[i].find("_MPR_joint") != std::string::npos;
+      const bool is_thumb = names[i].find("_thumb_") != std::string::npos;
+      const bool keep = calibration_mode_ == "spread_only" ? is_mpr : (!is_mpr && !is_thumb);
+      if (!keep) {
+        positions[i] = 0.0;
+      }
+    }
   }
 
   bool velocity_feedforward_enabled() const
@@ -588,6 +757,13 @@ private:
   rclcpp::Subscription<ManusGlove>::SharedPtr sub_0_;
   rclcpp::Subscription<ManusGlove>::SharedPtr sub_1_;
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::CallbackGroup::SharedPtr compute_cbg_;
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_retarget_srv_;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback_;
+  std::mutex output_mutex_;
+  bool retarget_enabled_{false};
+  bool shutting_down_{false};
+  std::string calibration_mode_;
 };
 
 }  // namespace manus_revo3_retarget
@@ -602,7 +778,22 @@ int main(int argc, char ** argv)
   options.start_parameter_services(true);
   options.start_parameter_event_publisher(false);
   auto node = std::make_shared<manus_revo3_retarget::RetargetNodeCpp>(options);
-  rclcpp::spin(node);
+  std::weak_ptr<manus_revo3_retarget::RetargetNodeCpp> weak_node = node;
+  node->get_node_base_interface()->get_context()->add_pre_shutdown_callback(
+    [weak_node]() {
+      if (auto live_node = weak_node.lock()) {
+        // SIGINT/SIGTERM must release while the ROS context is still valid.
+        live_node->release_outputs(true);
+      }
+    });
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+  executor.add_node(node);
+  try {
+    executor.spin();
+  } catch (...) {
+    rclcpp::shutdown();
+    throw;
+  }
   rclcpp::shutdown();
   return 0;
 }

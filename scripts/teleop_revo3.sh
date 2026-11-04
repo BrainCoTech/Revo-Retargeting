@@ -124,6 +124,7 @@ fi
 start_managed "Revo3 retarget" ros2 launch manus_revo3_retarget pipeline_launch.py \
   hand_mode:="${MODE}" \
   launch_manus_publisher:=false \
+  start_enabled:=true \
   "$@"
 
 wait_for_any
