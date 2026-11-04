@@ -6,13 +6,16 @@
 
 ## 构建和启动
 
-在仓库根目录执行。首次构建使用 `--packages-up-to`，同时构建工作空间内依赖：
+在仓库根目录执行，先初始化驱动子模块。首次构建使用 `--packages-up-to`，同时构建工作空间内依赖：
 
 ```bash
+git submodule update --init --recursive
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install --packages-up-to manus_ros2 revo3_driver manus_revo3_retarget
 source install/setup.bash
 ```
+
+驱动、模型和 Revo3 SDK 由 `src/brainco_revo3_ros2` 子模块提供。主仓库更新后，先执行 `git submodule sync --recursive` 和 `git submodule update --init --recursive`，同步主仓库固定的驱动 SHA。维护者跟进 `develop` 及修复分支审阅状态见[驱动子模块版本](../../README_CN.md#驱动子模块版本)。
 
 更新本功能后，需要重新构建 `revo3_driver` 并重启手部驱动，使退出校准时的零增益释放生效。旧驱动会把显式的零增益替换成非零默认值。
 

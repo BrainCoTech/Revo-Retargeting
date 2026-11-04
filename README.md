@@ -6,11 +6,12 @@ ROS 2 Humble workspace for teleoperating BrainCo Revo3 hands with MANUS gloves.
 
 This branch is the runnable Revo3 workspace. The operator entrypoints are in `scripts/`.
 
-The `revo3_retargeting` branch includes the Revo3 driver sources directly
-under `src/brainco_revo3_ros2`, based on
+The `revo3_retargeting` branch manages
 [BrainCoTech/brainco_revo3_ros2](https://github.com/BrainCoTech/brainco_revo3_ros2)
-with local zero-gain release and serial discovery fixes. No submodule setup is
-needed for this branch.
+as a Git submodule at `src/brainco_revo3_ros2`. The main repository records a
+verified driver commit, including the required zero-gain release and serial
+discovery fixes. Initialize the submodule before installing or building the
+workspace.
 
 ## What This Branch Starts
 
@@ -32,11 +33,12 @@ Target environment:
 - ROS 2 Humble
 - Python 3.10
 
-Clone the Revo3 retargeting branch, including its driver sources:
+Clone the Revo3 retargeting branch and initialize its pinned driver version:
 
 ```bash
 git clone --branch revo3_retargeting https://github.com/BrainCoTech/Revo-Retargeting.git
 cd Revo-Retargeting
+git submodule update --init --recursive
 ```
 
 Create and activate a Python environment. Conda is recommended:
@@ -85,6 +87,34 @@ This creates `dist/manus-sdk-linux-x86_64.tar.gz` plus a `.sha256` checksum.
 Customers can install that archive with `MANUS_SDK_ARCHIVE=... ./scripts/install_manus_sdk.sh`.
 
 Use the check script any time you move to a new computer or a new shell environment.
+
+## Driver submodule version
+
+The main repository's gitlink pins a verified driver SHA. For routine updates,
+check out that recorded version after pulling the main repository:
+
+```bash
+git pull
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+The required driver fixes are tracked in [driver PR #1](https://github.com/BrainCoTech/brainco_revo3_ros2/pull/1)
+(`woltium:codex/revo3-online-driver-fixes` → `develop`). Until those fixes are
+merged into `develop`, use the main repository's pinned commit for online calibration.
+
+Maintainers can use the following command to follow the `develop` branch
+configured in `.gitmodules`, after confirming that remote `develop` contains
+the required fixes:
+
+```bash
+git submodule update --remote src/brainco_revo3_ros2
+```
+
+This changes the driver checkout beyond the main repository's recorded version.
+Validate the updated driver and calibration behavior, then commit the new
+`src/brainco_revo3_ros2` gitlink in the main repository. Routine synchronization
+uses the pinned update command above.
 
 ## Build
 
@@ -257,9 +287,16 @@ src/manus_revo3_retarget        MANUS to Revo3 retarget pipeline
 
 If `teleop.sh` says `Missing install/setup.bash`, build the workspace first.
 
-If `check_system_deps.sh` reports missing workspace paths, check that you cloned
-the complete `revo3_retargeting` branch. Its driver sources are included
-in the repository.
+If `check_system_deps.sh` reports missing driver paths, initialize or restore
+the recorded driver submodule version from the repository root:
+
+```bash
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+Then rerun the dependency check. See [driver version management](#driver-submodule-version)
+when intentionally updating the driver.
 
 If ROS packages are missing, rerun:
 
@@ -273,4 +310,7 @@ If MANUS SDK files are missing, download the official MANUS SDK and run:
 MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
 ```
 
-If a new clone does not contain `scripts/` or `src/`, the branch was not published with the runnable workspace files. A fresh computer needs this branch to track `scripts/`, `requirements.txt`, and the ROS packages, including the driver sources, under `src/`.
+If a new clone does not contain `scripts/` or `src/`, check that you cloned the
+complete `revo3_retargeting` branch. The main repository tracks `scripts/`,
+`requirements.txt`, the retarget packages, `.gitmodules`, and the driver gitlink;
+initializing the submodule checks out the driver sources.

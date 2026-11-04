@@ -24,10 +24,18 @@ uses Pinocchio with the URDFs from `revo3_description`.
 
 ```bash
 # Run from the Revo-Retargeting repository root.
+git submodule update --init --recursive
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install --packages-up-to manus_ros2 revo3_driver manus_revo3_retarget
 source install/setup.bash
 ```
+
+The driver and its model/SDK dependencies are checked out from the pinned
+`src/brainco_revo3_ros2` submodule. After updating the main repository, run
+`git submodule sync --recursive` and `git submodule update --init --recursive`
+before rebuilding. See [driver submodule version management](../../README.md#driver-submodule-version)
+for the maintainer-only `develop` update procedure and the driver fixes awaiting
+review; routine use follows the main repository's verified SHA.
 
 ## Launch
 

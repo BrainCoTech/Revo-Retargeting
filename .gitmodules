@@ -1,0 +1,4 @@
+[submodule "src/brainco_revo3_ros2"]
+	path = src/brainco_revo3_ros2
+	url = https://github.com/BrainCoTech/brainco_revo3_ros2.git
+	branch = develop

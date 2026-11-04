@@ -3,18 +3,19 @@
 [English](README.md) · [Revo3 重定向与校准详解](src/manus_revo3_retarget/README_CN.md)
 
 本工作区使用 MANUS 手套控制 BrainCo Revo3 灵巧手，目标环境为 Ubuntu 22.04、ROS 2 Humble 和 Python 3.10。
-`revo3_retargeting` 分支已直接包含 `src/brainco_revo3_ros2` 下的驱动源码、Revo3 SDK 和模型，无需初始化子模块。驱动基于 [BrainCoTech/brainco_revo3_ros2](https://github.com/BrainCoTech/brainco_revo3_ros2)，包含在线校准所需的零增益释放和串口发现修复。
+`revo3_retargeting` 分支通过 Git 子模块管理 [BrainCoTech/brainco_revo3_ros2](https://github.com/BrainCoTech/brainco_revo3_ros2)，路径为 `src/brainco_revo3_ros2`。主仓库固定经过验证的驱动提交，其中包含在线校准所需的零增益释放和串口发现修复；安装依赖和构建前先初始化子模块。
 
 ## 首次安装
 
 ```bash
 git clone --branch revo3_retargeting https://github.com/BrainCoTech/Revo-Retargeting.git
 cd Revo-Retargeting
+git submodule update --init --recursive
 conda create -n revo_retargeting python=3.10 -y
 conda activate revo_retargeting
 ```
 
-MANUS SDK 的共享库需要从官方获取。本仓库随附的 Revo3 SDK 与 MANUS SDK 分别用于机器人驱动和手套采集。准备 MANUS 官方 SDK 后，选择一种方式安装依赖：
+MANUS SDK 的共享库需要从官方获取。驱动子模块中的 Revo3 SDK 用于机器人驱动，MANUS SDK 用于手套采集。准备 MANUS 官方 SDK 后，选择一种方式安装依赖：
 
 ```bash
 MANUS_SDK_ARCHIVE=/实际路径/MANUS_SDK.zip ./scripts/install_revo3_deps.sh
@@ -29,6 +30,26 @@ MANUS_SDK_DIR=/实际路径/ManusSDK ./scripts/install_revo3_deps.sh
 MANUS_SDK_ARCHIVE=/实际路径/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
 ./scripts/check_system_deps.sh
 ```
+
+## 驱动子模块版本
+
+主仓库通过 gitlink 记录经过验证的驱动 SHA。日常更新主仓库后，按记录的固定版本同步驱动：
+
+```bash
+git pull
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+在线校准所需的修复见[驱动 PR #1](https://github.com/BrainCoTech/brainco_revo3_ros2/pull/1)（`woltium:codex/revo3-online-driver-fixes` → `develop`）。在这些修复合入 `develop` 前，在线校准按主仓库固定的提交运行。
+
+维护者需要跟进 `.gitmodules` 中配置的 `develop` 时，先确认远端 `develop` 已包含所需修复，再执行：
+
+```bash
+git submodule update --remote src/brainco_revo3_ros2
+```
+
+这会切换到主仓库记录版本之外的驱动提交。验证构建、遥操和校准行为后，再把新的 `src/brainco_revo3_ros2` gitlink 提交到主仓库。日常同步使用前面的固定版本命令。
 
 ## 构建
 
@@ -166,4 +187,4 @@ REVO3_CALIBRATION_INTEGRATION=1 python3 -m pytest \
 面板交互测试还需要可用的 `DISPLAY`。实机验收需另外检查命令与反馈方向、全部关节释放，以及四组对指的实际接触情况。
 录制、命令／反馈曲线和轨迹工具见[英文包说明](src/manus_revo3_retarget/README.md#launch-and-record-mcap)。
 
-依赖检查提示文件缺失时，确认克隆了完整 `revo3_retargeting` 分支，并检查 `src/brainco_revo3_ros2` 下的驱动源码和 SDK；当前分支无需执行子模块初始化。
+依赖检查提示驱动文件缺失时，在仓库根目录执行 `git submodule sync --recursive` 和 `git submodule update --init --recursive`，恢复主仓库记录的驱动版本，再运行依赖检查。主动升级驱动版本时，按[驱动子模块版本](#驱动子模块版本)中的维护步骤执行。
