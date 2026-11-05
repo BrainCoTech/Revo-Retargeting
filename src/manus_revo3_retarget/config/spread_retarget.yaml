@@ -31,11 +31,11 @@ manus_revo3_retarget:
     physical_left_middle_MPR_joint_offset_deg: 0.0
     physical_left_index_MPR_joint_scale: 1.0
     physical_left_index_MPR_joint_offset_deg: 0.0
-    physical_right_little_MPR_joint_scale: 1.0
+    physical_right_little_MPR_joint_scale: -1.0
     physical_right_little_MPR_joint_offset_deg: 0.0
-    physical_right_ring_MPR_joint_scale: 1.0
+    physical_right_ring_MPR_joint_scale: -1.0
     physical_right_ring_MPR_joint_offset_deg: 0.0
-    physical_right_middle_MPR_joint_scale: 1.0
+    physical_right_middle_MPR_joint_scale: -1.0
     physical_right_middle_MPR_joint_offset_deg: 0.0
-    physical_right_index_MPR_joint_scale: 1.0
+    physical_right_index_MPR_joint_scale: -1.0
     physical_right_index_MPR_joint_offset_deg: 0.0
