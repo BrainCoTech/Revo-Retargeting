@@ -1,215 +1,78 @@
 # Revo Retargeting
 
-ROS 2 Humble workspace for BrainCo Revo3 and Revo2 teleoperation with shared hand input adapters.
+Control BrainCo Revo3 hands with MANUS gloves. This branch is `feat/manus-revo3-vector`; the quick start below uses the Vector backend and a right hand.
 
-[Chinese version](README_CN.md) · [Revo2 guide](README_REVO2.md) · [DV1 adapter](src/brainco_capabilities/hand_input_adapters/README.md) · [Revo3 package guide](src/manus_revo3_retarget/README.md)
+[中文使用说明](README_CN.md) · [First-time setup (中文)](docs/vector_setup_CN.md) · [Vector reference (中文)](src/manus_revo3_vector_retarget/README.md) · [HumanDex / DV1, legacy and Revo2](docs/other_inputs_EN.md)
 
-## MANUS with vector retargeting
+## Daily use
 
-The optional vector backend is available on `feat/manus-revo3-vector`. Build
-`manus_revo3_vector_retarget` in the existing `revo_teleop` environment, then run
-`bash scripts/teleop.sh right retarget_backend:=vector` (`left` / `both` also work).
-It uses this workspace's May3 hand models and starts with output disabled;
-calibrate and enable using the package services. See the
-[Vector setup and operation guide](src/manus_revo3_vector_retarget/README.md).
-The default backend and other input adapters keep their existing behavior.
+Complete the first-time setup once. Power the hand, connect its USB adapter and the MANUS receiver, and turn on and wear the glove. Run commands from this repository root in two terminals.
 
-## Start Revo3 with HumanDex / DV1
-
-Run the build commands from the repository root.
-
-### Step 1: Build
-
-Run step 1 for the first build and after updating the adapter. On a new computer, prepare the system dependencies and initialize submodules as described below first.
-
-```bash
-bash scripts/setup_revo_conda.sh
-conda activate revo_teleop
-source /opt/ros/humble/setup.bash
-PYTHONNOUSERSITE=1 python -m colcon build --base-paths src --symlink-install \
-  --packages-up-to manus_revo3_retarget revo3_driver revo2_teleop_bringup \
-  --cmake-args -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python" \
-               -DPYTHON_EXECUTABLE="$CONDA_PREFIX/bin/python"
-```
-
-### Step 2: Start
-
-Use the SDK branch `feat/tracker-world-frame-and-bringup`; this interface follows commit `2683152` documented in [Issue #13](https://github.com/HAOTianGa03/brainco_revohuman_sdk/issues/13). Complete the [SDK preparation steps](src/brainco_bringup/revo2_teleop_bringup/README_DV1.md#sdk-准备独立工作区) first: install the native Python SDK, build its three ROS packages, and register each hand by USB topology. Keep the SDK and this repository in separate workspaces; source only the corresponding workspace in each terminal.
-
-**Terminal 1: start official SDK acquisition and keep it running.** This example selects the right hand; replace the registry set name as needed.
+### Terminal 1: start the right hand
 
 ```bash
 conda activate revo_teleop
 export PYTHONNOUSERSITE=1
-source /opt/ros/humble/setup.bash
-source ~/ros2_revohuman_ws/install/setup.bash
-ros2 launch revohuman_bringup revohuman.launch.py mode:=right set_name:=bench \
-  tracker_mode:=off publish_tactile:=off camera_mode:=off
-```
-
-**Terminal 2: from the Revo-Retargeting repository root, start DV1 adaptation with FK, Revo3 retargeting, and the hardware driver.**
-
-```bash
-conda activate revo_teleop
-export PYTHONNOUSERSITE=1
+export ROS_DOMAIN_ID=11
 source /opt/ros/humble/setup.bash
 source install/setup.bash
-bash scripts/teleop.sh right input_source:=dv1
+bash scripts/teleop.sh right retarget_backend:=vector
 ```
 
-Adjust `*_offset_deg` (degrees) in `src/manus_revo3_retarget/config/four_finger_retarget.yaml` (fingers), `spread_retarget.yaml` (spread), or `thumb_retarget.yaml` (thumb).
+This starts the hardware driver, MANUS publisher and Vector backend. Hold a natural, steady hand pose for bone-length calibration: 120 frames initially, or 30 verification frames with a matching cache.
 
-Use `left` in both commands for the other hand. For both hands, set SDK `mode:=pair`, then run `bash scripts/teleop.sh both input_source:=dv1`. A single hand defaults to `joint_state_layout:=sdk_single`, consuming `/revohuman/{side}/joint_states`. Both hands default to `sdk_pair`, selecting 21 joints per side from `/revohuman/pair/joint_states`.
+**Calibration does not enable motion. Enable following in terminal 2.**
 
-When running two independent SDK single-hand processes (`mode:=left` and `mode:=right`), use `bash scripts/teleop.sh both input_source:=dv1 joint_state_layout:=sdk_single`. Do not run pair and single-hand acquisition together: each glove allows one owning process.
-
-The adapter subscribes with BEST_EFFORT QoS, preserves the SDK sample timestamp, and computes FK directly from the supplied radians. Debug topics remain `/humandex_{side}/fk_joint_states` and `/humandex_{side}/eef_pose`. The source `frame_id` is separate from the internal palm frame; if you customize it in the SDK, pass the corresponding `left_source_frame_id:=...` / `right_source_frame_id:=...`.
-Override `sdk_path:=/path/to/brainco_revohuman_sdk` or `urdf_path:=/path/to/model.urdf` when needed.
-Place the SDK checkout beside this repository, with the directory name `brainco_revohuman_sdk`:
-
-```text
-<parent>/
-├── Revo-Retargeting/
-└── brainco_revohuman_sdk/
-```
-
-The default SDK path is resolved relative to this repository, independently of the terminal's current directory.
-
-For an older `/humandex_{side}/joint_states` publisher, explicitly select `joint_state_layout:=legacy` and set `left_joint_topic:=...` / `right_joint_topic:=...` as needed. Its joint names and frame must follow the legacy contract. See the [adapter layout table](src/brainco_capabilities/hand_input_adapters/README.md#dv1-sdk-direct-input). The old `revohuman_revo2` profile uses this repository's raw serial driver and must not run alongside SDK acquisition.
-
-Without `input_source:=dv1`, `teleop.sh` keeps its MANUS default and starts the MANUS publisher.
-The `humandex` source uses the older paired joint/pose topics; `external` consumes an existing `HandKinematics` publisher.
-
-## Fresh Computer Setup
-
-Target environment:
-
-- Ubuntu 22.04
-- ROS 2 Humble
-- Python 3.10
-
-Clone the repository and initialize the Revo3 driver submodule:
+### Terminal 2: check readiness and enable
 
 ```bash
-git clone https://github.com/BrainCoTech/Revo-Retargeting.git
-cd Revo-Retargeting
-git switch feat/revo3-hand-kinematics
-git submodule update --init --recursive
+conda activate revo_teleop
+export PYTHONNOUSERSITE=1
+export ROS_DOMAIN_ID=11
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+# Continue when phase is READY and ready_to_arm is true.
+ros2 topic echo /manus_revo3_retarget/status std_msgs/msg/String --once
+
+# Enable physical hand following.
+ros2 service call /manus_revo3_retarget/enable_retarget std_srvs/srv/SetBool '{data: true}'
 ```
 
-Install system, ROS, Python, Git LFS, and submodule dependencies:
+Domain 11 is an example; use the same `ROS_DOMAIN_ID` in both terminals. Run one teleoperation pipeline at a time. Omitting `retarget_backend:=vector` selects legacy.
+
+### Pause, exit and recalibrate
 
 ```bash
-./scripts/install_revo3_deps.sh
+# Pause; call with data: true to resume.
+ros2 service call /manus_revo3_retarget/enable_retarget std_srvs/srv/SetBool '{data: false}'
+
+# Repeat bone-length calibration, then explicitly enable again.
+ros2 service call /manus_revo3_retarget/recalibrate std_srvs/srv/Trigger '{}'
 ```
 
-The script installs the ROS control stack, Pinocchio, RViz support, MCAP bag support, Git LFS, and Python packages from `requirements.txt`. The shared `revo_teleop` environment is created by `setup_revo_conda.sh` in step 1.
+Press `Ctrl+C` in terminal 1 to stop its processes. Stale input stops command publication; recovering input requires explicit re-enabling. Pausing stops MIT publication and leaves the hand powered.
 
-MANUS SDK installation and checks are optional. DV1 users can run the dependency installer without it. For MANUS input, download the official SDK (its shared libraries are not stored in this repository), then provide one of these options:
+## Left or both hands
+
+Replace `right` with `left` or `both` in terminal 1. Single-hand services keep the same names. For both hands, enable each side:
 
 ```bash
-MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_revo3_deps.sh
-MANUS_SDK_DIR=/path/to/unpacked/ManusSDK ./scripts/install_revo3_deps.sh
-MANUS_SDK_URL=https://static.manus-meta.com/resources/manus_core_3/sdk/MANUS_Core_3.1.1_SDK.zip ./scripts/install_revo3_deps.sh
+ros2 service call /manus_revo3_retarget_left/enable_retarget std_srvs/srv/SetBool '{data: true}'
+ros2 service call /manus_revo3_retarget_right/enable_retarget std_srvs/srv/SetBool '{data: true}'
 ```
 
-If all other dependencies are already installed, install only the MANUS SDK files:
+## Started but not moving
 
-```bash
-MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
-```
+| Status or symptom | Action |
+| --- | --- |
+| `WAITING_INPUT` | Check glove power, receiver and MANUS logs. |
+| `CALIBRATING` | Hold a natural, steady pose until calibration completes. |
+| `READY`, `enabled=false` | Call `enable_retarget` with `data: true`. |
+| `BLOCKED` or `fault` | Read `reason` and `controller.reason`; restore the driver/input, then re-enable when ready. |
+| Missing status topic or service | Check workspace setup and matching ROS domains. |
+| Missing `install/setup.bash` or Vector package | Follow the [first-time setup](docs/vector_setup_CN.md). |
 
-The SDK installer copies the official `libManusSDK*.so` files into `src/brainco_drivers/manus_ros2/ManusSDK/lib/`. After installing the SDK, verify the workspace with:
+Right-hand four-finger hardware MPR positive points toward the thumb. The right Vector profile uses `scale: -1` for these joints. Restart Vector after profile changes; see the [coordinate reference](src/manus_revo3_vector_retarget/README.md#模型和硬件坐标).
 
-```bash
-./scripts/check_system_deps.sh --with-manus
-```
-
-To create a customer SDK package from a machine that already has the official
-MANUS SDK files installed locally:
-
-```bash
-./scripts/package_manus_sdk.sh
-```
-
-This creates `dist/manus-sdk-linux-x86_64.tar.gz` plus a `.sha256` checksum.
-Customers can install that archive with `MANUS_SDK_ARCHIVE=... ./scripts/install_manus_sdk.sh`.
-
-Use `./scripts/check_system_deps.sh` to check the base dependencies; add `--with-manus` when using MANUS input. To install/check an existing MANUS SDK along with system dependencies, run `./scripts/install_revo3_deps.sh --with-manus`.
-
-## Hardware Connection
-
-See the [Revo3 hardware connection and device naming guide](src/manus_revo3_retarget/README.md#revo3-hardware-connection-and-device-naming). Device aliases are optional when automatic detection is enabled.
-
-For MANUS, connect and calibrate before first use:
-
-```bash
-bash scripts/calibrate_manus.sh right
-bash scripts/calibrate_manus.sh left
-```
-
-## Useful Script Options
-
-Start only the Revo3 driver:
-
-```bash
-./scripts/start_driver.sh right
-./scripts/start_driver.sh both
-```
-
-Run teleoperation while reusing an already running Revo3 driver:
-
-```bash
-START_REVO3_DRIVER=0 ./scripts/teleop.sh right
-```
-
-Run teleoperation while reusing an already running MANUS publisher:
-
-```bash
-START_MANUS_PUBLISHER=0 ./scripts/teleop.sh right
-```
-
-Pass extra launch arguments through to `pipeline_launch.py`:
-
-```bash
-./scripts/teleop.sh right numeric_threads:=1 mit_command_publish_hz:=200
-```
-
-## Package Layout
-
-```text
-src/brainco_capabilities/manus_ros2_msgs     MANUS ROS 2 messages
-src/brainco_drivers/manus_ros2               MANUS SDK bridge, without redistributing SDK .so files
-src/brainco_revo3_ros2                      Revo3 upstream driver submodule
-src/brainco_revo3_ros2/revo3_mit_controller_msgs
-src/brainco_revo3_ros2/revo3_mit_controller
-src/brainco_revo3_ros2/revo3_description
-src/brainco_revo3_ros2/revo3_driver
-src/brainco_capabilities/hand_teleop_msgs     Device-neutral HandKinematics message
-src/brainco_capabilities/hand_input_adapters  MANUS / HumanDex / Hex input adapters
-src/manus_revo3_retarget                     HandKinematics to Revo3 retarget pipeline
-```
-
-## Troubleshooting
-
-If `teleop.sh` says `Missing install/setup.bash`, build the workspace first.
-
-If `check_system_deps.sh` reports missing workspace paths, initialize submodules:
-
-```bash
-git submodule update --init --recursive
-```
-
-If ROS packages are missing, rerun:
-
-```bash
-./scripts/install_revo3_deps.sh
-```
-
-If MANUS SDK files are missing, download the official MANUS SDK and run:
-
-```bash
-MANUS_SDK_ARCHIVE=/path/to/MANUS_SDK.zip ./scripts/install_manus_sdk.sh
-```
-
-If a new clone does not contain `scripts/` or `src/`, the branch was not published with the runnable workspace files. A fresh computer needs this branch to track `scripts/`, `requirements.txt`, `.gitmodules`, and the ROS packages under `src/`.
+Direct output is the default. Append `interpolate:=true` to enable 200 Hz interpolation and a two-second startup ramp.

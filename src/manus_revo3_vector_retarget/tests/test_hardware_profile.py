@@ -32,6 +32,7 @@ def test_named_mapping_and_feedback_excursions(robot):
     q = profile.model_lower + .35 * (profile.model_upper - profile.model_lower)
     hardware = profile.model_to_hardware(q)
     expected = np.array([q[robot.joint_names.index(name)] for name in profile.names])
+    expected[[0, 4, 8, 12]] *= -1
     np.testing.assert_array_equal(hardware, expected)
     np.testing.assert_array_equal(profile.feedback_to_model(hardware), q)
     feedback = profile.upper + .1
@@ -39,6 +40,22 @@ def test_named_mapping_and_feedback_excursions(robot):
     assert np.any(raw > profile.model_upper)
     with pytest.raises(ValueError, match="outside"):
         profile.model_to_hardware(raw)
+
+
+@pytest.mark.parametrize("finger", ["index", "middle", "ring", "little"])
+def test_right_positive_hardware_mpr_moves_toward_thumb(robot, finger):
+    profile = HardwareProfile(robot)
+    q_hardware = np.zeros(21)
+    neutral = robot.points(profile.feedback_to_model(q_hardware)).copy()
+    point_finger = "pinky" if finger == "little" else finger
+    tip = robot.point_names.index(f"{point_finger}_tip")
+    thumb_base = robot.point_names.index("thumb_root")
+    toward_thumb = neutral[thumb_base] - neutral[tip]
+    q_hardware[profile.names.index(f"right_{finger}_MPR_joint")] = np.deg2rad(5)
+    q_model = profile.feedback_to_model(q_hardware)
+    displacement = robot.points(q_model)[tip] - neutral[tip]
+    assert np.dot(displacement, toward_thumb) > 0
+    np.testing.assert_allclose(profile.model_to_hardware(q_model), q_hardware, atol=1e-15)
 
 
 def test_model_order_is_not_assumed(robot):
@@ -64,8 +81,10 @@ def test_hardware_envelope_intersects_current_urdf_without_mutating_it(robot):
     bounds = document()["hardware_channel_bounds"]
     for i, name in enumerate(profile.names):
         mi = robot.joint_names.index(name)
-        assert profile.lower[i] == max(robot.lower[mi], bounds[name]["lower_rad"])
-        assert profile.upper[i] == min(robot.upper[mi], bounds[name]["upper_rad"])
+        sign = -1 if name.endswith("_MPR_joint") else 1
+        mapped = sorted([sign * robot.lower[mi], sign * robot.upper[mi]])
+        assert profile.lower[i] == max(mapped[0], bounds[name]["lower_rad"])
+        assert profile.upper[i] == min(mapped[1], bounds[name]["upper_rad"])
     np.testing.assert_array_equal(robot.lower, before_lower)
     np.testing.assert_array_equal(robot.upper, before_upper)
     for q in (profile.model_lower, profile.model_upper):

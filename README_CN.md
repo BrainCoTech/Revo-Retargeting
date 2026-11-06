@@ -1,168 +1,80 @@
 # Revo Retargeting
 
-支持 Revo3 和 Revo2、共用手部输入适配器的 ROS 2 Humble 工作区。
+用 MANUS 手套控制 Revo3 机器手。当前分支为 `feat/manus-revo3-vector`，下面按 **Vector 右手遥操作**说明。
 
-[English](README.md) · [Revo3 使用说明](src/manus_revo3_retarget/README_CN.md)
+[English](README.md) · [首次安装](docs/vector_setup_CN.md) · [Vector 参数与原理](src/manus_revo3_vector_retarget/README.md) · [HumanDex / DV1、legacy、Revo2](docs/other_inputs_CN.md)
 
-## MANUS 向量重定向
+## 日常使用：启动、标定、启用
 
-可选 Vector 后端已接入现有 `revo_teleop` 环境与 `scripts/teleop.sh`。
-构建 `manus_revo3_vector_retarget` 后使用
-`bash scripts/teleop.sh right retarget_backend:=vector`（也支持 `left` / `both`）。
-该后端使用当前 May3 手模型，完成标定后通过服务启用输出；构建、启停和验证方式见
-[Vector 使用说明](src/manus_revo3_vector_retarget/README.md)。默认仍为 legacy。
+已完成首次安装后，每次按下面两个终端操作。给机器手上电并连接 USB，接入 MANUS 接收器、打开并戴好手套。所有命令在本仓库根目录执行，终端保持运行。
 
-
-## 使用 HumanDex / DV1 启动 Revo3
-
-构建命令在仓库根目录运行。
-
-### 步骤 1：构建
-
-首次构建或更新适配器后执行步骤 1。新电脑先按下方说明准备系统依赖并初始化子模块。
-
-```bash
-bash scripts/setup_revo_conda.sh
-conda activate revo_teleop
-source /opt/ros/humble/setup.bash
-PYTHONNOUSERSITE=1 python -m colcon build --base-paths src --symlink-install \
-  --packages-up-to manus_revo3_retarget revo3_driver revo2_teleop_bringup \
-  --cmake-args -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python" \
-               -DPYTHON_EXECUTABLE="$CONDA_PREFIX/bin/python"
-```
-
-### 步骤 2：启动
-
-SDK 使用 `feat/tracker-world-frame-and-bringup` 分支，接口依据 [Issue #13](https://github.com/HAOTianGa03/brainco_revohuman_sdk/issues/13) 的 `2683152`。首次使用先按 [SDK 准备步骤](src/brainco_bringup/revo2_teleop_bringup/README_DV1.md#sdk-准备独立工作区) 安装原生 Python SDK、构建其三个 ROS 包，并在 registry 中按 USB 拓扑声明手别。SDK 与本仓库继续使用独立工作区，各自终端只 source 各自工作区。
-
-**终端 1：启动revohuman官方 SDK 采集并保持运行。** 下例启动右手；registry 组名按实际配置填写。
+### 终端 1：启动右手
 
 ```bash
 conda activate revo_teleop
 export PYTHONNOUSERSITE=1
-source /opt/ros/humble/setup.bash
-source ~/ros2_revohuman_ws/install/setup.bash
-ros2 launch revohuman_bringup revohuman.launch.py mode:=right set_name:=bench \
-  tracker_mode:=off publish_tactile:=off camera_mode:=off
-```
-
-**终端 2：在 Revo-Retargeting 仓库根目录，启动 DV1 适配与 FK、Revo3 重定向和真机 driver。**
-
-```bash
-conda activate revo_teleop
-export PYTHONNOUSERSITE=1
+export ROS_DOMAIN_ID=11
 source /opt/ros/humble/setup.bash
 source install/setup.bash
-bash scripts/teleop.sh right input_source:=dv1
+bash scripts/teleop.sh right retarget_backend:=vector
 ```
 
-左手将两处 `right` 改为 `left`。双手将 SDK 的 `mode:=right` 改为 `mode:=pair`，下游运行 `bash scripts/teleop.sh both input_source:=dv1`。单手默认 `joint_state_layout:=sdk_single`，读取 `/revohuman/{side}/joint_states`；双手默认 `sdk_pair`，从 `/revohuman/pair/joint_states` 的 42 个关节中按侧取出 21 个。
+这条命令同时启动机器手驱动、MANUS 采集和 Vector 重定向。保持自然、稳定的手形，首次采集 120 帧完成骨长标定；有缓存时用 30 帧复核。
 
-若双手采集使用两个独立的 SDK 单手进程（`mode:=left` 和 `mode:=right`），下游显式运行 `bash scripts/teleop.sh both input_source:=dv1 joint_state_layout:=sdk_single`。不要同时启动 `pair` 和单手采集；一只手套只能由一个进程打开。
+**标定完成后，机器手仍不会跟随。需要在终端 2 启用输出。**
 
-SDK 放在本仓库的同级目录，目录名为 `brainco_revohuman_sdk`：
-
-```text
-<父目录>/
-├── Revo-Retargeting/
-└── brainco_revohuman_sdk/
-```
-
-默认路径相对于本仓库解析，不依赖终端当前目录。可通过 `sdk_path:=/实际路径` 或 `urdf_path:=/实际路径/model.urdf` 覆盖模型位置。
-
-旧 `/humandex_{side}/joint_states` 发布者可显式使用 `joint_state_layout:=legacy`，并通过 `left_joint_topic:=...` / `right_joint_topic:=...` 指定旧话题；关节名与帧标识须满足旧契约。三种布局见 [适配器说明](src/brainco_capabilities/hand_input_adapters/README.md#dv1-sdk-direct-input)。
-
-不传 `input_source:=dv1` 时，`teleop.sh` 保留 MANUS 默认输入并启动 MANUS 采集。
-`humandex` 对应旧的关节和位姿双话题输入；`external` 接收已有的 `HandKinematics` 发布者。
-
-## offset调整
-如果对指效果不好需要调整,可以 在 `src/manus_revo3_retarget/config/` 下的 `four_finger_retarget.yaml`（四指）、`spread_retarget.yaml`（侧摆）和 `thumb_retarget.yaml`（拇指）中修改 `*_offset_deg`（单位：度）。
-
-## 首次配置和硬件连接
-
-目标环境为 Ubuntu 22.04、ROS 2 Humble、Python 3.10。克隆或切换分支后先拉取 Revo3 子模块：
+### 终端 2：确认就绪并启用
 
 ```bash
-git submodule update --init --recursive
+conda activate revo_teleop
+export PYTHONNOUSERSITE=1
+export ROS_DOMAIN_ID=11
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+# 查看状态；phase 为 READY 且 ready_to_arm 为 true 后，执行下一条
+ros2 topic echo /manus_revo3_retarget/status std_msgs/msg/String --once
+
+# 启用真机跟随
+ros2 service call /manus_revo3_retarget/enable_retarget std_srvs/srv/SetBool '{data: true}'
 ```
 
-系统和 ROS 依赖安装见 [英文主说明](README.md#fresh-computer-setup)。Revo2 driver 所需 Stark SDK：
+`ROS_DOMAIN_ID=11` 是示例，两个终端必须一致。每次只运行一套启动命令；省略 `retarget_backend:=vector` 会使用 legacy。
+
+### 暂停、退出、重新标定
 
 ```bash
-bash src/brainco_drivers/revo2_driver/scripts/download_sdk.sh
+# 暂停跟随；恢复时再次调用 data: true
+ros2 service call /manus_revo3_retarget/enable_retarget std_srvs/srv/SetBool '{data: false}'
+
+# 重做骨长标定；完成后需要再次启用
+ros2 service call /manus_revo3_retarget/recalibrate std_srvs/srv/Trigger '{}'
 ```
 
-Revo3 串口权限、自动识别和可选固定设备名见 [连接说明](src/manus_revo3_retarget/README_CN.md#revo3-真机连接与设备命名)。
+退出时在终端 1 按 `Ctrl+C`，脚本会清理本次启动的进程。输入中断会停止输出，输入恢复后也需要重新启用。暂停会停止 MIT 命令发布，机器手仍保持上电。
 
-## Revo2 说明
+## 左手和双手
 
-## 架构
-
-三类输入都在同一个设备中立边界结束：
-
-```text
-设备驱动 / 上游采集
-  -> hand_input_adapters
-  -> hand_teleop_msgs/HandKinematics
-  -> revo2_hand_retarget
-  -> revo2_pid_controller target JointState
-  -> revo2_driver
-```
-
-`HandKinematics` 每条消息只描述一侧手和一个源时间戳。关节角统一为弧度，关键点
-统一为米；缺失数据直接省略，不再伪造 `ManusGlove` 节点或人体工学字段。坐标系、
-单位和设备命名转换只存在于适配器，重定向核心不依赖 MANUS 消息，也不感知
-HumanDex/Hex 的传输方式。
-
-主要包：
-
-```text
-src/brainco_capabilities/hand_teleop_msgs       中立输入协议
-src/brainco_capabilities/hand_input_adapters    HumanDex/MANUS/Hex 适配器
-src/brainco_capabilities/revo2_hand_retarget    设备中立重定向核心
-src/brainco_bringup/revo2_teleop_bringup        profile 驱动的统一启动层
-src/brainco_drivers/hex_glove_driver             只负责原始 UDP 传输
-src/brainco_drivers/manus_ros2                   MANUS SDK 原生驱动
-src/brainco_drivers/revo2_driver                 Revo2 ros2_control 驱动
-```
-
-## 启动
-
-HumanDex / RevoHuman 的设备识别、话题检查和无真机分步骤启动，见
-[HumanDex 手套启动指南](docs/humandex_startup_CN.md)。该指南也说明外部采集驱动与本仓库适配器的边界。
-
-所有手套共用一个入口，只切换 profile：
+将终端 1 启动命令中的 `right` 换成 `left` 或 `both`。单手服务名相同；双手分别启用：
 
 ```bash
-ros2 launch revo2_teleop_bringup teleop.launch.py \
-  profile:=humandex_revo2 hand_mode:=right
-
-ros2 launch revo2_teleop_bringup teleop.launch.py \
-  profile:=manus_revo2 hand_mode:=right
-
-ros2 launch revo2_teleop_bringup teleop.launch.py \
-  profile:=hex_revo2 hand_mode:=right
+ros2 service call /manus_revo3_retarget_left/enable_retarget std_srvs/srv/SetBool '{data: true}'
+ros2 service call /manus_revo3_retarget_right/enable_retarget std_srvs/srv/SetBool '{data: true}'
 ```
 
-HumanDex 采集进程默认由其上游工程启动；MANUS 和 Hex profile 默认启动各自驱动。
-若驱动已经在运行，传 `launch_input_driver:=false`。
+## 启动了但不动
 
-接真机前先跑只读离线链路：
+先在终端 2 查看 `status`：
 
-```bash
-ros2 launch revo2_teleop_bringup teleop.launch.py \
-  profile:=humandex_revo2 hand_mode:=right \
-  launch_revo2_driver:=false switch_controllers:=false
-```
+| 状态或现象 | 处理 |
+| --- | --- |
+| `WAITING_INPUT` | 检查手套电源、MANUS 接收器和采集日志 |
+| `CALIBRATING` | 保持自然、稳定的手形，等待标定完成 |
+| `READY`、`enabled=false` | 调用 `enable_retarget`，传 `data: true` |
+| `BLOCKED` 或 `fault` | 查看 `reason`、`controller.reason`；驱动或输入恢复并就绪后，重新启用 |
+| 状态话题或服务找不到 | 检查两个终端的工作区和 `ROS_DOMAIN_ID` 是否一致 |
+| 找不到 `install/setup.bash` 或 Vector 包 | 按[首次安装](docs/vector_setup_CN.md)构建 |
 
-先确认 `/hand_kinematics/right` 和 retarget target topic 的数值、方向、频率合理，
-再启用 Revo2 真机。`revo2_driver` 仍保留较安全的 position controller 默认状态；
-完整遥操作启动层只在明确启用时切到 `revo2_pid_controller`。
+右手四指侧摆的硬件正方向为**朝拇指**，Vector 已在右手 profile 中对四个 MPR 关节设置 `scale: -1`。改过 profile 后需重启 Vector；详细方向说明与参数见 [Vector 文档](src/manus_revo3_vector_retarget/README.md#模型和硬件坐标)。
 
-字段定义、适配器参数和 profile 说明见各包 README。
-
-### RevoHuman SDK + DV1 FK
-
-新版 SDK 的 JointState 接入、Revo2 启动与四指标定见 [DV1 接入说明](src/brainco_bringup/revo2_teleop_bringup/README_DV1.md)。适配器内部完成 FK，支持 YAML tip 偏移微调。
-
-旧 `revohuman_revo2` profile 与 [原始 RawFrame 链路](src/brainco_capabilities/revohuman_kinematics/README.md) 仍保留，使用本仓库旧串口 driver；不要与新版 SDK 采集同时启动。新 SDK 接入使用上面的 `input_source:=dv1` 或 Revo2 的 `dv1_sdk.launch.py`。
+默认输出不做位置插值。需要 200 Hz 插值和 2 秒启动缓入时，在启动命令末尾添加 `interpolate:=true`。

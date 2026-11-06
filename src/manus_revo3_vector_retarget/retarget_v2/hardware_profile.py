@@ -1,8 +1,9 @@
 """Named model/ROS hardware boundary, independent of any legacy retarget solver.
 
 Model-specific profiles preserve the archived motor-channel command envelope.
-The May3 profile retains this workspace's ROS joint coordinates, not a physical
-calibration; thumb slot names retain their historical ROS/SDK aliases.
+May3 profiles map model coordinates to ROS channels by name and sign; right-hand
+four-finger MPR signs account for hardware positive pointing toward the thumb.
+Thumb slot names retain their historical ROS/SDK aliases.
 """
 from dataclasses import dataclass, fields
 from hashlib import sha256

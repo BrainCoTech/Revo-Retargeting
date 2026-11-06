@@ -1,12 +1,14 @@
 # May3 model from brainco_revo3_ros2 @ 34528e75.
-# q_ros = q_model; same named limits and MIT gains as this workspace.
-# This is a software coordinate profile, not a physical calibration.
+# Right four-finger MPR: q_ros = -q_model; other joints: q_ros = q_model.
+# Hardware MPR positive is toward the thumb, as confirmed by the operator.
+# Zero offsets and the remaining coordinates still require physical calibration.
 model_version: may3
 urdf_sha256: de7241710ea8565f8e626bc5e292e923210f6cd9ec642c161d18fc5585ae135e
 mapping_metadata:
   status: provisional_not_physically_calibrated
-  mpr_sign_basis: Identity mapping matches this workspace physical_*_MPR_joint_scale=1
-    and the driver ROS joint coordinates. Do not apply the newer model axis migration.
+  mpr_sign_basis: Right-hand index, middle, ring and little MPR hardware positive
+    is toward the thumb, as specified by the operator after observing reversed motion.
+    May3 model MPR positive is away from the thumb, so these four channels use scale=-1.
   encoder_zero_basis: Zero offsets retain this workspace output calibration; physical
     calibration is still required.
   thumb_alias_policy: Keep the May3 ROS joint names and driver channel order; no differential
@@ -39,7 +41,7 @@ output_calibration:
   left: {}
   right:
     little_MPR_joint:
-      scale: 1.0
+      scale: -1.0
       offset_deg: 0.0
     little_MCP_joint:
       scale: 1.0
@@ -51,7 +53,7 @@ output_calibration:
       scale: 1.0
       offset_deg: 0.0
     ring_MPR_joint:
-      scale: 1.0
+      scale: -1.0
       offset_deg: 0.0
     ring_MCP_joint:
       scale: 1.0
@@ -63,7 +65,7 @@ output_calibration:
       scale: 1.0
       offset_deg: 0.0
     middle_MPR_joint:
-      scale: 1.0
+      scale: -1.0
       offset_deg: 0.0
     middle_MCP_joint:
       scale: 1.0
@@ -75,7 +77,7 @@ output_calibration:
       scale: 1.0
       offset_deg: 0.0
     index_MPR_joint:
-      scale: 1.0
+      scale: -1.0
       offset_deg: 0.0
     index_MCP_joint:
       scale: 1.0
