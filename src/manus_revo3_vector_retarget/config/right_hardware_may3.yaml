@@ -18,7 +18,8 @@ command:
   startup_duration_s: 2.0
   target_timeout_s: 0.25
   max_velocity_rad_s: 12.0
-  max_acceleration_rad_s2: 24.0
+  # 2026-11-05: 48 rad/s^2 matches the RevoHuman hardware-tuned default (12 rad/s, 48 rad/s^2).
+  max_acceleration_rad_s2: 48.0
   max_timer_gap_s: 0.1
   velocity_feedforward: true
 gains:
