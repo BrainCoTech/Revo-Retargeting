@@ -14,6 +14,8 @@ def backend_arguments():
                               description="Enable 200 Hz interpolation and startup ramp"),
         DeclareLaunchArgument("max_velocity_rad_s", default_value=""),
         DeclareLaunchArgument("max_acceleration_rad_s2", default_value=""),
+        DeclareLaunchArgument("thumb_offset_deg", default_value="",
+                              description="Override profile thumb direction offset (deg); larger lowers thumb MCP"),
     ]
 
 
@@ -41,7 +43,7 @@ def backend_process(value, side, *, namespace="", profile="", glove_id="", node_
     if value("interpolate") == "true":
         command.append("--interpolate")
     options = {"profile": profile, "glove_id": glove_id,
-               **{key: value(key) for key in ("cache_dir", "max_velocity_rad_s", "max_acceleration_rad_s2")}}
+               **{key: value(key) for key in ("cache_dir", "max_velocity_rad_s", "max_acceleration_rad_s2", "thumb_offset_deg")}}
     for key, option in options.items():
         if option:
             command.extend(["--" + key.replace("_", "-"), option])

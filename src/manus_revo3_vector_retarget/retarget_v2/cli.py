@@ -210,6 +210,8 @@ def main():
     p.add_argument("--calibration-frames", type=int, default=120)
     p.add_argument("--normal-sign", type=float, choices=(-1., 1.), default=-1.)
     p.add_argument("--cache-dir", type=Path, help="Bone-length cache directory; default $XDG_CACHE_HOME/manus_revo3_vector_retarget")
+    p.add_argument("--thumb-offset-deg", type=float,
+                   help="Override the profile thumb_direction_offset angle (deg, -90..90); larger lowers thumb MCP")
     args = parser.parse_args()
     if getattr(args, "stride", 1) < 1 or (getattr(args, "max_frames", None) is not None and args.max_frames < 2):
         parser.error("stride >=1, max-frames >=2")
@@ -222,6 +224,9 @@ def main():
         overrides = (args.max_velocity_rad_s, args.max_acceleration_rad_s2)
         if args.motion_scale is not None and any(value is not None for value in overrides):
             parser.error("Use motion-scale or independent velocity/acceleration caps, not both")
+        if args.thumb_offset_deg is not None and not (np.isfinite(args.thumb_offset_deg)
+                                                      and -90. <= args.thumb_offset_deg <= 90.):
+            parser.error("thumb-offset-deg must be within [-90, 90]")
         for value, name in zip(overrides, ("velocity", "acceleration")):
             if value is not None and (not np.isfinite(value) or value <= 0):
                 parser.error(f"{name} cap must be finite and positive")

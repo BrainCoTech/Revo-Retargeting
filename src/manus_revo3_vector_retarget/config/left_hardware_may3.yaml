@@ -1,13 +1,15 @@
 # May3 model from brainco_revo3_ros2 @ 34528e75.
-# q_ros = q_model; same named limits and MIT gains as this workspace.
-# This is a software coordinate profile, not a physical calibration.
+# Left four-finger MPR: q_ros = -q_model; other joints: q_ros = q_model.
+# Hardware MPR positive is toward the thumb, as confirmed by the operator.
+# Zero offsets and the remaining coordinates still require physical calibration.
 model_version: may3
 hand_side: left
 urdf_sha256: b6817e989ebcd0cfb47223e6322928a261d97c35e0f475b585928b0333c8c3ca
 mapping_metadata:
   status: provisional_not_physically_calibrated
-  mpr_sign_basis: Identity mapping matches this workspace physical_*_MPR_joint_scale=1
-    and the driver ROS joint coordinates. Do not apply the newer model axis migration.
+  mpr_sign_basis: Left-hand index, middle, ring and little MPR hardware positive
+    is toward the thumb, as specified by the operator after observing all four reversed.
+    May3 model MPR positive is away from the thumb, so these four channels use scale=-1.
   encoder_zero_basis: Zero offsets retain this workspace output calibration; physical
     calibration is still required.
   thumb_alias_policy: Keep the May3 ROS joint names and driver channel order; no differential
@@ -40,7 +42,7 @@ gains:
 output_calibration:
   left:
     little_MPR_joint:
-      scale: 1.0
+      scale: -1.0
       offset_deg: 0.0
     little_MCP_joint:
       scale: 1.0
@@ -52,7 +54,7 @@ output_calibration:
       scale: 1.0
       offset_deg: 0.0
     ring_MPR_joint:
-      scale: 1.0
+      scale: -1.0
       offset_deg: 0.0
     ring_MCP_joint:
       scale: 1.0
@@ -64,7 +66,7 @@ output_calibration:
       scale: 1.0
       offset_deg: 0.0
     middle_MPR_joint:
-      scale: 1.0
+      scale: -1.0
       offset_deg: 0.0
     middle_MCP_joint:
       scale: 1.0
@@ -76,7 +78,7 @@ output_calibration:
       scale: 1.0
       offset_deg: 0.0
     index_MPR_joint:
-      scale: 1.0
+      scale: -1.0
       offset_deg: 0.0
     index_MCP_joint:
       scale: 1.0
@@ -167,3 +169,12 @@ hardware_channel_bounds:
   left_thumb_CMR_joint:
     lower_rad: 0.0
     upper_rad: 2.0071
+# Thumb direction offset. The left palm frame differs from the right one, so the
+# right-hand axis [1, 0, -1] does nothing here; [-1, 0, -1] is the only candidate that
+# lowers MCP on 2026-11-09 left-glove data (replay MCP median 50 -> 40). On hardware
+# (30 deg vs 0): relaxed MCP ~38 -> ~33 deg, opposition still at the 50 deg limit,
+# CMP 5-10 deg larger. Small benefit only; opposition MCP is structural.
+# Override per launch with thumb_offset_deg:=<deg>.
+thumb_direction_offset:
+  angle_deg: 30.0
+  axis_palm: [-1.0, 0.0, -1.0]

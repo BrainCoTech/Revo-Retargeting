@@ -1,7 +1,7 @@
 """Named model/ROS hardware boundary, independent of any legacy retarget solver.
 
 Model-specific profiles preserve the archived motor-channel command envelope.
-May3 profiles map model coordinates to ROS channels by name and sign; right-hand
+May3 profiles map model coordinates to ROS channels by name and sign; on both hands the
 four-finger MPR signs account for hardware positive pointing toward the thumb.
 Thumb slot names retain their historical ROS/SDK aliases.
 """
@@ -121,6 +121,8 @@ class HardwareProfile:
             schema |= {"model_version", "urdf_sha256", "mapping_metadata", "hardware_channel_bounds"}
             if isinstance(document, dict) and "hand_side" in document:
                 schema.add("hand_side")
+            if isinstance(document, dict) and "thumb_direction_offset" in document:
+                schema.add("thumb_direction_offset")
         _mapping(document, schema, f"{self.model_version} profile")
         # Existing right-hand profiles predate the explicit side field.
         if document.get("hand_side", "right") != self.hand_side:
@@ -159,6 +161,21 @@ class HardwareProfile:
             if value is not None:
                 command[key] = _number(value, key)
         self.command = CommandConfig(**command)
+
+        # Optional solver-side thumb direction offset; absent means no rotation.
+        self.thumb_offset_deg, self.thumb_offset_axis = 0., (0., 0., 1.)
+        if "thumb_direction_offset" in document:
+            offset = _mapping(document["thumb_direction_offset"], ("angle_deg", "axis_palm"),
+                              "thumb_direction_offset")
+            self.thumb_offset_deg = _number(offset["angle_deg"], "thumb_direction_offset.angle_deg")
+            axis = offset["axis_palm"]
+            if not isinstance(axis, list) or len(axis) != 3:
+                raise ValueError("thumb_direction_offset.axis_palm must be a list of 3 numbers")
+            self.thumb_offset_axis = tuple(_number(v, "thumb_direction_offset.axis_palm") for v in axis)
+            if np.linalg.norm(self.thumb_offset_axis) < 1e-9:
+                raise ValueError("thumb_direction_offset.axis_palm must be nonzero")
+        if not -90. <= self.thumb_offset_deg <= 90.:
+            raise ValueError("thumb_direction_offset.angle_deg must be within [-90, 90]")
 
         self.hardware_names = tuple(f"{self.hand_side}_{stem}" for stem in _HARDWARE_STEMS)
         self.names = self.hardware_names

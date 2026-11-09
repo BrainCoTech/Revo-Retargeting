@@ -75,6 +75,8 @@ ros2 service call /manus_revo3_retarget_right/enable_retarget std_srvs/srv/SetBo
 | 状态话题或服务找不到 | 检查两个终端的工作区和 `ROS_DOMAIN_ID` 是否一致 |
 | 找不到 `install/setup.bash` 或 Vector 包 | 按[首次安装](docs/vector_setup_CN.md)构建 |
 
-右手四指侧摆的硬件正方向为**朝拇指**，Vector 已在右手 profile 中对四个 MPR 关节设置 `scale: -1`。改过 profile 后需重启 Vector；详细方向说明与参数见 [Vector 文档](src/manus_revo3_vector_retarget/README.md#模型和硬件坐标)。
+左右手四指侧摆的硬件正方向都是**朝拇指**，Vector 已在两侧 profile 中对四指 MPR 关节设置 `scale: -1`。改过 profile 后需重启 Vector；详细方向说明与参数见 [Vector 文档](src/manus_revo3_vector_retarget/README.md#模型和硬件坐标)。
+
+左右手拇指 MCP 默认都带 30° 方向补偿，用来缓解对掌时 MCP 降不下来的问题。可以在启动命令末尾加 `thumb_offset_deg:=<角度>` 调整，越大 MCP 越低；原因和取舍见 [拇指方向补偿](src/manus_revo3_vector_retarget/README.md#拇指方向补偿)。
 
 默认输出不做位置插值。需要 200 Hz 插值和 2 秒启动缓入时，在启动命令末尾添加 `interpolate:=true`。

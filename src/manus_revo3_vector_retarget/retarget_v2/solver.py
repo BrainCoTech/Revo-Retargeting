@@ -33,8 +33,30 @@ class SolverConfig:
             raise ValueError("max_evaluations must be an integer")
 
 
+def thumb_offset_matrix(angle_deg, axis_palm):
+    """Rotation (palm coordinates) applied to the human thumb segment directions.
+
+    The Revo3 thumb at MCP=0 cannot tilt toward the fingers with CMP/CMR alone,
+    so matching the human metacarpal direction drives the robot MCP to 40-50 deg.
+    A fixed rotation of the human thumb directions trades that MCP flexion
+    against thumb-direction fidelity. Rodrigues formula; angle 0 is identity.
+    """
+    angle = float(angle_deg)
+    axis = np.asarray(axis_palm, dtype=float)
+    if not np.isfinite(angle) or axis.shape != (3,) or not np.isfinite(axis).all():
+        raise ValueError("Thumb offset needs a finite angle and a finite 3-vector axis")
+    norm = np.linalg.norm(axis)
+    if norm < 1e-9:
+        raise ValueError("Thumb offset axis must be nonzero")
+    k = axis/norm
+    theta = np.deg2rad(angle)
+    cross = np.array([[0., -k[2], k[1]], [k[2], 0., -k[0]], [-k[1], k[0], 0.]])
+    return np.eye(3) + np.sin(theta)*cross + (1-np.cos(theta))*(cross @ cross)
+
+
 class Retargeter:
-    def __init__(self, robot, calibration, config=None, joint_limits=None):
+    def __init__(self, robot, calibration, config=None, joint_limits=None, thumb_offset=None):
+        """``thumb_offset`` is ``None`` or ``(angle_deg, axis_palm)``; see thumb_offset_matrix."""
         hand_side = getattr(robot, "hand_side", "right")
         if getattr(calibration, "hand_side", hand_side) != hand_side:
             raise ValueError("Calibration hand side does not match the robot model")
@@ -51,7 +73,9 @@ class Retargeter:
                     or np.any(upper - lower <= 2e-6)):
                 raise ValueError("joint_limits must be finite nonempty intervals inside the model URDF bounds")
             self.lower, self.upper = lower.copy(), upper.copy()
-        self.q = np.clip(np.full(len(robot.joint_names), .08), self.lower+1e-6, self.upper-1e-6)
+        self.thumb_offset = None if thumb_offset is None else (float(thumb_offset[0]), tuple(map(float, thumb_offset[1])))
+        self.thumb_rotation = None if thumb_offset is None or self.thumb_offset[0] == 0. else thumb_offset_matrix(*thumb_offset)
+        self.q =np.clip(np.full(len(robot.joint_names), .08), self.lower+1e-6, self.upper-1e-6)
         index = {n: i for i, n in enumerate(robot.point_names)}
         self.chain_ids = np.array([[index[f"{f}_{p}"] for p in ("root", "pip", "dip", "tip")] for f in FINGERS])
         self.lengths = np.asarray(robot.finger_lengths)
@@ -66,6 +90,10 @@ class Retargeter:
 
     def targets(self, message):
         features = self.calibration.features(message)
+        if self.thumb_rotation is not None:
+            # Direction and reach targets only; pinch pair targets keep the measured tips.
+            features["directions"] = features["directions"].copy()
+            features["directions"][0] = features["directions"][0] @ self.thumb_rotation.T
         features["directions_world"] = features["directions"] @ self.robot.palm_basis.T
         vectors = features["tip_vectors"] @ self.robot.palm_basis.T
         d = features["tip_distances"]

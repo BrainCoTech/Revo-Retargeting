@@ -99,7 +99,7 @@ if [[ "$RETARGET_BACKEND" == vector ]]; then
   fi
   for arg in "${pipeline_args[@]}"; do
     case "$arg" in
-      left_profile:=*|right_profile:=*|left_glove_id:=*|right_glove_id:=*|cache_dir:=*|calibration_frames:=*|normal_sign:=*|numeric_threads:=*|interpolate:=*|max_velocity_rad_s:=*|max_acceleration_rad_s2:=*) ;;
+      left_profile:=*|right_profile:=*|left_glove_id:=*|right_glove_id:=*|cache_dir:=*|calibration_frames:=*|normal_sign:=*|numeric_threads:=*|interpolate:=*|max_velocity_rad_s:=*|max_acceleration_rad_s2:=*|thumb_offset_deg:=*) ;;
       *) echo "Unsupported Vector launch argument: $arg; see the Vector package README." >&2; exit 2 ;;
     esac
   done

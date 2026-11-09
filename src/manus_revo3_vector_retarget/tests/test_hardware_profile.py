@@ -178,3 +178,19 @@ def test_legacy_model_is_not_shipped_and_command_config_validates():
         RobotModel(model_version="legacy")
     with pytest.raises(ValueError):
         CommandConfig(max_timer_gap_s=0)
+
+
+def test_thumb_direction_offset_is_optional_and_validated(robot, tmp_path):
+    profile = HardwareProfile(robot)
+    configured = document()["thumb_direction_offset"]
+    assert profile.thumb_offset_deg == configured["angle_deg"]
+    assert profile.thumb_offset_axis == tuple(configured["axis_palm"])
+    absent = document()
+    del absent["thumb_direction_offset"]
+    assert HardwareProfile(robot, save(tmp_path, absent)).thumb_offset_deg == 0.
+    for bad in ({"angle_deg": 120., "axis_palm": [0, 0, 1]}, {"angle_deg": 10., "axis_palm": [0, 0, 0]},
+                {"angle_deg": 10., "axis_palm": [0, 1]}, {"angle_deg": 10.}):
+        data = document()
+        data["thumb_direction_offset"] = bad
+        with pytest.raises(ValueError, match="thumb_direction_offset"):
+            HardwareProfile(robot, save(tmp_path, data))

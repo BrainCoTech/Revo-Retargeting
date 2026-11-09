@@ -201,3 +201,31 @@ def test_coincident_human_tips_keep_a_finite_nonzero_robot_pinch_gap(robot, dist
     assert np.linalg.norm(target["pair_target"][0]) == pytest.approx(retargeter.config.pinch_gap_m, abs=1e-12)
     residual, jacobian = retargeter.evaluate(retargeter.q, target, retargeter.q)
     assert np.isfinite(residual).all() and np.isfinite(jacobian).all()
+
+
+def test_thumb_offset_matrix_is_a_rotation_and_zero_is_identity():
+    from retarget_v2.solver import thumb_offset_matrix
+    rotation = thumb_offset_matrix(25., (.6508, .1828, -.7369))
+    np.testing.assert_allclose(rotation @ rotation.T, np.eye(3), atol=1e-12)
+    assert np.linalg.det(rotation) == pytest.approx(1.)
+    axis = np.array([.6508, .1828, -.7369]) / np.linalg.norm([.6508, .1828, -.7369])
+    np.testing.assert_allclose(rotation @ axis, axis, atol=1e-12)
+    np.testing.assert_allclose(thumb_offset_matrix(0., (0., 0., 1.)), np.eye(3), atol=1e-15)
+    with pytest.raises(ValueError):
+        thumb_offset_matrix(10., (0., 0., 0.))
+
+
+def test_thumb_offset_rotates_only_thumb_direction_targets(robot):
+    calibration = FeatureCalibration(robot.finger_lengths)
+    message = synthetic_features(robot, robot.lower + .3 * (robot.upper - robot.lower))
+    plain = Retargeter(robot, calibration).targets(message)
+    zero = Retargeter(robot, calibration, thumb_offset=(0., (0., 0., 1.))).targets(message)
+    shifted = Retargeter(robot, calibration, thumb_offset=(30., (0., 0., 1.))).targets(message)
+    np.testing.assert_allclose(zero["directions_world"], plain["directions_world"], atol=1e-15)
+    np.testing.assert_allclose(shifted["directions_world"][1:], plain["directions_world"][1:], atol=1e-15)
+    np.testing.assert_allclose(shifted["pair_target"], plain["pair_target"], atol=1e-15)
+    angle = np.degrees(np.arccos(np.clip(np.sum(shifted["directions"][0] * plain["directions"][0], axis=1), -1, 1)))
+    assert np.all(angle <= 30. + 1e-9) and angle.max() > 1.
+    # The caller's features must not be mutated by the offset.
+    np.testing.assert_allclose(message["directions"][0], synthetic_features(
+        robot, robot.lower + .3 * (robot.upper - robot.lower))["directions"][0], atol=1e-15)

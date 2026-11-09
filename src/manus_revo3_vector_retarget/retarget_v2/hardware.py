@@ -47,6 +47,13 @@ def _run_hardware(args):
         profile = HardwareProfile(robot, path=args.profile, motion_scale=args.motion_scale,
                                   max_velocity_rad_s=getattr(args, "max_velocity_rad_s", None),
                                   max_acceleration_rad_s2=getattr(args, "max_acceleration_rad_s2", None))
+        thumb_offset_deg = getattr(args, "thumb_offset_deg", None)
+        if thumb_offset_deg is None:
+            thumb_offset_deg = getattr(profile, "thumb_offset_deg", 0.)
+        thumb_axis = getattr(profile, "thumb_offset_axis", (0., 0., 1.))
+        thumb_offset = (thumb_offset_deg, thumb_axis)
+        print(f"Thumb direction offset: {thumb_offset_deg:g} deg about palm axis "
+              f"{tuple(round(v, 3) for v in thumb_axis)}", flush=True)
         transport = stack.enter_context(HardwareTransport(
             profile, domain_id=args.domain, namespace=namespace, interpolate=interpolate,
             node_name=node_name))
@@ -115,7 +122,7 @@ def _run_hardware(args):
                             cal = session.advance(sample.message)
                             if cal is not None:
                                 solver = Retargeter(robot, cal, joint_limits=(
-                                    profile.model_lower, profile.model_upper))
+                                    profile.model_lower, profile.model_upper), thumb_offset=thumb_offset)
                         if solver is not None:
                             solve_started = time.monotonic()
                             q, solve_status = solver.solve(sample.message)

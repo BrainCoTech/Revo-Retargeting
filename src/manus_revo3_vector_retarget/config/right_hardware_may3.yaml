@@ -169,3 +169,17 @@ hardware_channel_bounds:
     lower_rad: 0.0
     upper_rad: 2.0071
 hand_side: right
+# Revo3 thumb at MCP=0 points sideways (perpendicular to the fingers); only MCP can
+# tilt it toward the fingers, so matching the human thumb direction holds MCP at
+# 40-50 deg. Rotating the human thumb directions trades MCP flexion against thumb
+# direction fidelity. Axis = lateral + (-normal) in palm coordinates (lateral,
+# distal, normal), i.e. halfway between the two; positive angles lower thumb MCP.
+# Chosen (not fitted); on 2026-11-09
+# right-glove data it matches a free-axis fit, while lateral or normal alone either
+# leave MCP at 50 deg or keep it high during pinches.
+# Replay of that data, MCP median (pinch <35 mm): 0 deg -> 45 (50); 20 -> 38 (46);
+# 30 -> 34 (39); 40 -> 28 (32).
+# Override per launch with thumb_offset_deg:=<deg>.
+thumb_direction_offset:
+  angle_deg: 30.0
+  axis_palm: [1.0, 0.0, -1.0]

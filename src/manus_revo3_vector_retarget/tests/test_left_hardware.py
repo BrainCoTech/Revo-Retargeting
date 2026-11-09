@@ -36,14 +36,15 @@ def test_left_profile_maps_named_joints_and_preserves_feedback(left_robot):
     assert profile.names[:4] == tuple(f"left_little_{j}_joint" for j in ("MPR", "MCP", "PIP", "DIP"))
     assert profile.names[-5:] == tuple(f"left_thumb_{j}_joint" for j in ("MCP", "PIP", "DIP", "CMP", "CMR"))
     assert profile.mapping_metadata["status"] == "provisional_not_physically_calibrated"
-    np.testing.assert_array_equal(profile.scale, np.ones(21))
+    sign = np.array([-1. if "MPR" in name else 1. for name in profile.names])
+    np.testing.assert_array_equal(profile.scale, sign)
     np.testing.assert_array_equal(profile.offset, np.zeros(21))
     q = profile.model_lower + np.linspace(.2, .8, 21) * (profile.model_upper - profile.model_lower)
     indices = [left_robot.joint_names.index(name) for name in profile.names]
-    np.testing.assert_array_equal(profile.model_to_hardware(q), q[indices])
-    np.testing.assert_array_equal(profile.feedback_to_model(q[indices]), q)
+    np.testing.assert_array_equal(profile.model_to_hardware(q), sign * q[indices])
+    np.testing.assert_array_equal(profile.feedback_to_model(sign * q[indices]), q)
     feedback = profile.lower - .01
-    np.testing.assert_allclose(profile.feedback_to_model(feedback)[indices], feedback)
+    np.testing.assert_allclose(profile.feedback_to_model(feedback)[indices], sign * feedback)
     with pytest.raises(ValueError, match="outside"):
         profile.model_to_hardware(profile.feedback_to_model(feedback))
 
@@ -141,3 +142,21 @@ def test_custom_left_namespace_and_legacy_right_default(left_robot, monkeypatch)
     monkeypatch.setattr(ros_hardware, "_new_controller", lambda *_a, **_k: object())
     legacy = HardwareTransport(SimpleNamespace())
     assert legacy.namespace == "/revo3_right" and legacy.hand_side == "right"
+
+
+@pytest.mark.parametrize("finger", ["index", "middle", "ring", "little"])
+def test_left_positive_hardware_mpr_moves_toward_thumb(finger):
+    from retarget_v2.model import RobotModel
+    with RobotModel(hand_side="left") as robot:
+        profile = HardwareProfile(robot)
+        q_hardware = np.zeros(21)
+        neutral = robot.points(profile.feedback_to_model(q_hardware)).copy()
+        lateral = robot.palm_basis[:, 0]
+        middle, thumb = robot.point_names.index("middle_root"), robot.point_names.index("thumb_root")
+        if np.dot(lateral, neutral[thumb] - neutral[middle]) < 0:
+            lateral = -lateral  # palm lateral axis pointing to the thumb side
+        tip = robot.point_names.index(f"{'pinky' if finger == 'little' else finger}_tip")
+        q_hardware[profile.names.index(f"left_{finger}_MPR_joint")] = np.deg2rad(5)
+        q_model = profile.feedback_to_model(q_hardware)
+        assert np.dot(robot.points(q_model)[tip] - neutral[tip], lateral) > 0
+        np.testing.assert_allclose(profile.model_to_hardware(q_model), q_hardware, atol=1e-15)

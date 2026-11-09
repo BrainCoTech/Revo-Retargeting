@@ -73,6 +73,8 @@ ros2 service call /manus_revo3_retarget_right/enable_retarget std_srvs/srv/SetBo
 | Missing status topic or service | Check workspace setup and matching ROS domains. |
 | Missing `install/setup.bash` or Vector package | Follow the [first-time setup](docs/vector_setup_CN.md). |
 
-Right-hand four-finger hardware MPR positive points toward the thumb. The right Vector profile uses `scale: -1` for these joints. Restart Vector after profile changes; see the [coordinate reference](src/manus_revo3_vector_retarget/README.md#模型和硬件坐标).
+Four-finger hardware MPR positive points toward the thumb on both hands. Both Vector profiles use `scale: -1` for these joints. Restart Vector after profile changes; see the [coordinate reference](src/manus_revo3_vector_retarget/README.md#模型和硬件坐标).
+
+Both thumbs use a 30° direction offset by default so MCP can come down during opposition. Append `thumb_offset_deg:=<deg>` to tune it (larger lowers MCP); see [thumb direction offset](src/manus_revo3_vector_retarget/README.md#拇指方向补偿).
 
 Direct output is the default. Append `interpolate:=true` to enable 200 Hz interpolation and a two-second startup ramp.
